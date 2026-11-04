@@ -2194,6 +2194,7 @@ const COMMAND_USAGE = {
   compare: 'architecture <base.json> <head.json> [output.html] [--receipt path] [--json] [--quality standard|showcase] [--repo-root path]',
   deliver: '<type> <input.json> [output.html] [--json] [--open] [--quality standard|showcase] [--repo-root path]',
   patch: 'explainer <artifact.html> <panel-id> <replacement-file> <output.html> [--json] [--quality standard|showcase] [--repo-root path]',
+  autofix: '<type> <input.json> <output.html> [--json] [--browser-check] [--quality standard|showcase] [--repo-root path]',
   finalize: '<type> <input.json> <output.html> [--json] [--browser-check] [--receipt path] [--out-dir <dir>] [--quality standard|showcase] [--repo-root path] [--candidate-sha256 hex]',
   preview: '<diagram-type (excludes explainer)> <input.json> [output.html] [--no-open] [--quality standard|showcase] [--repo-root path]',
   validate: '<type> <input.json> [--json] [--layout-json] [--quality standard|showcase] [--repo-root path]',
@@ -5996,6 +5997,12 @@ async function commandFinalize(rawArgs) {
   process.exitCode = result.exitCode;
 }
 
+async function commandAutofix(rawArgs) {
+  const autofixScript = path.resolve(__dirname, '../../scripts/archify-autofix.mjs');
+  const result = runNode([autofixScript, ...rawArgs], { cwd: process.cwd() });
+  if (result.status !== 0) exitFrom(result);
+}
+
 function commandExamples(args) {
   const unknown = args.find((arg) => arg.startsWith('--'));
   if (unknown) fail(`Unknown examples option "${unknown}".`);
@@ -7232,6 +7239,9 @@ try {
       break;
     case 'finalize':
       await commandFinalize(args);
+      break;
+    case 'autofix':
+      await commandAutofix(args);
       break;
     case 'preview':
       await commandPreview(args);

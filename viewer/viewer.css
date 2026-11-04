@@ -273,6 +273,23 @@
   --toolbar-menu-bg: #231f18;
 }
 
+/* ==========================================================
+   2.5D SPATIAL ELEVATION TIERS & TRANSLUCENT GLASS DEPTH
+   ========================================================== */
+.spatial-tier-1 {
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.16)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.08));
+}
+.spatial-tier-2 {
+  filter: drop-shadow(0 16px 32px rgba(0, 0, 0, 0.24)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.12));
+}
+.spatial-tier-3 {
+  filter: drop-shadow(0 24px 48px rgba(0, 0, 0, 0.35)) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.18));
+}
+.glass-surface {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
 [data-preset="editorial"][data-theme="light"] {
   --bg: #f2eee5;
   --grid: #d8d0c2;
