@@ -2195,6 +2195,7 @@ const COMMAND_USAGE = {
   deliver: '<type> <input.json> [output.html] [--json] [--open] [--quality standard|showcase] [--repo-root path]',
   patch: 'explainer <artifact.html> <panel-id> <replacement-file> <output.html> [--json] [--quality standard|showcase] [--repo-root path]',
   autofix: '<type> <input.json> <output.html> [--json] [--browser-check] [--quality standard|showcase] [--repo-root path]',
+  chart: '<input.mmd|text> [output.svg]',
   finalize: '<type> <input.json> <output.html> [--json] [--browser-check] [--receipt path] [--out-dir <dir>] [--quality standard|showcase] [--repo-root path] [--candidate-sha256 hex]',
   preview: '<diagram-type (excludes explainer)> <input.json> [output.html] [--no-open] [--quality standard|showcase] [--repo-root path]',
   validate: '<type> <input.json> [--json] [--layout-json] [--quality standard|showcase] [--repo-root path]',
@@ -6003,6 +6004,23 @@ async function commandAutofix(rawArgs) {
   if (result.status !== 0) exitFrom(result);
 }
 
+async function commandChart(rawArgs) {
+  const [inputPath, outputPath] = rawArgs;
+  if (!inputPath) fail('Usage: archify chart <input.mmd|text> [output.svg]');
+  const text = fs.existsSync(inputPath) ? fs.readFileSync(inputPath, 'utf-8') : inputPath;
+  const { compileExplainerChart } = await import('../explainer/charts.mjs');
+  const result = compileExplainerChart(text);
+  if (result.error) {
+    fail(`Chart compilation failed: ${result.error}`);
+  }
+  if (outputPath) {
+    fs.writeFileSync(outputPath, result.svg, 'utf-8');
+    console.log(`Rendered chart to ${outputPath} (${result.width}x${result.height})`);
+  } else {
+    console.log(result.svg);
+  }
+}
+
 function commandExamples(args) {
   const unknown = args.find((arg) => arg.startsWith('--'));
   if (unknown) fail(`Unknown examples option "${unknown}".`);
@@ -7242,6 +7260,9 @@ try {
       break;
     case 'autofix':
       await commandAutofix(args);
+      break;
+    case 'chart':
+      await commandChart(args);
       break;
     case 'preview':
       await commandPreview(args);
