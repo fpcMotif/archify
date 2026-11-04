@@ -133,8 +133,9 @@ for (let pass = 1; pass <= MAX_PASSES; pass++) {
   candidate = JSON.parse(fs.readFileSync(resolvedCandidate, "utf-8"));
 
   let modified = false;
-  if (fixes.length > 0) {
-    for (const fix of fixes) {
+  const setFixes = fixes.filter(f => f.startsWith("set "));
+  if (setFixes.length > 0) {
+    for (const fix of setFixes) {
       const m = fix.match(/^set\s+(\S+)\s+to\s+(.+)$/);
       if (m) {
         const [, pointer, rawVal] = m;
@@ -142,7 +143,8 @@ for (let pass = 1; pass <= MAX_PASSES; pass++) {
         modified = true;
       }
     }
-  } else if (hasLayoutConstraint && type === "sequence") {
+  }
+  if (!modified && hasLayoutConstraint && type === "sequence") {
     console.log(`[archify-autofix] Applying deterministic sequence auto-spacing...`);
     modified = autoSpaceSequence(candidate);
   }
