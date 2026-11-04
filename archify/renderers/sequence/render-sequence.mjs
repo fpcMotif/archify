@@ -714,8 +714,10 @@ function validateSequence() {
   // Vertical crowding only matters when the arrows share horizontal space;
   // disjoint arrows may legitimately run in parallel rows.
   const placed = asArray(sequence.messages)
-    .filter((m) => participants.has(m.from) && participants.has(m.to))
-    .map((m) => ({
+    .map((m, index) => ({ m, index }))
+    .filter(({ m }) => participants.has(m.from) && participants.has(m.to))
+    .map(({ m, index }) => ({
+      index,
       label: m.label,
       y: m.y,
       x1: Math.min(participants.get(m.from).cx, participants.get(m.to).cx),
@@ -725,7 +727,17 @@ function validateSequence() {
   for (let i = 0; i < placed.length; i += 1) {
     for (let j = i + 1; j < placed.length && placed[j].y - placed[i].y < 28; j += 1) {
       if (placed[i].x1 < placed[j].x2 && placed[j].x1 < placed[i].x2) {
-        problems.push(`Messages "${placed[i].label}" and "${placed[j].label}" are less than 28px apart and share horizontal space — spread their y values.`);
+        const requiredY = placed[i].y + 28;
+        const msg = `Messages "${placed[i].label}" and "${placed[j].label}" are less than 28px apart and share horizontal space — spread their y values.`;
+        problems.push(msg);
+        diagnostics.push({
+          code: 'sequence/message-spacing',
+          severity: 'error',
+          message: msg,
+          subject: { diagramType: 'sequence', messageIndex: placed[j].index, label: placed[j].label },
+          evidence: { currentY: placed[j].y, requiredY, clearance: 28 },
+          supportedFixes: [`set /messages/${placed[j].index}/y to ${requiredY}`],
+        });
       }
     }
   }
