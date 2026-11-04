@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import { spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
@@ -5999,9 +5999,13 @@ async function commandFinalize(rawArgs) {
 }
 
 async function commandAutofix(rawArgs) {
-  const autofixScript = path.resolve(__dirname, '../../scripts/archify-autofix.mjs');
-  const result = runNode([autofixScript, ...rawArgs], { cwd: process.cwd() });
-  if (result.status !== 0) exitFrom(result);
+  const autofixTs = path.resolve(__dirname, '../../scripts/archify-autofix.ts');
+  const autofixMjs = path.resolve(__dirname, '../../scripts/archify-autofix.mjs');
+  const script = fs.existsSync(autofixTs) ? autofixTs : autofixMjs;
+  const result = spawnSync('bun', [script, ...rawArgs], { cwd: process.cwd(), stdio: 'pipe' });
+  if (result.stdout && result.stdout.length) process.stdout.write(result.stdout);
+  if (result.stderr && result.stderr.length) process.stderr.write(result.stderr);
+  process.exit(result.status ?? 0);
 }
 
 async function commandChart(rawArgs) {
