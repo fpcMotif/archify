@@ -9,8 +9,18 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const archifyBin = path.resolve(__dirname, "../archify/bin/archify.mjs");
-
+function findArchifyBin(): string {
+  const candidates = [
+    path.resolve(__dirname, "../archify/bin/archify.mjs"),
+    "/Users/martinfan/devv/archify/archify/bin/archify.mjs",
+    "/Users/martinfan/.agents/skills/archify/bin/archify.mjs",
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return candidates[0];
+}
+const archifyBin = findArchifyBin();
 interface Message {
   id: string;
   from: string;

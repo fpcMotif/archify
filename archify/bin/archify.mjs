@@ -6000,9 +6000,7 @@ async function commandFinalize(rawArgs) {
 
 async function commandAutofix(rawArgs) {
   const autofixTs = path.resolve(__dirname, '../../scripts/archify-autofix.ts');
-  const autofixMjs = path.resolve(__dirname, '../../scripts/archify-autofix.mjs');
-  const script = fs.existsSync(autofixTs) ? autofixTs : autofixMjs;
-  const result = spawnSync('bun', [script, ...rawArgs], { cwd: process.cwd(), stdio: 'pipe' });
+  const result = spawnSync('bun', [autofixTs, ...rawArgs], { cwd: process.cwd(), stdio: 'pipe' });
   if (result.stdout && result.stdout.length) process.stdout.write(result.stdout);
   if (result.stderr && result.stderr.length) process.stderr.write(result.stderr);
   process.exit(result.status ?? 0);
