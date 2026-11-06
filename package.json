@@ -6,7 +6,6 @@
     "node": ">=18"
   },
   "scripts": {
-    "autofix": "bun scripts/archify-autofix.ts",
     "test": "npm run test:core",
     "test:focus": "node scripts/run-tests.mjs --require-files",
     "test:compat": "npm run test:core",

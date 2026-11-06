@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../shared/utils.mjs';
 import { NODE_CARD_ATTR, nodeCardStyle } from '../shared/node-card-style.mjs';
+import { chooseFix, fixFields, setFix } from '../shared/fixes.mjs';
 import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, loadDiagramWithBrandMarks, writeDiagram, svgAccessibleText, svgRootAttrs } from '../shared/cli.mjs';
 import { componentBox, boundaryBox, connectionPath } from '../shared/layout-report.mjs';
 import { rendererFailure, throwDiagnosticProblems } from '../shared/diagnostics.mjs';
@@ -819,7 +820,8 @@ function validateArchitecture() {
           to: conn.to,
         },
         evidence: { endpoint, unknownNodeId: conn[field], availableNodeIds: knownComponentIds },
-        supportedFixes: candidates.slice(0, 3).map((id) => `set /connections/${connIndex}/${field} to verified node id "${id}"`),
+        ...fixFields(candidates.length ? [chooseFix(candidates.slice(0, 3)
+          .map((id) => setFix(`/connections/${connIndex}/${field}`, id, { label: 'verified node id' })))] : []),
       });
       problems.push(message);
       problems.push(`Connection "${conn.label || conn[field]}" endpoint "${conn[field]}" does not name a declared component.`);

@@ -614,6 +614,7 @@ export function compactFinalizeReceipt(receipt) {
       // Verified repairs may require every edit in the set to be applied together.
       ...(Array.isArray(entry.supportedFixes) && entry.supportedFixes.length
         ? { supportedFixes: [...entry.supportedFixes] } : {}),
+      ...(Array.isArray(entry.edits) && entry.edits.length ? { edits: entry.edits } : {}),
     });
   };
   for (const [index, entry] of allDiagnostics.entries()) {

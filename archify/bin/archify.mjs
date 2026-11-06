@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
@@ -2435,7 +2435,7 @@ function rendererEnv(quality, repoRoot, diagnosticJson = false) {
   };
 }
 
-function diagnostic({ code, message, subject = {}, evidence = {}, supportedFixes = [], severity = 'error' }) {
+function diagnostic({ code, message, subject = {}, evidence = {}, supportedFixes = [], edits, severity = 'error' }) {
   return {
     code,
     severity,
@@ -2443,6 +2443,7 @@ function diagnostic({ code, message, subject = {}, evidence = {}, supportedFixes
     subject,
     evidence,
     supportedFixes,
+    ...(Array.isArray(edits) && edits.length ? { edits } : {}),
   };
 }
 
@@ -5887,7 +5888,7 @@ function extractCandidateSha256Args(args) {
   return { rest, candidateSha256 };
 }
 
-async function commandFinalize(rawArgs) {
+async function finalizeAttempt(rawArgs) {
   const qualityArgs = extractQualityArgs(rawArgs);
   const repoArgs = extractRepoRootArgs(qualityArgs.rest);
   const outDirArgs = extractOutDirArgs(repoArgs.rest);
@@ -5975,35 +5976,68 @@ async function commandFinalize(rawArgs) {
       }],
       visualReview: 'not-requested',
     };
-    if (json) console.log(JSON.stringify(failure));
-    else console.error(formatDiagnostics('finalize could not start', failure.diagnostics));
-    process.exitCode = 1;
-    return;
+    return { json, type, input, exitCode: 1, started: false, summary: failure, receipt: failure };
   } finally {
     if (explainerTemporary) await explainerTemporary.cleanup();
   }
-
-  if (json) {
-    console.log(JSON.stringify(result.summary));
-  } else {
-    console.log(`finalize ${result.summary.status}: ${result.summary.artifact.path}`);
-    console.log(`gates ${Object.entries(result.summary.gates).map(([stage, status]) => `${stage}:${status}`).join(' ')}`);
-    console.log(`receipt ${result.summary.evidence.receipt}`);
-    console.log(`perceptual visual review ${result.summary.visualReview}`);
-    for (const entry of result.summary.diagnostics || []) {
-      if (entry.severity === 'warning') console.error(`warning [${entry.code}] ${entry.message}`);
-    }
-    if (result.summary.update?.noticeRequired) console.log(result.summary.update.noticeText);
-  }
-  process.exitCode = result.exitCode;
+  return { json, type, input, exitCode: result.exitCode, started: true, summary: result.summary, receipt: result.receipt };
 }
 
+async function commandFinalize(rawArgs) {
+  const { json, exitCode, started, summary } = await finalizeAttempt(rawArgs);
+  if (!started) {
+    if (json) console.log(JSON.stringify(summary));
+    else console.error(formatDiagnostics('finalize could not start', summary.diagnostics));
+    process.exitCode = exitCode;
+    return;
+  }
+  if (json) {
+    console.log(JSON.stringify(summary));
+  } else {
+    console.log(`finalize ${summary.status}: ${summary.artifact.path}`);
+    console.log(`gates ${Object.entries(summary.gates).map(([stage, status]) => `${stage}:${status}`).join(' ')}`);
+    console.log(`receipt ${summary.evidence.receipt}`);
+    console.log(`perceptual visual review ${summary.visualReview}`);
+    for (const entry of summary.diagnostics || []) {
+      if (entry.severity === 'warning') console.error(`warning [${entry.code}] ${entry.message}`);
+    }
+    if (summary.update?.noticeRequired) console.log(summary.update.noticeText);
+  }
+  process.exitCode = exitCode;
+}
+
+const AUTOFIX_MAX_PASSES = 4;
+
 async function commandAutofix(rawArgs) {
-  const autofixTs = path.resolve(__dirname, '../../scripts/archify-autofix.ts');
-  const result = spawnSync('bun', [autofixTs, ...rawArgs], { cwd: process.cwd(), stdio: 'pipe' });
-  if (result.stdout && result.stdout.length) process.stdout.write(result.stdout);
-  if (result.stderr && result.stderr.length) process.stderr.write(result.stderr);
-  process.exit(result.status ?? 0);
+  const json = rawArgs.includes('--json');
+  if (rawArgs[0] === 'explainer') rejectCliArgument('autofix repairs JSON diagram candidates; explainer is not supported.', {
+    code: 'cli/unsupported-type',
+    subject: { type: 'explainer' },
+    supportedFixes: ['run archify finalize explainer and apply its diagnostics by hand'],
+  });
+  const { applyRepairs } = await import('../renderers/shared/fixes.mjs');
+  const passes = [];
+  let attempt;
+  for (let pass = 1; pass <= AUTOFIX_MAX_PASSES; pass += 1) {
+    attempt = await finalizeAttempt(rawArgs);
+    if (attempt.exitCode === 0) break;
+    const candidatePath = path.resolve(attempt.input);
+    const candidate = JSON.parse(fs.readFileSync(candidatePath, 'utf8'));
+    const { candidate: repaired, applied, skipped } = applyRepairs(candidate, attempt.receipt.diagnostics);
+    passes.push({ pass, applied, skipped });
+    if (!json) {
+      for (const entry of applied) console.log(`pass ${pass}: applied ${entry.code}: ${entry.edits.map((edit) => `${edit.pointer} = ${JSON.stringify(edit.value)}`).join(', ')}`);
+      for (const entry of skipped) console.error(`pass ${pass}: left for the agent ${entry.code}: ${entry.reason}`);
+    }
+    if (!applied.length) break;
+    fs.writeFileSync(candidatePath, `${JSON.stringify(repaired, null, 2)}\n`);
+    if (pass === AUTOFIX_MAX_PASSES) attempt = await finalizeAttempt(rawArgs);
+  }
+  const passed = attempt.exitCode === 0;
+  if (json) console.log(JSON.stringify({ ok: passed, passes, summary: attempt.summary }));
+  else if (passed) console.log(`autofix passed: ${attempt.summary.artifact.path}`);
+  else console.error(formatDiagnostics('autofix stopped with diagnostics left for the agent', attempt.summary.diagnostics || []));
+  process.exitCode = passed ? 0 : 1;
 }
 
 async function commandChart(rawArgs) {

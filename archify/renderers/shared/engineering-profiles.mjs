@@ -1,4 +1,5 @@
 import { throwDiagnosticError } from './diagnostics.mjs';
+import { adviseFix, fixFields } from './fixes.mjs';
 
 const DEPLOYMENT_PROFILE = 'deployment-ownership';
 const DEPLOYMENT_BOUNDARY_KINDS = new Set(['region', 'security-group']);
@@ -49,7 +50,7 @@ export function deploymentOwnershipDiagnostics(diagram) {
         message: `Deployment component ${JSON.stringify(component.id)} does not name its owner in tag.`,
         subject: subject('components', index, component),
         evidence: { componentType: component.type, ownerField: 'tag' },
-        supportedFixes: [`set /components/${index}/tag to the responsible team or owner`],
+        ...fixFields([adviseFix(`set /components/${index}/tag to the responsible team or owner`)]),
       });
     }
 
@@ -137,7 +138,7 @@ export function deploymentOwnershipDiagnostics(diagram) {
         to: connection.to,
         crossedBoundaries: crossedBoundaries.map(({ boundaryIndex, kind, label }) => ({ boundaryIndex, kind, label })),
       },
-      supportedFixes: [`set /connections/${index}/label to the real cross-boundary mechanism`],
+      ...fixFields([adviseFix(`set /connections/${index}/label to the real cross-boundary mechanism`)]),
     });
   });
 
