@@ -9,6 +9,7 @@ import { textUnits, SEMANTIC_SIGIL_FOOTPRINT } from '../renderers/shared/utils.m
 import { minimumNodeTextWidth } from '../renderers/shared/text-fit.mjs';
 import { throwDiagnosticError } from '../renderers/shared/diagnostics.mjs';
 import { createOwnedTempDirectory } from '../renderers/shared/owned-temp-directory.mjs';
+import { checkArtifact } from '../scripts/check-render-output.mjs';
 
 const runFile = promisify(execFile);
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -480,9 +481,7 @@ export async function prepareExplainerDiagrams(document, { repoRoot, baseDir, qu
       try { validateSchema(block.diagramType, spec); } catch (error) { rethrowNative(error, context, 'diagram-schema'); }
       fs.writeFileSync(input, JSON.stringify(spec), { flag: 'wx' });
       await nativeProcess(path.join(skillRoot, 'renderers', block.diagramType, `render-${block.diagramType}.mjs`), [input, output], { repoRoot, quality, cwd: temporary.path }, context, 'diagram-render');
-      const checked = await nativeProcess(path.join(skillRoot, 'scripts/check-render-output.mjs'), [output], { repoRoot, quality, cwd: temporary.path }, context, 'diagram-check');
-      let check;
-      try { check = JSON.parse(checked.stdout); } catch { fail(context, 'diagram-check-receipt', 'Native checker returned no structured receipt.', 'Rerun the native diagram check.'); }
+      const check = checkArtifact(fs.readFileSync(output), { file: output });
       if (check.ok === false) rethrowNative(check, context, 'diagram-check');
       const bytes = fs.readFileSync(output);
       if (bytes.length > MAX_DIAGRAM_BYTES) fail(context, 'diagram-artifact-size', 'The native diagram artifact exceeds 32 MiB.', 'Use a smaller native diagram.');

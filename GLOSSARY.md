@@ -8,6 +8,18 @@ Archify turns an authored diagram description into a checked, standalone HTML di
 The authored diagram JSON that is checked before delivery and that repairs change.
 _Avoid_: input, source, spec
 
+**Artifact**:
+The standalone HTML file rendered from a candidate and delivered to the reader.
+_Avoid_: output, page, render
+
+**Artifact check**:
+The static check of an artifact's bytes that returns a receipt with a pass or fail verdict.
+_Avoid_: checker run, render check, validation
+
+**Browser check**:
+The check that opens an artifact in a real browser and measures what it shows.
+_Avoid_: visual check, screenshot check
+
 **Diagnostic**:
 A coded finding about a candidate or its rendered output, with a subject, measured evidence and fixes.
 _Avoid_: error, issue, warning (severity is a field of a diagnostic, not a separate kind)

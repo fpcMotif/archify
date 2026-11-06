@@ -206,18 +206,26 @@ test('public post-render checker failures retain the locale warning once', t => 
   document.meta.locale = 'en-US';
   fs.writeFileSync(input, JSON.stringify(document));
   fs.writeFileSync(output, 'trusted artifact');
+  const failingChecker = 'export function checkArtifact(bytes, { file } = {}) { return { ok: false, file, checks: [{ name: "forced", ok: false, details: ["forced checker failure"] }] }; }';
+  const hooks = path.join(cwd, 'failing-checker-hooks.mjs');
+  fs.writeFileSync(hooks, `export async function load(url, context, next) {
+  if (url.endsWith('/scripts/check-render-output.mjs')) return { format: 'module', shortCircuit: true, source: ${JSON.stringify(failingChecker)} };
+  return next(url, context);
+}
+`);
+  const register = path.join(cwd, 'register-failing-checker.mjs');
+  fs.writeFileSync(register, `import { register } from 'node:module';\nregister(${JSON.stringify(new URL(`file://${hooks}`).href)});\n`);
   for (const command of ['validate', 'deliver']) {
-    const result = spawnSync(process.execPath, [cli, command, 'architecture', input, ...(command === 'deliver' ? [output] : []), '--json'], {
+    const result = spawnSync(process.execPath, ['--no-deprecation', '--import', register, cli, command, 'architecture', input, ...(command === 'deliver' ? [output] : []), '--json'], {
       cwd,
       encoding: 'utf8',
-      env: { ...process.env, ARCHIFY_CHECK_MAX_BUFFER: '1' },
     });
     assert.notEqual(result.status, 0);
     const receipt = JSON.parse(result.stdout);
     assert.equal(receipt.ok, false);
     assert.equal(receipt.stage, 'check');
-    assert.ok(receipt.diagnostics.some(entry => entry.code === 'artifact/check-output-limit'));
-    assert.equal(result.stderr.trim().split('\n').length, 1);
+    assert.ok(receipt.diagnostics.some(entry => entry.message.includes('forced checker failure')), result.stdout);
+    assert.equal(result.stderr.trim().split('\n').length, 1, result.stderr);
     assert.match(result.stderr, /^archify: meta\.locale "en-US"/);
     assert.equal(fs.readFileSync(output, 'utf8'), 'trusted artifact');
   }

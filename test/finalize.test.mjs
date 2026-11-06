@@ -1328,8 +1328,9 @@ test('runFinalize reads the capture limit from the supplied env, not process.env
     },
   });
 
-  assert.equal(overflowed.receipt.stages.validate.status, 'fail');
-  assert.equal(overflowed.receipt.stages.validate.receipt.diagnostics[0].code, 'artifact/check-output-limit');
+  assert.equal(overflowed.receipt.stages.validate.status, 'pass');
+  assert.equal(overflowed.receipt.stages.check.status, 'fail');
+  assert.equal(overflowed.receipt.stages.check.exitCode, 1);
 });
 
 test('compact review and repair guidance follow the mode and the failing diagnostics', () => {

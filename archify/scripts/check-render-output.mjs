@@ -6,6 +6,7 @@ import { analyzeSvgPath } from '../renderers/shared/svg-path-analysis.mjs';
 import { textUnits } from '../renderers/shared/utils.mjs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { collectAmbiguousCorridors, collectArrowheadCollisions, collectBorderRuns, collectLabelCanvasOverflow, collectLabelRouteClearance, collectRouteRhythmIssues, describeLabelCanvasOverflow, formatRect, forwardCollinearAnalysisSegments, minimumLabelRouteClearance, normalizeRoutePoints, routeBudgetMetrics } from '../renderers/shared/geometry.mjs';
 import {
   DESKTOP_READABILITY_VIEWPORT,
@@ -18,68 +19,6 @@ import {
   projectedNodeTextPx,
 } from '../renderers/shared/desktop-readability.mjs';
 
-const input = process.argv[2];
-
-if (!input || input === '-h' || input === '--help') {
-  console.error('Usage: node scripts/check-render-output.mjs <diagram.html>');
-  process.exit(input ? 0 : 2);
-}
-
-const htmlPath = path.resolve(input);
-let html;
-let artifact;
-try {
-  const bytes = fs.readFileSync(htmlPath);
-  html = bytes.toString('utf8');
-  artifact = { sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.byteLength };
-} catch (err) {
-  console.error(JSON.stringify({
-    ok: false,
-    file: htmlPath,
-    checks: [{ name: 'file_readable', ok: false, details: [err.message] }],
-  }, null, 2));
-  process.exit(1);
-}
-
-if (isExplainerHtml(html)) {
-  const result = checkExplainerHtml(html, { file: htmlPath });
-  console.log(JSON.stringify(result, null, 2));
-  process.exit(result.ok ? 0 : 1);
-}
-
-const checks = [];
-const pathDiagnostics = [];
-const pathAnalyses = new Map();
-let composition = {
-  schemaVersion: 1,
-  profile: 'standard',
-  status: 'pass',
-  summary: { errors: 0, warnings: 0 },
-  metrics: {
-    properCrossings: 0,
-    resolvedCrossovers: 0,
-    ambiguousCorridors: 0,
-    containerBorderRuns: 0,
-    labelRouteClearanceIssues: 0,
-    minLabelRouteClearance: null,
-    labelCanvasOverflowIssues: 0,
-    maxBends: 0,
-    routesOverSuggestedBends: 0,
-    maxStretch: null,
-    routesOverSuggestedStretch: 0,
-    minSegmentPx: null,
-    minInteriorSegmentPx: null,
-    shortSegmentCount: 0,
-    shortEndpointSegmentCount: 0,
-    shortInteriorSegmentCount: 0,
-    microSegmentCount: 0,
-    desktopReadabilityIssues: 0,
-    minProjectedNodeTextPx: null,
-  },
-  suggestedLimits: { bendsPerRelationship: 2, stretch: 1.35, segmentPx: 16, microSegmentPx: 8 },
-  issues: [],
-};
-
 const NON_FINITE_TOKEN = /\b(?:NaN|undefined|Infinity)\b/;
 // Consume comments/CDATA as whole tokens, including any tag-like prose.
 const SVG_TAG_TOKEN = /<!--[\s\S]*?(?:-->|$)|<!\[CDATA\[[\s\S]*?(?:\]\]>|$)|<(\/?)([A-Za-z][\w:-]*)(?=[\s/>])(?:[^>"']|"[^"]*"|'[^']*')*>/g;
@@ -87,7 +26,6 @@ const AUTOMATIC_CROSSOVER_UNDERLAY_TAG = /<path\b[^>]*\bdata-graph-role="automat
 const HTML_VOID_ELEMENTS = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
 const SVG_HTML_INTEGRATION_POINTS = new Set(['foreignobject', 'desc', 'title']);
 const HTML_ATTRIBUTE = /([A-Za-z_:][\w:.-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/g;
-const readerContract = readerContractFromHtml(html);
 const NUMERIC_ATTRS = new Set([
   'x', 'y', 'x1', 'y1', 'x2', 'y2', 'dx', 'dy', 'cx', 'cy', 'r', 'rx', 'ry', 'fx', 'fy',
   'fr', 'width', 'height', 'd', 'points', 'pathlength', 'transform', 'viewbox', 'offset',
@@ -108,350 +46,412 @@ const ELEMENT_NUMERIC_ATTRS = new Map([
   ['fespotlight', new Set(['z'])],
 ]);
 
-function addCheck(name, ok, details = []) {
-  checks.push({ name, ok, details });
-}
-
-const svgMatches = [...html.matchAll(/<svg\b[\s\S]*?<\/svg>/gi)];
-addCheck('single_svg', svgMatches.length === 1, [`found ${svgMatches.length} <svg> block(s)`]);
-
-if (svgMatches.length === 1) {
-  const svg = svgMatches[0][0];
-  const svgRoot = svg.match(/<svg\b[^>]*>/i)?.[0] || '';
-  const svgAttrs = parseAttrs(svgRoot);
-  const qualityProfile = svgAttrs['data-quality-profile'] || 'standard';
-  const workflowV2 = svgAttrs['data-layout-contract'] === 'readable-v2';
-  const qualityGatesEnforced = svgAttrs['data-quality-gates'] !== 'advisory';
-  const nonFiniteAttrs = collectNonFiniteAttrs(svg);
-  addCheck('finite_svg', nonFiniteAttrs.length === 0, nonFiniteAttrs);
-  const legendStart = svg.indexOf('<!-- Legend -->');
-  const beforeLegend = legendStart >= 0 ? svg.slice(0, legendStart) : svg;
-  const desktopReadability = collectDesktopReadability(svgAttrs, beforeLegend, readerContract);
-  const desktopReadabilityIssue = desktopReadability.issue;
-  // The browser gate measures this later; the geometry is already certain here.
-  const viewportHeightIssue = predictedFixedWidthOverflow({
-    viewBoxWidth: viewBoxSize(svgAttrs)[0],
-    viewBoxHeight: viewBoxSize(svgAttrs)[1],
-    readerFit: svgAttrs['data-reader-fit'] || null,
-    diagramType: svgAttrs['data-diagram-type'] || null,
-  });
-  const arrows = collectArrows(beforeLegend, workflowV2);
-  const diagonal = arrows.flatMap((arrow) => diagonalStraightSegments(arrow).map((segment) => ({ arrow, ...segment })));
-  addCheck(
-    'orthogonal_arrows',
-    diagonal.length === 0,
-    diagonal.map(({ arrow, segmentIndex }) => `${arrow.kind} ${arrow.index} segment ${segmentIndex + 1}: expected an orthogonal segment or an explicitly authored direct straight route; ${arrow.raw}`),
-  );
-  const measuredRelationshipCrossings = collectRelationshipCrossings(arrows, workflowV2);
-  const resolvedCrossovers = measuredRelationshipCrossings.filter((hit) => (
-    hit.left.crossoverHalo && hit.right.crossoverHalo
-  ));
-  const relationshipCrossings = measuredRelationshipCrossings.filter((hit) => (
-    !hit.left.crossoverHalo || !hit.right.crossoverHalo
-  ));
-  const compositionFrames = collectCompositionFrames(beforeLegend);
-  const containerBorderRuns = collectBorderRuns({
-    routedRelations: arrows
-      .filter((arrow) => arrow.from && arrow.to && arrow.borderSegments.length)
-      .map((arrow) => ({
-        relation: arrow,
-        relationIndex: arrow.index,
-        segments: arrow.borderSegments,
-      })),
-    frames: compositionFrames,
-  });
-  const routedRelationships = arrows
-    .filter((arrow) => arrow.from && arrow.to && arrow.routeSubpaths.some(points => points.length > 1))
-    .map((arrow) => ({ relation: arrow, relationIndex: arrow.index, points: arrow.routePoints }));
-  const nodeRects = svgAttrs.transform ? [] : collectUntransformedNodeRects(beforeLegend);
-  const routeMetrics = subpathBudgetMetrics(routedRelationships);
-  // Architecture marks only one of its two Reader fits with its type.
-  const crowdedSides = svgAttrs['data-diagram-type'] === 'architecture' || svgAttrs['data-reader-primary-text'] === '14'
-    ? crowdedNodeSides(arrows, nodeRects) : [];
-  const routeRhythmIssues = subpathRhythmIssues(routedRelationships);
-  const ambiguousCorridors = subpathCorridors({
-    routedRelations: routedRelationships,
-    includeSharedEndpoints: (left, right) => workflowV2 || (left.independentPorts && right.independentPorts),
-    allowShortWorkflowTrunks: workflowV2,
-    includeSharedEndpointCounterflow: (left, right) => left.automaticWorkflowRoute && right.automaticWorkflowRoute,
-  });
-  const arrowheadCollisions = collectArrowheadCollisions({
-    routedRelations: routedRelationships.filter((entry) => workflowV2 || entry.relation.independentPorts)
-      .flatMap(entry => routeParts(entry).filter(part => part.targetEndpoint)),
-    allowShortWorkflowTrunks: workflowV2,
-  });
-  const relationshipLabels = collectRelationshipLabelMasks(beforeLegend, arrows);
-  const leadingSpace = collectArchitectureLeadingSpace({
-    svgAttrs, fragment: beforeLegend, nodeRects, frames: compositionFrames,
-    arrows, labels: relationshipLabels,
-  });
-  const sequenceColumnSpace = collectSequenceColumnSpace({ svgAttrs, fragment: beforeLegend, nodeRects, arrows });
-  const sequenceNoteBorders = collectSequenceNoteBorders({ svgAttrs, fragment: beforeLegend, frames: compositionFrames, arrows });
-  const labelClearanceThreshold = qualityProfile === 'showcase' ? 4 : 2;
-  const labelRouteMeasurements = subpathLabelClearance({
-    labels: relationshipLabels,
-    routedRelations: arrows.map((arrow) => ({ relation: arrow, relationIndex: arrow.index, points: arrow.routePoints })),
-    threshold: Number.MAX_VALUE,
-  });
-  const labelRouteClearance = subpathLabelClearance({
-    labels: relationshipLabels,
-    routedRelations: arrows.map((arrow) => ({ relation: arrow, relationIndex: arrow.index, points: arrow.routePoints })),
-    threshold: labelClearanceThreshold,
-  });
-  // The renderers bound their own label rects, but `check` also re-measures an
-  // artifact it did not produce; see collectLabelCanvasOverflow in
-  // shared/geometry.mjs.
-  const labelCanvasOverflow = collectLabelCanvasOverflow({
-    labels: relationshipLabels,
-    viewBox: viewBoxRect(svgAttrs),
-  });
-  const crossingIsError = qualityProfile === 'showcase';
-  const corridorIsError = qualityProfile === 'showcase';
-  const rhythmIsError = qualityProfile === 'showcase';
-  const labelClearanceIsError = qualityProfile === 'showcase';
-  const labelContainmentIsError = qualityProfile === 'showcase';
-  const desktopReadabilityIsError = qualityProfile === 'showcase';
-  // Certain geometry, but new: surface it as evidence first (CONTRIBUTING.md#product-and-compatibility-contracts).
-  const viewportHeightIsError = false;
-  const compositionErrors = (qualityGatesEnforced ? containerBorderRuns.length : 0)
-    + (crossingIsError ? relationshipCrossings.length : 0)
-    + (corridorIsError ? ambiguousCorridors.length + arrowheadCollisions.length : 0)
-    + (labelClearanceIsError ? labelRouteClearance.length : 0)
-    + (labelContainmentIsError ? labelCanvasOverflow.length : 0)
-    + (rhythmIsError ? routeRhythmIssues.length : 0)
-    + (desktopReadabilityIsError && desktopReadabilityIssue ? 1 : 0)
-    + (viewportHeightIsError && viewportHeightIssue ? 1 : 0);
-  const compositionWarnings = (qualityGatesEnforced ? 0 : containerBorderRuns.length)
-    + (crossingIsError ? 0 : relationshipCrossings.length)
-    + (corridorIsError ? 0 : ambiguousCorridors.length + arrowheadCollisions.length)
-    + (labelClearanceIsError ? 0 : labelRouteClearance.length)
-    + (labelContainmentIsError ? 0 : labelCanvasOverflow.length)
-    + (rhythmIsError ? 0 : routeRhythmIssues.length)
-    + (desktopReadabilityIsError || !desktopReadabilityIssue ? 0 : 1)
-    + (viewportHeightIsError || !viewportHeightIssue ? 0 : 1);
-  composition = {
+export function checkArtifact(bytes, { file } = {}) {
+  const html = Buffer.from(bytes).toString('utf8');
+  if (isExplainerHtml(html)) return checkExplainerHtml(html, { file });
+  const artifact = { sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.byteLength };
+  const checks = [];
+  const pathState = { analyses: new Map(), diagnostics: [] };
+  let composition = {
     schemaVersion: 1,
-    profile: qualityProfile,
-    status: compositionErrors ? 'fail' : 'pass',
-    summary: {
-      errors: compositionErrors,
-      warnings: compositionWarnings,
-    },
+    profile: 'standard',
+    status: 'pass',
+    summary: { errors: 0, warnings: 0 },
     metrics: {
-      properCrossings: relationshipCrossings.length,
-      resolvedCrossovers: resolvedCrossovers.length,
-      ambiguousCorridors: ambiguousCorridors.length,
-      arrowheadCollisions: arrowheadCollisions.length,
-      containerBorderRuns: containerBorderRuns.length,
-      labelRouteClearanceIssues: labelRouteClearance.length,
-      labelCanvasOverflowIssues: labelCanvasOverflow.length,
-      minLabelRouteClearance: minimumLabelRouteClearance(labelRouteMeasurements),
-      desktopReadabilityIssues: desktopReadabilityIssue ? 1 : 0,
-      viewportHeightIssues: viewportHeightIssue ? 1 : 0,
-      minProjectedNodeTextPx: desktopReadability.evidence.minimumProjectedTextPx,
-      ...roundedRouteMetrics(routeMetrics),
+      properCrossings: 0,
+      resolvedCrossovers: 0,
+      ambiguousCorridors: 0,
+      containerBorderRuns: 0,
+      labelRouteClearanceIssues: 0,
+      minLabelRouteClearance: null,
+      labelCanvasOverflowIssues: 0,
+      maxBends: 0,
+      routesOverSuggestedBends: 0,
+      maxStretch: null,
+      routesOverSuggestedStretch: 0,
+      minSegmentPx: null,
+      minInteriorSegmentPx: null,
+      shortSegmentCount: 0,
+      shortEndpointSegmentCount: 0,
+      shortInteriorSegmentCount: 0,
+      microSegmentCount: 0,
+      desktopReadabilityIssues: 0,
+      minProjectedNodeTextPx: null,
     },
     suggestedLimits: { bendsPerRelationship: 2, stretch: 1.35, segmentPx: 16, microSegmentPx: 8 },
-    // Perceptual review needs the affected relationships, not just a total.
-    // These are review evidence, not new pass/fail thresholds: a short, clear
-    // crossover can be preferable to a long crossing-free detour.
-    routeReview: {
-      crossings: resolvedCrossovers.map((hit) => {
-        const shared = [hit.left.from, hit.left.to].find((id) => id && (id === hit.right.from || id === hit.right.to));
-        return {
-          left: relationshipRecord(hit.left),
-          right: relationshipRecord(hit.right),
-          point: hit.point,
-          ...(shared ? { sharedNode: shared } : {}),
-        };
-      }),
-      ...(crowdedSides.length ? { crowdedSides } : {}),
-      detours: routedRelationships.flatMap((entry) => {
-        const metrics = subpathBudgetMetrics([entry]);
-        const blockers = directCorridorBlockers(entry.relation, nodeRects);
-        return metrics.routesOverSuggestedBends || metrics.routesOverSuggestedStretch ? [{
-          relationship: relationshipRecord(entry.relation),
-          bends: metrics.maxBends,
-          stretch: metrics.maxStretch == null ? null : Math.round(metrics.maxStretch * 1000) / 1000,
-          ...(blockers.length ? { directCorridorBlockers: blockers } : {}),
-        }] : [];
-      }),
-    },
-    leadingSpace,
-    ...(sequenceColumnSpace ? { sequenceColumnSpace } : {}),
-    ...(sequenceNoteBorders.length ? { sequenceNoteBorders } : {}),
-    desktopReadability: desktopReadability.evidence,
-    issues: [
-      ...containerBorderRuns.map((hit) => ({
-        severity: qualityGatesEnforced ? 'error' : 'warning',
-        code: 'composition/container-border-run',
-        relationship: relationshipRecord(hit.relation),
-        frame: frameRecord(hit.frame),
-        side: hit.side,
-        segmentIndex: hit.segmentIndex,
-        overlapLength: Math.round(hit.overlapLength * 10) / 10,
-        from: hit.overlapStart.map((value) => Math.round(value * 10) / 10),
-        to: hit.overlapEnd.map((value) => Math.round(value * 10) / 10),
-      })),
-      ...labelRouteClearance.map((hit) => ({
-        severity: labelClearanceIsError ? 'error' : 'warning',
-        code: 'composition/label-route-clearance',
-        label: hit.label?.label || hit.labelRelation?.label || '',
-        labelRelationship: relationshipRecord(hit.labelRelation),
-        otherRelationship: relationshipRecord(hit.otherRelation),
-        segmentIndex: hit.segmentIndex,
-        labelRect: roundedRect(hit.rect),
-        clearance: Math.round(hit.clearance * 10) / 10,
-        intersectionLength: Math.round((hit.intersectionLength || 0) * 10) / 10,
-        threshold: hit.threshold,
-        from: hit.start.map((value) => Math.round(value * 10) / 10),
-        to: hit.end.map((value) => Math.round(value * 10) / 10),
-      })),
-      ...labelCanvasOverflow.map((hit) => {
-        const label = hit.label?.label || hit.relation?.label || '';
-        return {
-          severity: labelContainmentIsError ? 'error' : 'warning',
-          code: 'composition/label-canvas-containment',
-          label,
-          relationship: relationshipRecord(hit.relation),
-          labelRect: roundedRect(hit.rect),
-          viewBox: hit.viewBox,
-          viewBoxOrigin: hit.viewBoxOrigin,
-          overflowPx: hit.overflowPx,
-          detail: `[composition/label-canvas-containment] ${qualityProfile} label "${label}" on ${relationshipName(hit.relation)} extends past the ${describeLabelCanvasOverflow(hit)} (label rect ${formatRect(hit.rect)}; viewBox ${hit.viewBox[0]}x${hit.viewBox[1]}${hit.viewBoxOrigin.some(Boolean) ? ` at ${hit.viewBoxOrigin[0]},${hit.viewBoxOrigin[1]}` : ''}) — use renderer-supported label controls (shorten the label or reorder participants for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or enlarge meta.viewBox.`,
-        };
-      }),
-      ...relationshipCrossings.map((hit) => ({
-        severity: crossingIsError ? 'error' : 'warning',
-        code: 'composition/proper-crossing',
-        relationship: relationshipRecord(hit.left),
-        otherRelationship: relationshipRecord(hit.right),
-        point: hit.point.map((value) => Math.round(value * 10) / 10),
-      })),
-      ...ambiguousCorridors.map((hit) => ({
-        severity: corridorIsError ? 'error' : 'warning',
-        code: 'composition/ambiguous-corridor',
-        relationship: relationshipRecord(hit.left.relation),
-        otherRelationship: relationshipRecord(hit.right.relation),
-        segmentIndex: hit.leftSegment,
-        otherSegmentIndex: hit.rightSegment,
-        overlapLength: Math.round(hit.overlapLength * 10) / 10,
-        from: hit.overlapStart.map((value) => Math.round(value * 10) / 10),
-        to: hit.overlapEnd.map((value) => Math.round(value * 10) / 10),
-      })),
-      ...arrowheadCollisions.map((hit) => ({
-        severity: corridorIsError ? 'error' : 'warning',
-        code: 'composition/arrowhead-collision',
-        relationship: relationshipRecord(hit.left.relation),
-        otherRelationship: relationshipRecord(hit.right.relation),
-        distancePx: hit.distance,
-        minimumPx: hit.minimum,
-        endpoints: [hit.left.tip, hit.right.tip],
-      })),
-      ...routeRhythmIssues.map((hit) => ({
-        severity: rhythmIsError ? 'error' : 'warning',
-        code: hit.code,
-        relationship: relationshipRecord(hit.relation),
-        segmentIndex: hit.segmentIndex,
-        position: hit.position,
-        length: Math.round(hit.length * 10) / 10,
-        from: hit.start.map((value) => Math.round(value * 10) / 10),
-        to: hit.end.map((value) => Math.round(value * 10) / 10),
-      })),
-      ...(desktopReadabilityIssue ? [{
-        severity: desktopReadabilityIsError ? 'error' : 'warning',
-        code: 'composition/desktop-readability',
-        ...(desktopReadabilityIssue.nodeId ? { nodeId: desktopReadabilityIssue.nodeId } : {}),
-        owner: desktopReadabilityIssue.owner,
-        viewportWidth: DESKTOP_READABILITY_VIEWPORT.width,
-        viewportHeight: DESKTOP_READABILITY_VIEWPORT.height,
-        availableDiagramWidth: desktopReadability.evidence.availableDiagramWidth,
-        budgetBasis: desktopReadability.evidence.budgetBasis,
-        readerContract: desktopReadability.evidence.readerContract,
-        requestedTargetPx: desktopReadability.evidence.requestedTargetPx,
-        requestedTargetMet: desktopReadability.evidence.requestedTargetMet,
-        budgetLimit: desktopReadability.evidence.limit,
-        viewBoxWidth: desktopReadabilityIssue.viewBoxWidth,
-        scale: desktopReadabilityIssue.scale,
-        text: desktopReadabilityIssue.text,
-        detail: desktopReadabilityIssue.detail,
-        sourceFontPx: desktopReadabilityIssue.sourceFontPx,
-        projectedFontPx: desktopReadabilityIssue.projectedFontPx,
-        minimumProjectedFontPx: MIN_PROJECTED_NODE_TEXT_PX,
-      }] : []),
-      ...(viewportHeightIssue ? [{
-        severity: viewportHeightIsError ? 'error' : 'warning',
-        code: 'composition/viewport-height',
-        readerFit: svgAttrs['data-reader-fit'] || null,
-        viewBoxWidth: viewBoxSize(svgAttrs)[0],
-        viewBoxHeight: viewBoxSize(svgAttrs)[1],
-        ...viewportHeightIssue,
-        detail: `[composition/viewport-height] ${describeFixedWidthOverflow({ ...viewportHeightIssue, viewBoxWidth: viewBoxSize(svgAttrs)[0], viewBoxHeight: viewBoxSize(svgAttrs)[1] })}`,
-      }] : []),
-    ],
+    issues: [],
   };
-  addCheck(
-    'label_route_clearance',
-    !labelClearanceIsError || labelRouteClearance.length === 0,
-    labelRouteClearance.map((hit) => (
-      `[composition/label-route-clearance] ${qualityProfile} label "${hit.label?.label || hit.labelRelation?.label || ''}" on ${relationshipName(hit.labelRelation)} is ${Math.round(hit.clearance * 10) / 10}px from ${relationshipName(hit.otherRelation)} segment ${hit.segmentIndex} [${formatPoint(hit.start)}] -> [${formatPoint(hit.end)}]${hit.intersectionLength > 0 ? ` with ${Math.round(hit.intersectionLength * 10) / 10}px hidden by the mask` : ''} (minimum ${hit.threshold}px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel.`
-    )),
-  );
-  addCheck(
-    'relationship_crossings',
-    !crossingIsError || relationshipCrossings.length === 0,
-    relationshipCrossings.map((hit) => (
-      `[composition/proper-crossing] ${qualityProfile} ${relationshipName(hit.left)} crosses ${relationshipName(hit.right)} at [${formatPoint(hit.point)}]`
-    )),
-  );
-  addCheck(
-    'relationship_corridors',
-    !corridorIsError || ambiguousCorridors.length + arrowheadCollisions.length === 0,
-    [...ambiguousCorridors.map((hit) => (
-      `[composition/ambiguous-corridor] ${qualityProfile} ${relationshipName(hit.left.relation)} shares a ${Math.round(hit.overlapLength * 10) / 10}px corridor with ${relationshipName(hit.right.relation)} at [${formatPoint(hit.overlapStart)}] -> [${formatPoint(hit.overlapEnd)}]`
-    )), ...arrowheadCollisions.map((hit) => (
-      `[composition/arrowhead-collision] ${qualityProfile} ${relationshipName(hit.left.relation)} and ${relationshipName(hit.right.relation)} have incoming arrowheads ${hit.distance}px apart (minimum ${hit.minimum}px) — enlarge or reposition the destination, or choose separate toSide ports.`
-    ))],
-  );
-  addCheck(
-    'container_border_runs',
-    !qualityGatesEnforced || containerBorderRuns.length === 0,
-    containerBorderRuns.map((hit) => (
-      `[composition/container-border-run] ${relationshipName(hit.relation)} follows ${frameName(hit.frame)} ${hit.side} border for ${Math.round(hit.overlapLength * 10) / 10}px on segment ${hit.segmentIndex} [${formatPoint(hit.overlapStart)}] -> [${formatPoint(hit.overlapEnd)}]`
-    )),
-  );
-  addCheck(
-    'route_rhythm',
-    !rhythmIsError || routeRhythmIssues.length === 0,
-    routeRhythmIssues.map((hit) => (
-      `[${hit.code}] ${qualityProfile} ${relationshipName(hit.relation)} has a ${Math.round(hit.length * 10) / 10}px ${hit.position} segment ${hit.segmentIndex} [${formatPoint(hit.start)}] -> [${formatPoint(hit.end)}]`
-    )),
-  );
+  const readerContract = readerContractFromHtml(html);
 
-  if (legendStart >= 0) {
-    const legendFragment = svg.slice(legendStart);
-    const legendBoxes = collectLegendBoxes(legendFragment);
-    const collisions = collectLegendCollisions(arrows, legendBoxes);
-    addCheck(
-      'legend_clearance',
-      collisions.length === 0,
-      collisions.map((hit) => `${hit.arrow.kind} ${hit.arrow.index} crosses legend ${hit.box.label}`),
-    );
-  } else {
-    addCheck('legend_clearance', true, ['no legend marker found']);
+  function addCheck(name, ok, details = []) {
+    checks.push({ name, ok, details });
   }
+
+  const svgMatches = [...html.matchAll(/<svg\b[\s\S]*?<\/svg>/gi)];
+  addCheck('single_svg', svgMatches.length === 1, [`found ${svgMatches.length} <svg> block(s)`]);
+
+  if (svgMatches.length === 1) {
+    const svg = svgMatches[0][0];
+    const svgRoot = svg.match(/<svg\b[^>]*>/i)?.[0] || '';
+    const svgAttrs = parseAttrs(svgRoot);
+    const qualityProfile = svgAttrs['data-quality-profile'] || 'standard';
+    const workflowV2 = svgAttrs['data-layout-contract'] === 'readable-v2';
+    const qualityGatesEnforced = svgAttrs['data-quality-gates'] !== 'advisory';
+    const nonFiniteAttrs = collectNonFiniteAttrs(svg);
+    addCheck('finite_svg', nonFiniteAttrs.length === 0, nonFiniteAttrs);
+    const legendStart = svg.indexOf('<!-- Legend -->');
+    const beforeLegend = legendStart >= 0 ? svg.slice(0, legendStart) : svg;
+    const desktopReadability = collectDesktopReadability(svgAttrs, beforeLegend, readerContract);
+    const desktopReadabilityIssue = desktopReadability.issue;
+    // The browser gate measures this later; the geometry is already certain here.
+    const viewportHeightIssue = predictedFixedWidthOverflow({
+      viewBoxWidth: viewBoxSize(svgAttrs)[0],
+      viewBoxHeight: viewBoxSize(svgAttrs)[1],
+      readerFit: svgAttrs['data-reader-fit'] || null,
+      diagramType: svgAttrs['data-diagram-type'] || null,
+    });
+    const arrows = collectArrows(beforeLegend, workflowV2, pathState);
+    const diagonal = arrows.flatMap((arrow) => diagonalStraightSegments(arrow).map((segment) => ({ arrow, ...segment })));
+    addCheck(
+      'orthogonal_arrows',
+      diagonal.length === 0,
+      diagonal.map(({ arrow, segmentIndex }) => `${arrow.kind} ${arrow.index} segment ${segmentIndex + 1}: expected an orthogonal segment or an explicitly authored direct straight route; ${arrow.raw}`),
+    );
+    const measuredRelationshipCrossings = collectRelationshipCrossings(arrows, workflowV2);
+    const resolvedCrossovers = measuredRelationshipCrossings.filter((hit) => (
+      hit.left.crossoverHalo && hit.right.crossoverHalo
+    ));
+    const relationshipCrossings = measuredRelationshipCrossings.filter((hit) => (
+      !hit.left.crossoverHalo || !hit.right.crossoverHalo
+    ));
+    const compositionFrames = collectCompositionFrames(beforeLegend, pathState);
+    const containerBorderRuns = collectBorderRuns({
+      routedRelations: arrows
+        .filter((arrow) => arrow.from && arrow.to && arrow.borderSegments.length)
+        .map((arrow) => ({
+          relation: arrow,
+          relationIndex: arrow.index,
+          segments: arrow.borderSegments,
+        })),
+      frames: compositionFrames,
+    });
+    const routedRelationships = arrows
+      .filter((arrow) => arrow.from && arrow.to && arrow.routeSubpaths.some(points => points.length > 1))
+      .map((arrow) => ({ relation: arrow, relationIndex: arrow.index, points: arrow.routePoints }));
+    const nodeRects = svgAttrs.transform ? [] : collectUntransformedNodeRects(beforeLegend);
+    const routeMetrics = subpathBudgetMetrics(routedRelationships);
+    // Architecture marks only one of its two Reader fits with its type.
+    const crowdedSides = svgAttrs['data-diagram-type'] === 'architecture' || svgAttrs['data-reader-primary-text'] === '14'
+      ? crowdedNodeSides(arrows, nodeRects) : [];
+    const routeRhythmIssues = subpathRhythmIssues(routedRelationships);
+    const ambiguousCorridors = subpathCorridors({
+      routedRelations: routedRelationships,
+      includeSharedEndpoints: (left, right) => workflowV2 || (left.independentPorts && right.independentPorts),
+      allowShortWorkflowTrunks: workflowV2,
+      includeSharedEndpointCounterflow: (left, right) => left.automaticWorkflowRoute && right.automaticWorkflowRoute,
+    });
+    const arrowheadCollisions = collectArrowheadCollisions({
+      routedRelations: routedRelationships.filter((entry) => workflowV2 || entry.relation.independentPorts)
+        .flatMap(entry => routeParts(entry).filter(part => part.targetEndpoint)),
+      allowShortWorkflowTrunks: workflowV2,
+    });
+    const relationshipLabels = collectRelationshipLabelMasks(beforeLegend, arrows);
+    const leadingSpace = collectArchitectureLeadingSpace({
+      svgAttrs, fragment: beforeLegend, nodeRects, frames: compositionFrames,
+      arrows, labels: relationshipLabels,
+    });
+    const sequenceColumnSpace = collectSequenceColumnSpace({ svgAttrs, fragment: beforeLegend, nodeRects, arrows });
+    const sequenceNoteBorders = collectSequenceNoteBorders({ svgAttrs, fragment: beforeLegend, frames: compositionFrames, arrows });
+    const labelClearanceThreshold = qualityProfile === 'showcase' ? 4 : 2;
+    const labelRouteMeasurements = subpathLabelClearance({
+      labels: relationshipLabels,
+      routedRelations: arrows.map((arrow) => ({ relation: arrow, relationIndex: arrow.index, points: arrow.routePoints })),
+      threshold: Number.MAX_VALUE,
+    });
+    const labelRouteClearance = subpathLabelClearance({
+      labels: relationshipLabels,
+      routedRelations: arrows.map((arrow) => ({ relation: arrow, relationIndex: arrow.index, points: arrow.routePoints })),
+      threshold: labelClearanceThreshold,
+    });
+    // The renderers bound their own label rects, but `check` also re-measures an
+    // artifact it did not produce; see collectLabelCanvasOverflow in
+    // shared/geometry.mjs.
+    const labelCanvasOverflow = collectLabelCanvasOverflow({
+      labels: relationshipLabels,
+      viewBox: viewBoxRect(svgAttrs),
+    });
+    const crossingIsError = qualityProfile === 'showcase';
+    const corridorIsError = qualityProfile === 'showcase';
+    const rhythmIsError = qualityProfile === 'showcase';
+    const labelClearanceIsError = qualityProfile === 'showcase';
+    const labelContainmentIsError = qualityProfile === 'showcase';
+    const desktopReadabilityIsError = qualityProfile === 'showcase';
+    // Certain geometry, but new: surface it as evidence first (CONTRIBUTING.md#product-and-compatibility-contracts).
+    const viewportHeightIsError = false;
+    const compositionErrors = (qualityGatesEnforced ? containerBorderRuns.length : 0)
+      + (crossingIsError ? relationshipCrossings.length : 0)
+      + (corridorIsError ? ambiguousCorridors.length + arrowheadCollisions.length : 0)
+      + (labelClearanceIsError ? labelRouteClearance.length : 0)
+      + (labelContainmentIsError ? labelCanvasOverflow.length : 0)
+      + (rhythmIsError ? routeRhythmIssues.length : 0)
+      + (desktopReadabilityIsError && desktopReadabilityIssue ? 1 : 0)
+      + (viewportHeightIsError && viewportHeightIssue ? 1 : 0);
+    const compositionWarnings = (qualityGatesEnforced ? 0 : containerBorderRuns.length)
+      + (crossingIsError ? 0 : relationshipCrossings.length)
+      + (corridorIsError ? 0 : ambiguousCorridors.length + arrowheadCollisions.length)
+      + (labelClearanceIsError ? 0 : labelRouteClearance.length)
+      + (labelContainmentIsError ? 0 : labelCanvasOverflow.length)
+      + (rhythmIsError ? 0 : routeRhythmIssues.length)
+      + (desktopReadabilityIsError || !desktopReadabilityIssue ? 0 : 1)
+      + (viewportHeightIsError || !viewportHeightIssue ? 0 : 1);
+    composition = {
+      schemaVersion: 1,
+      profile: qualityProfile,
+      status: compositionErrors ? 'fail' : 'pass',
+      summary: {
+        errors: compositionErrors,
+        warnings: compositionWarnings,
+      },
+      metrics: {
+        properCrossings: relationshipCrossings.length,
+        resolvedCrossovers: resolvedCrossovers.length,
+        ambiguousCorridors: ambiguousCorridors.length,
+        arrowheadCollisions: arrowheadCollisions.length,
+        containerBorderRuns: containerBorderRuns.length,
+        labelRouteClearanceIssues: labelRouteClearance.length,
+        labelCanvasOverflowIssues: labelCanvasOverflow.length,
+        minLabelRouteClearance: minimumLabelRouteClearance(labelRouteMeasurements),
+        desktopReadabilityIssues: desktopReadabilityIssue ? 1 : 0,
+        viewportHeightIssues: viewportHeightIssue ? 1 : 0,
+        minProjectedNodeTextPx: desktopReadability.evidence.minimumProjectedTextPx,
+        ...roundedRouteMetrics(routeMetrics),
+      },
+      suggestedLimits: { bendsPerRelationship: 2, stretch: 1.35, segmentPx: 16, microSegmentPx: 8 },
+      // Perceptual review needs the affected relationships, not just a total.
+      // These are review evidence, not new pass/fail thresholds: a short, clear
+      // crossover can be preferable to a long crossing-free detour.
+      routeReview: {
+        crossings: resolvedCrossovers.map((hit) => {
+          const shared = [hit.left.from, hit.left.to].find((id) => id && (id === hit.right.from || id === hit.right.to));
+          return {
+            left: relationshipRecord(hit.left),
+            right: relationshipRecord(hit.right),
+            point: hit.point,
+            ...(shared ? { sharedNode: shared } : {}),
+          };
+        }),
+        ...(crowdedSides.length ? { crowdedSides } : {}),
+        detours: routedRelationships.flatMap((entry) => {
+          const metrics = subpathBudgetMetrics([entry]);
+          const blockers = directCorridorBlockers(entry.relation, nodeRects);
+          return metrics.routesOverSuggestedBends || metrics.routesOverSuggestedStretch ? [{
+            relationship: relationshipRecord(entry.relation),
+            bends: metrics.maxBends,
+            stretch: metrics.maxStretch == null ? null : Math.round(metrics.maxStretch * 1000) / 1000,
+            ...(blockers.length ? { directCorridorBlockers: blockers } : {}),
+          }] : [];
+        }),
+      },
+      leadingSpace,
+      ...(sequenceColumnSpace ? { sequenceColumnSpace } : {}),
+      ...(sequenceNoteBorders.length ? { sequenceNoteBorders } : {}),
+      desktopReadability: desktopReadability.evidence,
+      issues: [
+        ...containerBorderRuns.map((hit) => ({
+          severity: qualityGatesEnforced ? 'error' : 'warning',
+          code: 'composition/container-border-run',
+          relationship: relationshipRecord(hit.relation),
+          frame: frameRecord(hit.frame),
+          side: hit.side,
+          segmentIndex: hit.segmentIndex,
+          overlapLength: Math.round(hit.overlapLength * 10) / 10,
+          from: hit.overlapStart.map((value) => Math.round(value * 10) / 10),
+          to: hit.overlapEnd.map((value) => Math.round(value * 10) / 10),
+        })),
+        ...labelRouteClearance.map((hit) => ({
+          severity: labelClearanceIsError ? 'error' : 'warning',
+          code: 'composition/label-route-clearance',
+          label: hit.label?.label || hit.labelRelation?.label || '',
+          labelRelationship: relationshipRecord(hit.labelRelation),
+          otherRelationship: relationshipRecord(hit.otherRelation),
+          segmentIndex: hit.segmentIndex,
+          labelRect: roundedRect(hit.rect),
+          clearance: Math.round(hit.clearance * 10) / 10,
+          intersectionLength: Math.round((hit.intersectionLength || 0) * 10) / 10,
+          threshold: hit.threshold,
+          from: hit.start.map((value) => Math.round(value * 10) / 10),
+          to: hit.end.map((value) => Math.round(value * 10) / 10),
+        })),
+        ...labelCanvasOverflow.map((hit) => {
+          const label = hit.label?.label || hit.relation?.label || '';
+          return {
+            severity: labelContainmentIsError ? 'error' : 'warning',
+            code: 'composition/label-canvas-containment',
+            label,
+            relationship: relationshipRecord(hit.relation),
+            labelRect: roundedRect(hit.rect),
+            viewBox: hit.viewBox,
+            viewBoxOrigin: hit.viewBoxOrigin,
+            overflowPx: hit.overflowPx,
+            detail: `[composition/label-canvas-containment] ${qualityProfile} label "${label}" on ${relationshipName(hit.relation)} extends past the ${describeLabelCanvasOverflow(hit)} (label rect ${formatRect(hit.rect)}; viewBox ${hit.viewBox[0]}x${hit.viewBox[1]}${hit.viewBoxOrigin.some(Boolean) ? ` at ${hit.viewBoxOrigin[0]},${hit.viewBoxOrigin[1]}` : ''}) — use renderer-supported label controls (shorten the label or reorder participants for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or enlarge meta.viewBox.`,
+          };
+        }),
+        ...relationshipCrossings.map((hit) => ({
+          severity: crossingIsError ? 'error' : 'warning',
+          code: 'composition/proper-crossing',
+          relationship: relationshipRecord(hit.left),
+          otherRelationship: relationshipRecord(hit.right),
+          point: hit.point.map((value) => Math.round(value * 10) / 10),
+        })),
+        ...ambiguousCorridors.map((hit) => ({
+          severity: corridorIsError ? 'error' : 'warning',
+          code: 'composition/ambiguous-corridor',
+          relationship: relationshipRecord(hit.left.relation),
+          otherRelationship: relationshipRecord(hit.right.relation),
+          segmentIndex: hit.leftSegment,
+          otherSegmentIndex: hit.rightSegment,
+          overlapLength: Math.round(hit.overlapLength * 10) / 10,
+          from: hit.overlapStart.map((value) => Math.round(value * 10) / 10),
+          to: hit.overlapEnd.map((value) => Math.round(value * 10) / 10),
+        })),
+        ...arrowheadCollisions.map((hit) => ({
+          severity: corridorIsError ? 'error' : 'warning',
+          code: 'composition/arrowhead-collision',
+          relationship: relationshipRecord(hit.left.relation),
+          otherRelationship: relationshipRecord(hit.right.relation),
+          distancePx: hit.distance,
+          minimumPx: hit.minimum,
+          endpoints: [hit.left.tip, hit.right.tip],
+        })),
+        ...routeRhythmIssues.map((hit) => ({
+          severity: rhythmIsError ? 'error' : 'warning',
+          code: hit.code,
+          relationship: relationshipRecord(hit.relation),
+          segmentIndex: hit.segmentIndex,
+          position: hit.position,
+          length: Math.round(hit.length * 10) / 10,
+          from: hit.start.map((value) => Math.round(value * 10) / 10),
+          to: hit.end.map((value) => Math.round(value * 10) / 10),
+        })),
+        ...(desktopReadabilityIssue ? [{
+          severity: desktopReadabilityIsError ? 'error' : 'warning',
+          code: 'composition/desktop-readability',
+          ...(desktopReadabilityIssue.nodeId ? { nodeId: desktopReadabilityIssue.nodeId } : {}),
+          owner: desktopReadabilityIssue.owner,
+          viewportWidth: DESKTOP_READABILITY_VIEWPORT.width,
+          viewportHeight: DESKTOP_READABILITY_VIEWPORT.height,
+          availableDiagramWidth: desktopReadability.evidence.availableDiagramWidth,
+          budgetBasis: desktopReadability.evidence.budgetBasis,
+          readerContract: desktopReadability.evidence.readerContract,
+          requestedTargetPx: desktopReadability.evidence.requestedTargetPx,
+          requestedTargetMet: desktopReadability.evidence.requestedTargetMet,
+          budgetLimit: desktopReadability.evidence.limit,
+          viewBoxWidth: desktopReadabilityIssue.viewBoxWidth,
+          scale: desktopReadabilityIssue.scale,
+          text: desktopReadabilityIssue.text,
+          detail: desktopReadabilityIssue.detail,
+          sourceFontPx: desktopReadabilityIssue.sourceFontPx,
+          projectedFontPx: desktopReadabilityIssue.projectedFontPx,
+          minimumProjectedFontPx: MIN_PROJECTED_NODE_TEXT_PX,
+        }] : []),
+        ...(viewportHeightIssue ? [{
+          severity: viewportHeightIsError ? 'error' : 'warning',
+          code: 'composition/viewport-height',
+          readerFit: svgAttrs['data-reader-fit'] || null,
+          viewBoxWidth: viewBoxSize(svgAttrs)[0],
+          viewBoxHeight: viewBoxSize(svgAttrs)[1],
+          ...viewportHeightIssue,
+          detail: `[composition/viewport-height] ${describeFixedWidthOverflow({ ...viewportHeightIssue, viewBoxWidth: viewBoxSize(svgAttrs)[0], viewBoxHeight: viewBoxSize(svgAttrs)[1] })}`,
+        }] : []),
+      ],
+    };
+    addCheck(
+      'label_route_clearance',
+      !labelClearanceIsError || labelRouteClearance.length === 0,
+      labelRouteClearance.map((hit) => (
+        `[composition/label-route-clearance] ${qualityProfile} label "${hit.label?.label || hit.labelRelation?.label || ''}" on ${relationshipName(hit.labelRelation)} is ${Math.round(hit.clearance * 10) / 10}px from ${relationshipName(hit.otherRelation)} segment ${hit.segmentIndex} [${formatPoint(hit.start)}] -> [${formatPoint(hit.end)}]${hit.intersectionLength > 0 ? ` with ${Math.round(hit.intersectionLength * 10) / 10}px hidden by the mask` : ''} (minimum ${hit.threshold}px) — use renderer-supported label controls (message y for sequence; otherwise labelAt, labelDx, labelDy, or labelSegment), or adjust the other relationship route/via/channel.`
+      )),
+    );
+    addCheck(
+      'relationship_crossings',
+      !crossingIsError || relationshipCrossings.length === 0,
+      relationshipCrossings.map((hit) => (
+        `[composition/proper-crossing] ${qualityProfile} ${relationshipName(hit.left)} crosses ${relationshipName(hit.right)} at [${formatPoint(hit.point)}]`
+      )),
+    );
+    addCheck(
+      'relationship_corridors',
+      !corridorIsError || ambiguousCorridors.length + arrowheadCollisions.length === 0,
+      [...ambiguousCorridors.map((hit) => (
+        `[composition/ambiguous-corridor] ${qualityProfile} ${relationshipName(hit.left.relation)} shares a ${Math.round(hit.overlapLength * 10) / 10}px corridor with ${relationshipName(hit.right.relation)} at [${formatPoint(hit.overlapStart)}] -> [${formatPoint(hit.overlapEnd)}]`
+      )), ...arrowheadCollisions.map((hit) => (
+        `[composition/arrowhead-collision] ${qualityProfile} ${relationshipName(hit.left.relation)} and ${relationshipName(hit.right.relation)} have incoming arrowheads ${hit.distance}px apart (minimum ${hit.minimum}px) — enlarge or reposition the destination, or choose separate toSide ports.`
+      ))],
+    );
+    addCheck(
+      'container_border_runs',
+      !qualityGatesEnforced || containerBorderRuns.length === 0,
+      containerBorderRuns.map((hit) => (
+        `[composition/container-border-run] ${relationshipName(hit.relation)} follows ${frameName(hit.frame)} ${hit.side} border for ${Math.round(hit.overlapLength * 10) / 10}px on segment ${hit.segmentIndex} [${formatPoint(hit.overlapStart)}] -> [${formatPoint(hit.overlapEnd)}]`
+      )),
+    );
+    addCheck(
+      'route_rhythm',
+      !rhythmIsError || routeRhythmIssues.length === 0,
+      routeRhythmIssues.map((hit) => (
+        `[${hit.code}] ${qualityProfile} ${relationshipName(hit.relation)} has a ${Math.round(hit.length * 10) / 10}px ${hit.position} segment ${hit.segmentIndex} [${formatPoint(hit.start)}] -> [${formatPoint(hit.end)}]`
+      )),
+    );
+
+    if (legendStart >= 0) {
+      const legendFragment = svg.slice(legendStart);
+      const legendBoxes = collectLegendBoxes(legendFragment);
+      const collisions = collectLegendCollisions(arrows, legendBoxes);
+      addCheck(
+        'legend_clearance',
+        collisions.length === 0,
+        collisions.map((hit) => `${hit.arrow.kind} ${hit.arrow.index} crosses legend ${hit.box.label}`),
+      );
+    } else {
+      addCheck('legend_clearance', true, ['no legend marker found']);
+    }
+  }
+
+
+  if (pathState.diagnostics.length) addCheck('svg_path_data', false, pathState.diagnostics.map(item => item.message));
+
+  const ok = checks.every((check) => check.ok) && composition.status !== 'fail';
+  return { ok, file, artifact, checks, composition,
+    ...(pathState.diagnostics.length ? { diagnostics: pathState.diagnostics } : {}),
+  };
 }
 
-if (pathDiagnostics.length) addCheck('svg_path_data', false, pathDiagnostics.map(item => item.message));
+function runCli(input) {
+  if (!input || input === '-h' || input === '--help') {
+    console.error('Usage: node scripts/check-render-output.mjs <diagram.html>');
+    process.exit(input ? 0 : 2);
+  }
+  const htmlPath = path.resolve(input);
+  let bytes;
+  try {
+    bytes = fs.readFileSync(htmlPath);
+  } catch (err) {
+    console.error(JSON.stringify({
+      ok: false,
+      file: htmlPath,
+      checks: [{ name: 'file_readable', ok: false, details: [err.message] }],
+    }, null, 2));
+    process.exit(1);
+  }
+  const receipt = checkArtifact(bytes, { file: htmlPath });
+  console.log(JSON.stringify(receipt, null, 2));
+  // Let pending stdout writes drain: large receipts are asynchronous when piped.
+  process.exitCode = receipt.ok ? 0 : 1;
+}
 
-const ok = checks.every((check) => check.ok) && composition.status !== 'fail';
-console.log(JSON.stringify({ ok, file: htmlPath, artifact, checks, composition,
-  ...(pathDiagnostics.length ? { diagnostics: pathDiagnostics } : {}),
-}, null, 2));
-// Let pending stdout writes drain: large receipts are asynchronous when piped.
-process.exitCode = ok ? 0 : 1;
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) runCli(process.argv[2]);
 
-function collectArrows(fragment, useActualPoints = false) {
+function collectArrows(fragment, useActualPoints, pathState) {
   const arrows = [];
   let index = 0;
   let pathIndex = 0;
@@ -490,7 +490,7 @@ function collectArrows(fragment, useActualPoints = false) {
       && Number.isFinite(underlayStrokeWidth)
       && underlayStrokeWidth >= routeStrokeWidth + 3;
     const line = name === 'line';
-    const parsed = line ? null : inspectedPath(attrs, tag.index, pathIndex, 'relationship');
+    const parsed = line ? null : inspectedPath(attrs, tag.index, pathIndex, 'relationship', pathState);
     const segments = line ? lineSegments(attrs) : parsed.subpaths.flatMap(part => part.segments);
     const borderSegments = line ? segments : parsed.subpaths.flatMap(part => part.straightSegments);
     let routeSubpaths = line ? continuousRoutePoints(segments)
@@ -551,16 +551,16 @@ function continuousRoutePoints(segments) {
   return parts.length ? parts : [[]];
 }
 
-function inspectedPath(attrs, offset, pathIndex, role) {
-  if (pathAnalyses.has(offset)) return pathAnalyses.get(offset);
+function inspectedPath(attrs, offset, pathIndex, role, { analyses, diagnostics }) {
+  if (analyses.has(offset)) return analyses.get(offset);
   const result = analyzeSvgPath(decodeNumericReferences(attrs.d || ''));
   if (result.ok) {
-    pathAnalyses.set(offset, result);
+    analyses.set(offset, result);
     return result;
   }
   const { code, ...evidence } = result.error;
   const id = attrs.id || attrs['data-edge-id'] || attrs['data-composition-frame-id'];
-  pathDiagnostics.push({
+  diagnostics.push({
     code,
     severity: 'error',
     message: `${role} path ${pathIndex}${id ? ` (${id})` : ''}: ${evidence.reason} at d offset ${evidence.tokenOffset}.`,
@@ -571,7 +571,7 @@ function inspectedPath(attrs, offset, pathIndex, role) {
       : 'correct the path data at the reported offset or regenerate it from the original diagram'],
   });
   const invalid = { ok: false, subpaths: [] };
-  pathAnalyses.set(offset, invalid);
+  analyses.set(offset, invalid);
   return invalid;
 }
 
@@ -859,7 +859,7 @@ function relationshipRecord(arrow) {
   };
 }
 
-function collectCompositionFrames(fragment) {
+function collectCompositionFrames(fragment, pathState) {
   const frames = [];
   let pathIndex = 0;
   for (const match of fragment.matchAll(SVG_TAG_TOKEN)) {
@@ -885,7 +885,7 @@ function collectCompositionFrames(fragment) {
     }
     const segments = name === 'line'
       ? lineSegments(attrs)
-      : inspectedPath(attrs, match.index, pathIndex, 'structural-frame').subpaths.flatMap(part => part.segments);
+      : inspectedPath(attrs, match.index, pathIndex, 'structural-frame', pathState).subpaths.flatMap(part => part.segments);
     for (const [segmentIndex, segment] of segments.entries()) {
       frames.push({
         kind,
