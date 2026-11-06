@@ -15,7 +15,6 @@ import {
   runFinalize,
 } from '../archify/bin/finalize.mjs';
 import { CAPTURE_VIEWPORTS, VISUAL_CHECK_VIEWPORTS } from '../archify/bin/visual-check.mjs';
-import { bipartiteArchitectureSpec } from './helpers/dense-fixture.mjs';
 
 function workspace(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-finalize-'));
@@ -1262,75 +1261,23 @@ test('default finalize JSON preserves complete verified workflow repairs', t => 
   }
 });
 
-test('runFinalize reads the capture limit from the supplied env, not process.env', { timeout: 180000 }, async (t) => {
+test('finalize records the same check receipt the check command prints', { timeout: 180000 }, (t) => {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const skillRoot = path.join(here, '..', 'archify');
-  const cliPath = path.join(skillRoot, 'bin', 'archify.mjs');
+  const cliPath = path.join(here, '..', 'archify', 'bin', 'archify.mjs');
   const directory = workspace(t);
-  const input = path.join(directory, 'env-capture.architecture.json');
-  fs.writeFileSync(input, JSON.stringify(bipartiteArchitectureSpec(10)));
-  const output = path.join(directory, 'env-capture.html');
-  const missingChrome = path.join(directory, 'missing-chrome');
+  const input = path.join(directory, 'parity.architecture.json');
+  fs.copyFileSync(path.join(here, '..', 'archify', 'examples', 'web-app.architecture.json'), input);
+  const output = path.join(directory, 'parity.html');
+  const env = { ...process.env, ARCHIFY_CHROME: path.join(directory, 'missing-chrome') };
+  const finalized = spawnSync(process.execPath, [cliPath, 'finalize', 'architecture', input, output, '--quality', 'standard', '--json', '--out-dir', path.join(directory, 'evidence')], { encoding: 'utf8', env });
+  assert.equal(finalized.status, 2, finalized.stderr || finalized.stdout);
+  const summary = JSON.parse(finalized.stdout);
+  const stage = JSON.parse(fs.readFileSync(summary.evidence.receipt, 'utf8')).stages.check;
+  assert.equal(stage.status, 'pass');
 
-  // The parent process sees a 5 MiB knob while the supplied env raises it
-  // to 10 MiB. The dense check echo sits between the two knobs (6.1 MiB on
-  // dev `9102a91`; it has drifted with dev-side warning volume before —
-  // 8.8 MiB on `7d3594e`, 10.5 MiB at 11+11 on `baffbdd3`), so a runner
-  // reading process.env overflows at the check gate while the child stages
-  // (which inherit the supplied env) pass. The overflow probe below pins
-  // the lower end of that window: if the echo ever drops under 5 MiB the
-  // test fails loudly instead of passing without exercising the regression.
-  // Restore, rather than clear, the variables this test overrides so a
-  // preconfigured environment cannot be damaged for later tests.
-  const previousCheckMaxBuffer = process.env.ARCHIFY_CHECK_MAX_BUFFER;
-  const previousChrome = process.env.ARCHIFY_CHROME;
-  process.env.ARCHIFY_CHECK_MAX_BUFFER = String(5 * 1024 * 1024);
-  process.env.ARCHIFY_CHROME = missingChrome;
-  t.after(() => {
-    if (previousCheckMaxBuffer === undefined) delete process.env.ARCHIFY_CHECK_MAX_BUFFER;
-    else process.env.ARCHIFY_CHECK_MAX_BUFFER = previousCheckMaxBuffer;
-    if (previousChrome === undefined) delete process.env.ARCHIFY_CHROME;
-    else process.env.ARCHIFY_CHROME = previousChrome;
-  });
-
-  const finalized = await runFinalize({
-    cliPath,
-    type: 'architecture',
-    input,
-    output,
-    quality: 'standard',
-    cwd: skillRoot,
-    env: {
-      ...process.env,
-      ARCHIFY_CHECK_MAX_BUFFER: String(10 * 1024 * 1024),
-      ARCHIFY_CHROME: missingChrome,
-    },
-  });
-
-  assert.equal(finalized.exitCode, 2, JSON.stringify(finalized.summary?.gates || finalized.receipt?.failedStage));
-  assert.equal(finalized.receipt.stages.check.status, 'pass');
-  assert.equal(finalized.receipt.stages['browser-check'].status, 'skipped');
-  assert.equal(finalized.receipt.stages.check.receipt.provenance, 'current');
-
-  // Same fixture, supplied env pinned to the parent's 5 MiB: the check
-  // echo must overflow there, proving the window the first run relied on.
-  const overflowed = await runFinalize({
-    cliPath,
-    type: 'architecture',
-    input,
-    output,
-    quality: 'standard',
-    cwd: skillRoot,
-    env: {
-      ...process.env,
-      ARCHIFY_CHECK_MAX_BUFFER: String(5 * 1024 * 1024),
-      ARCHIFY_CHROME: missingChrome,
-    },
-  });
-
-  assert.equal(overflowed.receipt.stages.validate.status, 'pass');
-  assert.equal(overflowed.receipt.stages.check.status, 'fail');
-  assert.equal(overflowed.receipt.stages.check.exitCode, 1);
+  const checked = spawnSync(process.execPath, [cliPath, 'check', output, '--require-provenance'], { encoding: 'utf8', env });
+  assert.equal(checked.status, stage.exitCode, checked.stderr);
+  assert.deepEqual(stage.receipt, JSON.parse(checked.stdout));
 });
 
 test('compact review and repair guidance follow the mode and the failing diagnostics', () => {

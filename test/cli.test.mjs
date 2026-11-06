@@ -902,11 +902,7 @@ test('cli: deliver accepts a dense artifact whose checker receipt exceeds the 1 
   const input = path.join(tmp, 'dense-receipt.architecture.json');
   fs.writeFileSync(input, JSON.stringify(bipartiteArchitectureSpec(8)));
   const out = path.join(tmp, 'dense-receipt.html');
-  // Scrub the knob so this test exercises the default limit even when a
-  // developer or CI environment overrides it.
-  const env = { ...process.env };
-  delete env.ARCHIFY_CHECK_MAX_BUFFER;
-  const delivered = run(['deliver', 'architecture', input, out, '--json'], { env });
+  const delivered = run(['deliver', 'architecture', input, out, '--json']);
   assert.equal(delivered.status, 0, delivered.stderr);
   const receipt = JSON.parse(delivered.stdout);
   assert.equal(receipt.ok, true);
@@ -962,48 +958,17 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
   });
 }
 
-test('cli: finalize captures a near-limit check receipt with provenance', { timeout: 180000 }, () => {
-  const input = path.join(tmp, 'near-limit-finalize.architecture.json');
+test('cli: finalize passes a dense artifact whose receipts are megabytes', { timeout: 180000 }, () => {
+  const input = path.join(tmp, 'dense-finalize.architecture.json');
   fs.writeFileSync(input, JSON.stringify(bipartiteArchitectureSpec(11)));
-  const out = path.join(tmp, 'near-limit-finalize.html');
-  // Setup runs must see the default limit even when the environment
-  // overrides the knob; only the finalize invocation sets it explicitly.
-  const setupEnv = { ...process.env };
-  delete setupEnv.ARCHIFY_CHECK_MAX_BUFFER;
-  const delivered = run(['deliver', 'architecture', input, out, '--json'], { env: setupEnv });
-  assert.equal(delivered.status, 0, delivered.stderr);
-
-  // The finalize gate that must capture big bytes is `check
-  // --require-provenance`: its echo = raw checker receipt + provenance
-  // additions. Size the knob inside [raw, echo) — the checker then admits
-  // it while only capture headroom lets the wider echo through.
-  const measured = spawnSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.mjs'), out], {
-    cwd: skillRoot,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-    env: setupEnv,
-  });
-  assert.equal(measured.status, 0, measured.stderr);
-  const rawBytes = Buffer.byteLength(measured.stdout, 'utf8');
-  assert.ok(rawBytes > 4 * 1024 * 1024, `fixture receipt (${rawBytes} bytes) must exceed the 4 MiB capture floor for this test to bind`);
-
-  const echoed = run(['check', out, '--require-provenance'], { env: setupEnv });
-  assert.equal(echoed.status, 0, echoed.stderr);
-  const echoBytes = Buffer.byteLength(echoed.stdout, 'utf8');
-  assert.ok(echoBytes > rawBytes + 64, `provenance window missing (raw ${rawBytes}, echo ${echoBytes})`);
-  const knob = rawBytes + Math.floor((echoBytes - rawBytes) / 2);
-
-  const outDir = path.join(tmp, 'near-limit-finalize-evidence');
+  const out = path.join(tmp, 'dense-finalize.html');
+  const outDir = path.join(tmp, 'dense-finalize-evidence');
   const missingChrome = path.join(tmp, 'missing-finalize-chrome');
   const result = run([
     'finalize', 'architecture', input, out,
     '--quality', 'standard', '--json', '--out-dir', outDir,
   ], {
-    env: {
-      ...process.env,
-      ARCHIFY_CHECK_MAX_BUFFER: String(knob),
-      ARCHIFY_CHROME: missingChrome,
-    },
+    env: { ...process.env, ARCHIFY_CHROME: missingChrome },
   });
 
   assert.equal(result.status, 2, result.stderr || result.stdout);
@@ -1016,6 +981,7 @@ test('cli: finalize captures a near-limit check receipt with provenance', { time
   const full = JSON.parse(fs.readFileSync(summary.evidence.receipt, 'utf8'));
   assert.equal(full.stages.check.status, 'pass');
   assert.equal(full.stages.check.receipt.provenance, 'current');
+  assert.ok(Buffer.byteLength(JSON.stringify(full.stages.check.receipt)) > 4 * 1024 * 1024, 'the fixture no longer produces a dense check receipt');
   assert.equal(fs.existsSync(out), true, 'verified delivery remains available');
 });
 

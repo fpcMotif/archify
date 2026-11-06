@@ -5513,6 +5513,13 @@ async function commandCheck(args) {
   const positional = args.filter((arg) => !knownOptions.has(arg));
   const [html] = positional;
   if (!html || positional.length !== 1) fail(usage());
+  const checked = await checkDelivery(html, { requireProvenance });
+  if (checked.receipt) console.log(JSON.stringify(checked.receipt, null, 2));
+  if (checked.stderr) console.error(checked.stderr);
+  process.exitCode = checked.exitCode;
+}
+
+async function checkDelivery(html, { requireProvenance = false } = {}) {
   const artifactPath = path.resolve(html);
   const pathIdentityRuntime = await loadPathIdentityRuntime();
   const provenance = inspectArtifactDeliveryProvenance(
@@ -5521,22 +5528,14 @@ async function commandCheck(args) {
     pathIdentityRuntime,
   );
   if (provenance && !provenance.ok) {
-    console.log(JSON.stringify(provenanceFailureReceipt({ command: 'check', artifactPath, provenance }), null, 2));
-    process.exitCode = 1;
-    return;
+    return { exitCode: 1, receipt: provenanceFailureReceipt({ command: 'check', artifactPath, provenance }) };
   }
   const check = await runArtifactCheck(html);
-  if (check.error) {
-    console.error(check.error.message);
-    process.exitCode = 1;
-    return;
-  }
+  if (check.error) return { exitCode: 1, stderr: check.error.message };
   const receipt = check.receipt;
-  if (!receipt.ok) process.exitCode = 1;
   if (provenance?.status === 'current' && ((provenance.type === 'explainer') !== (receipt.family === 'explainer'))) {
     receipt.ok = false;
     receipt.diagnostics = [...(receipt.diagnostics || []), diagnostic({code:'delivery/artifact-family-mismatch',message:'The checked artifact family differs from its delivery provenance.',subject:{artifact:artifactPath},evidence:{expectedType:provenance.type,actualFamily:receipt.family},supportedFixes:['Rebuild the artifact from its original specification.']})];
-    process.exitCode = 1;
   }
   if (provenance) {
     const verified = verifyDeliveryUnchanged(
@@ -5546,14 +5545,12 @@ async function commandCheck(args) {
       pathIdentityRuntime,
     );
     if (!verified.ok) {
-      console.log(JSON.stringify(provenanceFailureReceipt({ command: 'check', artifactPath, provenance: verified }), null, 2));
-      process.exitCode = 1;
-      return;
+      return { exitCode: 1, receipt: provenanceFailureReceipt({ command: 'check', artifactPath, provenance: verified }) };
     }
     receipt.provenance = provenance.status;
     if (provenance.receiptId) receipt.deliveryReceiptId = provenance.receiptId;
   }
-  console.log(JSON.stringify(receipt, null, 2));
+  return { exitCode: receipt.ok ? 0 : 1, receipt };
 }
 
 async function executeBrowserEvidence({
@@ -5845,6 +5842,7 @@ async function finalizeAttempt(rawArgs) {
         lock: deliverySidecarPath(artifact, '.delivery-lock.json'),
         directoryLock: path.join(path.dirname(deliveryProvenancePath(artifact)), DELIVERY_DIRECTORY_LOCK),
       }),
+      runCheck: ({ artifactPath }) => checkDelivery(artifactPath, { requireProvenance: true }),
       runBrowserCheck: options => executeBrowserEvidence({
         ...options, command: 'browser-check', capture: false, requireProvenance: true,
       }),
