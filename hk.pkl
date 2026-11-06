@@ -1,0 +1,18 @@
+amends "package://github.com/jdx/hk/releases/download/v2.10.0/hk@2.10.0#/Config.pkl"
+
+local mjsRatchet = new Step {
+    check = "bun scripts/check-mjs-ratchet.ts"
+}
+
+hooks {
+    ["pre-commit"] {
+        steps {
+            ["mjs-ratchet"] = mjsRatchet
+        }
+    }
+    ["check"] {
+        steps {
+            ["mjs-ratchet"] = mjsRatchet
+        }
+    }
+}

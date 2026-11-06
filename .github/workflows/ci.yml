@@ -47,6 +47,9 @@ jobs:
           if [[ "$CI_BASE_SHA" =~ ^[0-9a-f]{40}$ ]] && [[ ! "$CI_BASE_SHA" =~ ^0+$ ]]; then
             git fetch --no-tags --depth=1 origin "$CI_BASE_SHA" || echo 'Comparison base unavailable; classification requires full CI.'
           fi
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      - name: Block new .mjs files
+        run: bun scripts/check-mjs-ratchet.ts
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 22
