@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { collectLabelRouteClearance, rectsOverlap, labelPoint } from '../archify/renderers/shared/geometry.mjs';
+import { collectLabelRouteClearance, rectsOverlap, labelPoint } from '../archify/renderers/shared/geometry.ts';
 
 const root = fileURLToPath(new URL('../archify/', import.meta.url));
 const cli = path.join(root, 'bin/archify.mjs');

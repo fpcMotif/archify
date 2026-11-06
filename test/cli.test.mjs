@@ -234,7 +234,7 @@ test('cli: subcommand help keeps unknown and mixed arguments failing', () => {
 test('cli: doctor reports a complete installation is ready', () => {
   const result = run(['doctor']);
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /\[ok\] Node\.js v\d+/);
+  assert.match(result.stdout, /\[ok\] Bun v\d+/);
   assert.match(result.stdout, /\[ok\] Core template/);
   assert.match(result.stdout, /\[ok\] Example renderer/);
   assert.match(result.stdout, /\[ok\] Live preview runtime/);
@@ -4382,7 +4382,7 @@ test('cli: inspect argument failures exit 2 with a clean, truthful diagnostic', 
   assert.equal(unknown.stdout, '');
   assert.equal(unknown.stderr.trim(), 'Unknown inspect option "--bogus".');
   assert.doesNotMatch(unknown.stderr, /^\s+at /m);
-  assert.equal(unknown.stderr.includes('Node.js v'), false);
+  assert.equal(unknown.stderr.includes('Bun v'), false);
 
   for (const args of [
     ['inspect', 'architecture'],
@@ -4393,12 +4393,12 @@ test('cli: inspect argument failures exit 2 with a clean, truthful diagnostic', 
     assert.equal(result.stdout, '');
     assert.match(result.stderr, /^Usage:/m);
     assert.doesNotMatch(result.stderr, /^\s+at /m);
-    assert.equal(result.stderr.includes('Node.js v'), false);
+    assert.equal(result.stderr.includes('Bun v'), false);
   }
 });
 
 test('cli: inspect emits architecture layout json', () => {
-  const input = path.resolve(skillRoot, '../examples/archify-repo-grid.architecture.json');
+  const input = path.resolve(skillRoot, '../test/fixtures/archify-repo-grid.architecture.json');
   const result = run(['inspect', 'architecture', input]);
   assert.equal(result.status, 0, result.stderr);
   const parsed = JSON.parse(result.stdout);
@@ -4471,7 +4471,7 @@ process.on('exit', () => fs.rmSync(tmp, { recursive: true, force: true }));
 test('render rejects a mistyped option instead of writing a file named after it', () => {
   const dir = fs.mkdtempSync(path.join(tmp, 'render-guard-'));
   const spec = path.join(dir, 'spec.json');
-  fs.copyFileSync(path.join(skillRoot, '../examples/archify-repo.architecture.json'), spec);
+  fs.copyFileSync(path.join(skillRoot, '../test/fixtures/archify-repo.architecture.json'), spec);
 
   // Without the guard this wrote a 600KB file literally named `--json` and
   // never wrote out.html, exiting 0.
@@ -4485,7 +4485,7 @@ test('render rejects a mistyped option instead of writing a file named after it'
 test('render rejects an extra positional argument', () => {
   const dir = fs.mkdtempSync(path.join(tmp, 'render-arity-'));
   const spec = path.join(dir, 'spec.json');
-  fs.copyFileSync(path.join(skillRoot, '../examples/archify-repo.architecture.json'), spec);
+  fs.copyFileSync(path.join(skillRoot, '../test/fixtures/archify-repo.architecture.json'), spec);
 
   const result = run(['render', 'architecture', spec, 'out.html', 'extra.html'], { cwd: dir });
 

@@ -18,7 +18,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { minimumReadableSourceTextPx } from '../archify/renderers/shared/desktop-readability.mjs';
-import { segmentRectClearanceWithin, segmentIntersectsRect } from '../archify/renderers/shared/geometry.mjs';
+import { segmentRectClearanceWithin, segmentIntersectsRect } from '../archify/renderers/shared/geometry.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'archify');
@@ -1191,7 +1191,7 @@ test('architecture: standard keeps a label that leaves the canvas renderable', (
 });
 
 // The same pin is a defect on the fixed-v1 canvas and a legitimate layout on
-// readable-v2; see collectLabelCanvasOverflow in renderers/shared/geometry.mjs.
+// readable-v2; see collectLabelCanvasOverflow in renderers/shared/geometry.ts.
 function offCanvasWorkflowLabelDocument(schemaVersion) {
   return {
     schema_version: schemaVersion,

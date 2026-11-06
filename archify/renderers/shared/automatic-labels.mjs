@@ -1,4 +1,4 @@
-import { normalizeRoutePoints, rectsOverlap, segmentRectClearanceWithin } from './geometry.mjs';
+import { normalizeRoutePoints, rectsOverlap, segmentRectClearanceWithin } from './geometry.ts';
 import { createSpatialGrid } from './spatial-grid.mjs';
 
 // A bounded fallback for an unpinned label whose usual position collides.

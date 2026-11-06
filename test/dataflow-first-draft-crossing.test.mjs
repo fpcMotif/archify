@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { collectAmbiguousCorridors, properSegmentIntersection } from '../archify/renderers/shared/geometry.mjs';
+import { collectAmbiguousCorridors, properSegmentIntersection } from '../archify/renderers/shared/geometry.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'archify');

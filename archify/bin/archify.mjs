@@ -1,6 +1,6 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
-import { spawnSync } from 'node:child_process';
+import childProcess from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -2259,7 +2259,7 @@ function rendererPath(type) {
 const DEFAULT_MAX_BUFFER = 64 * 1024 * 1024;
 
 function runNode(args, options = {}) {
-  const result = spawnSync(process.execPath, args, {
+  const result = childProcess.spawnSync(process.execPath, args, {
     cwd: options.cwd || process.cwd(),
     encoding: 'utf8',
     stdio: options.stdio || 'inherit',
@@ -4256,7 +4256,7 @@ function commandRender(args) {
   if (result.status !== 0) exitFrom(result);
 }
 
-function reportArtifactFailure({ command, json, stage, type, input, output, error, diagnostics = [], status = 1, checker, receiptId, provenance, update }) {
+function reportArtifactFailure({ command, json, stage, type, input, output, error, diagnostics = [], status = 1, checker, receiptId, provenance }) {
   const receipt = {
     schemaVersion: 1,
     ok: false,
@@ -4270,13 +4270,9 @@ function reportArtifactFailure({ command, json, stage, type, input, output, erro
     diagnostics,
     ...(provenance ? { provenance } : {}),
     ...(checker ? { checker } : {}),
-    ...(update ? { update } : {}),
   };
   if (json) console.log(JSON.stringify(receipt, null, 2));
-  else {
-    console.error(formatDiagnostics(error, diagnostics));
-    if (update?.noticeRequired) console.log(update.noticeText);
-  }
+  else console.error(formatDiagnostics(error, diagnostics));
   process.exitCode = status;
 }
 
@@ -4414,7 +4410,6 @@ async function commandDeliver(args) {
     releaseRegularFileBinding,
   };
   const receiptId = randomUUID();
-  let updateCheck;
   let deliveryOwnership;
   let recoveryRequired = false;
   let stagingDirectory;
@@ -4425,7 +4420,6 @@ async function commandDeliver(args) {
     deliveryOwnership = undefined;
     const recorded = writeDeliveryFailureReceipt({
       ...options,
-      ...(updateCheck ? { update: await updateCheck } : {}),
       pathsAlias,
       receiptId,
       ownership,
@@ -4440,10 +4434,7 @@ async function commandDeliver(args) {
       recoveryRequired = true;
     }
   };
-  const reportPreparedArtifactFailure = async (options) => reportArtifactFailure({
-    ...options,
-    ...(updateCheck ? { update: await updateCheck } : {}),
-  });
+  const reportPreparedArtifactFailure = async (options) => reportArtifactFailure(options);
   const inputPath = path.resolve(input);
   let specification;
   let diagram;
@@ -4611,8 +4602,6 @@ async function commandDeliver(args) {
     outputPath = artifactCapture.commitPath;
     provenancePath = provenanceCapture.commitPath;
     outputDirectory = path.dirname(outputPath);
-    const { startDeliveryUpdateCheck } = await import('./delivery-update.mjs');
-    updateCheck = startDeliveryUpdateCheck();
   } catch (error) {
     await reportPreparedArtifactFailure({
       command: 'deliver', json, stage: 'prepare', type, input: inputPath, output: outputPath, receiptId,
@@ -5176,8 +5165,6 @@ async function commandDeliver(args) {
       }
     }
 
-    receipt.update = await updateCheck;
-
     if (json) {
       console.log(JSON.stringify(receipt, null, 2));
     } else {
@@ -5187,7 +5174,6 @@ async function commandDeliver(args) {
         : '';
       console.log(`${receipt.validation.checksPassed}/${receipt.validation.checkCount} artifact checks; composition ${receipt.validation.compositionProfile}: ${receipt.validation.compositionStatus}${engineering}; sha256 ${receipt.artifact.sha256.slice(0, 12)}`);
       if (receipt.open?.status === 'opened') console.log(`opened ${outputPath}`);
-      if (receipt.update.noticeRequired) console.log(receipt.update.noticeText);
     }
   } finally {
     if (deliveryOwnership) {
@@ -5892,7 +5878,6 @@ async function commandFinalize(rawArgs) {
     for (const entry of summary.diagnostics || []) {
       if (entry.severity === 'warning') console.error(`warning [${entry.code}] ${entry.message}`);
     }
-    if (summary.update?.noticeRequired) console.log(summary.update.noticeText);
   }
   process.exitCode = exitCode;
 }
@@ -5961,10 +5946,10 @@ async function commandDoctor(args) {
   if (unknown) fail(`Unknown doctor option "${unknown}".`);
   if (args.length) fail(usage());
   const checks = [];
-  const nodeMajor = Number.parseInt(process.versions.node.split('.')[0], 10);
+  const [bunMajor = 0, bunMinor = 0] = (process.versions.bun ?? '0.0').split('.').map(Number);
   checks.push({
-    label: `Node.js v${process.versions.node} (requires >=18)`,
-    ok: nodeMajor >= 18,
+    label: `Bun ${process.versions.bun ? `v${process.versions.bun}` : 'not detected'} (requires >=1.4)`,
+    ok: bunMajor > 1 || (bunMajor === 1 && bunMinor >= 4),
     missing: 0,
     failureLabel: 'unsupported',
   });
@@ -6126,16 +6111,16 @@ async function commandDoctor(args) {
     console.log(`[${check.ok ? 'ok' : (check.failureLabel || 'missing')}] ${check.label}`);
   }
 
-  const nodeFailed = checks[0].ok ? 0 : 1;
+  const runtimeFailed = checks[0].ok ? 0 : 1;
   const missingFiles = checks.reduce((count, check) => count + check.missing, 0);
   const invalidRuntime = checks.reduce((count, check) => count + (check.invalid || 0), 0);
-  if (nodeFailed === 0 && missingFiles === 0 && invalidRuntime === 0) {
+  if (runtimeFailed === 0 && missingFiles === 0 && invalidRuntime === 0) {
     console.log('\nArchify is ready.');
     return;
   }
 
   const problems = [];
-  if (nodeFailed) problems.push('Node.js 18 or newer is required');
+  if (runtimeFailed) problems.push('Bun 1.4 or newer is required');
   if (missingFiles) problems.push(`${missingFiles} required file${missingFiles === 1 ? '' : 's'} missing`);
   if (invalidRuntime) problems.push(`${invalidRuntime} runtime check${invalidRuntime === 1 ? '' : 's'} failed`);
   console.error(`\nArchify is not ready: ${problems.join('; ')}.`);

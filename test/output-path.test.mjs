@@ -274,10 +274,6 @@ test('deliver rechecks aliases immediately before committing a verified candidat
   fs.mkdirSync(installedScripts, { recursive: true });
   fs.copyFileSync(cli, path.join(installedBin, 'archify.mjs'));
   fs.copyFileSync(
-    path.join(skillRoot, 'bin/delivery-update.mjs'),
-    path.join(installedBin, 'delivery-update.mjs'),
-  );
-  fs.copyFileSync(
     path.join(skillRoot, 'renderers/shared/output-path.mjs'),
     path.join(installedShared, 'output-path.mjs'),
   );
@@ -342,7 +338,6 @@ console.log(JSON.stringify({
     encoding: 'utf8',
     env: {
       ...process.env,
-      ARCHIFY_UPDATE_CHECK_DISABLED: '1',
       ARCHIFY_TEST_RENDER_STARTED: marker,
       ARCHIFY_TEST_RENDER_RELEASE: release,
     },

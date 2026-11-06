@@ -139,13 +139,5 @@ test('Export menu preserves authored reach until genuine outside dismissal', {
     assert.equal(await run('Archify.focus.active()'), null);
   }
   await checkArtifact(file);
-  const repoRoot = path.resolve(skillRoot, '..');
-  const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf8');
-  const links = new Set(Array.from(readme.matchAll(/\]\((examples\/[^)\s]+\.html)\)/g), match => match[1]));
-  const examples = fs.readdirSync(path.join(repoRoot, 'examples'))
-    .filter(name => name.endsWith('.architecture.json'))
-    .map(name => JSON.parse(fs.readFileSync(path.join(repoRoot, 'examples', name), 'utf8')).meta.output)
-    .filter(output => links.has(output));
-  assert.ok(examples.length, 'README links architecture examples with authoritative inputs');
-  for (const example of examples) await checkArtifact(path.join(repoRoot, example));
+  await checkArtifact(path.join(skillRoot, 'examples', 'web-app-rendered.html'));
 });

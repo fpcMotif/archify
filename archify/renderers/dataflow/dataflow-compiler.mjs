@@ -49,7 +49,7 @@ import {
   arrowClassMap,
   edgeLabelAccent,
   properSegmentIntersection
-} from '../shared/geometry.mjs';
+} from '../shared/geometry.ts';
 
 const nodeTextFit = {
   sublabelPreferred: 7,

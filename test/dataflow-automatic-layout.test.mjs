@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { labelPoint, segmentRectClearanceWithin } from '../archify/renderers/shared/geometry.mjs';
+import { labelPoint, segmentRectClearanceWithin } from '../archify/renderers/shared/geometry.ts';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';

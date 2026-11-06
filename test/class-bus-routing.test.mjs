@@ -49,7 +49,7 @@ function interleavedHierarchy() {
 function run(args, cwd) {
   const result = spawnSync(process.execPath, [cli, ...args], {
     cwd, encoding: 'utf8', timeout: 20_000,
-    env: { ...process.env, ARCHIFY_UPDATE_CHECK_DISABLED: '1' },
+    env: process.env,
   });
   assert.equal(result.status, 0, `${args.join(' ')}\n${result.error || ''}\n${result.stdout}\n${result.stderr}`);
   return result.stdout;

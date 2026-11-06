@@ -52,7 +52,7 @@ childProcess.spawnSync = (executable, args, options) => {
 syncBuiltinESMExports();
 `);
     // Propagate the injection into the renderer process which owns Git reads.
-    if (fallback || ignoreNoLazyFetch) env.NODE_OPTIONS = `${process.env.NODE_OPTIONS || ''} --import=${pathToFileURL(wrapper).href}`;
+    if (fallback || ignoreNoLazyFetch) env.BUN_OPTIONS = `${process.env.BUN_OPTIONS || ''} --preload ${wrapper}`;
     const invoke = (args, repo = partial) => spawnSync(process.execPath, [
       cli, ...args, '--repo-root', repo, '--json',
     ], { cwd: skillRoot, encoding: 'utf8', env });

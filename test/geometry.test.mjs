@@ -40,7 +40,7 @@ import {
   suggestLabelObstacleFix,
   suggestComponentSeparation,
   cleanLabelCanvasContainmentProblems,
-} from '../archify/renderers/shared/geometry.mjs';
+} from '../archify/renderers/shared/geometry.ts';
 import { textUnits, applyTemplate, renderSemanticSigil } from '../archify/renderers/shared/utils.mjs';
 
 const rect = (x, y, w, h) => ({ x, y, width: w, height: h, cx: x + w / 2, cy: y + h / 2 });

@@ -43,7 +43,7 @@ function run(directory, args) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cli, ...args], {
       cwd: directory, timeout: 15000,
-      env: { ...process.env, ARCHIFY_BRAND_ALLOW_PRIVATE: '1', ARCHIFY_UPDATE_CHECK_DISABLED: '1' },
+      env: { ...process.env, ARCHIFY_BRAND_ALLOW_PRIVATE: '1' },
     });
     let stdout = '', stderr = '';
     child.stdout.setEncoding('utf8').on('data', data => { stdout += data; });

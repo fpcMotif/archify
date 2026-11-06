@@ -76,7 +76,7 @@ import {
   variantAccent,
   edgeLabelAccent,
   roundedPath
-} from '../shared/geometry.mjs';
+} from '../shared/geometry.ts';
 
 const LEGACY_COLUMN_CENTERS = Object.freeze([88, 220, 300, 430, 500, 625]);
 const READABLE_CANDIDATE_COST_PRIORITY = Object.freeze([
@@ -3021,7 +3021,7 @@ function validateWorkflow() {
     if (legendY() + 18 > viewBox[1]) {
       problems.push(`Legend exceeds viewBox height ${viewBox[1]} — set meta.viewBox[1] to at least ${legendY() + 18}.`);
     }
-    // v1 only; see collectLabelCanvasOverflow in shared/geometry.mjs.
+    // v1 only; see collectLabelCanvasOverflow in shared/geometry.ts.
     problems.push(...cleanLabelCanvasContainmentProblems({
       labels: labelRects,
       viewBox,

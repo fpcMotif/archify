@@ -10,7 +10,7 @@ import { scanHtml } from '../archify/explainer/check.mjs';
 const cli = path.resolve('archify/bin/archify.mjs');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a8XcAAAAASUVORK5CYII=', 'base64');
-function run(args,env={}) { return spawnSync(process.execPath,[cli,...args],{encoding:'utf8',maxBuffer:64*1024*1024,env:{...process.env,ARCHIFY_UPDATE_CHECK_DISABLED:'1',...env}}); }
+function run(args,env={}) { return spawnSync(process.execPath,[cli,...args],{encoding:'utf8',maxBuffer:64*1024*1024,env:{...process.env,...env}}); }
 function fixture() {return {schema_version:1,diagram_type:'explainer',meta:{id:'cli-document',title:'How is a draft delivered?',locale:'en'},answer:{summary:'A checked candidate preserves the authored draft.'},panels:[{id:'delivery',title:'What is checked?',blocks:[{id:'delivery-text',type:'prose',text:'The draft is parsed and checked before publication.'}]}],sources:[]};}
 function temporary(t) {const dir=fs.mkdtempSync(path.join(os.tmpdir(),'archify-explainer-cli-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));return dir;}
 function write(dir,document=fixture()) {const input=path.join(dir,'author-draft.json');fs.writeFileSync(input,JSON.stringify(document,null,2)+'\n');return input;}

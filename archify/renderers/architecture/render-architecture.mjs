@@ -40,7 +40,7 @@ import {
   componentText,
   arrowClassMap,
   edgeLabelAccent,
-} from '../shared/geometry.mjs';
+} from '../shared/geometry.ts';
 
 const componentTextFit = {
   sublabelPreferred: 9,
@@ -995,7 +995,7 @@ function validateArchitecture() {
     relationCollection: 'connections',
     profile: arch.meta?.quality_profile,
   }));
-  // See collectLabelCanvasOverflow in shared/geometry.mjs. An auto canvas now
+  // See collectLabelCanvasOverflow in shared/geometry.ts. An auto canvas now
   // covers these rects, so this reports authored viewBoxes and the origin side,
   // which growth cannot reach.
   problems.push(...cleanLabelCanvasContainmentProblems({

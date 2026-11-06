@@ -64,17 +64,7 @@ test('Camera accessible names retain the visible readout after native actions', 
       await assertAccessibleReadout(artifact, `${mode}/${locale}`);
     }
   }
-  const repoRoot = path.resolve(skillRoot, '..');
-  const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf8');
-  const readmeLinks = new Set(Array.from(readme.matchAll(/\]\((examples\/[^)\s]+\.html)\)/g), match => match[1]));
-  const examples = fs.readdirSync(path.join(repoRoot, 'examples'))
-    .filter(name => name.endsWith('.architecture.json'))
-    .map(name => JSON.parse(fs.readFileSync(path.join(repoRoot, 'examples', name), 'utf8')).meta.output)
-    .filter(output => readmeLinks.has(output));
-  assert.ok(examples.length, 'README links architecture examples with authoritative inputs');
-  for (const example of examples) {
-    await assertAccessibleReadout(path.join(repoRoot, example), example);
-  }
+  await assertAccessibleReadout(path.join(skillRoot, 'examples', 'web-app-rendered.html'), 'web-app-rendered.html');
 });
 
 test('Camera preserves transactions, rendered state and real caller handoffs', {

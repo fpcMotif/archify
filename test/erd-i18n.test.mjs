@@ -37,7 +37,7 @@ function run(directory, document, command = 'render') {
   if (command !== 'render') args.push('--json');
   return spawnSync(process.execPath, args, {
     cwd: directory, encoding: 'utf8',
-    env: { ...process.env, ARCHIFY_UPDATE_CHECK_DISABLED: '1' },
+    env: process.env,
   });
 }
 

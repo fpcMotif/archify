@@ -1,5 +1,5 @@
 import { throwDiagnosticError } from './diagnostics.mjs';
-import { rectsOverlap, segmentIntersectsRect } from './geometry.mjs';
+import { rectsOverlap, segmentIntersectsRect } from './geometry.ts';
 import { esc, textUnits } from './utils.mjs';
 import { translateMessage } from './i18n.mjs';
 

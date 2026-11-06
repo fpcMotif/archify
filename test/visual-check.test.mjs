@@ -2528,7 +2528,6 @@ test('public visual-check CLI reports a committed cleanup warning', (t) => {
   const baseEnv = {
     ...process.env,
     ARCHIFY_CHROME: missingChrome,
-    ARCHIFY_UPDATE_CHECK_DISABLED: '1',
   };
   const first = spawnSync(process.execPath, [cli, 'visual-check', input, '--json'], {
     encoding: 'utf8',
@@ -2568,7 +2567,7 @@ test('public visual-check CLI reports a committed cleanup warning', (t) => {
     encoding: 'utf8',
     env: {
       ...baseEnv,
-      NODE_OPTIONS: `--import=${pathToFileURL(hook).href}`,
+      BUN_OPTIONS: `--preload ${hook}`,
     },
   });
 

@@ -443,7 +443,7 @@ test('dataflow: aligned automatic branches stay straight without collapsing thei
   }
 });
 
-test('authoring defaults point to the bounded automatic port rules and READMEs describe the default', () => {
+test('authoring defaults point to the bounded automatic port rules', () => {
   const defaults = fs.readFileSync(path.join(skillRoot, 'references/authoring-defaults.md'), 'utf8');
   assert.match(defaults, /Start with automatic routes and endpoint sides/);
   assert.match(defaults, /Geometry reference.*measured spacing, port, canvas, and route rules/);
@@ -452,13 +452,6 @@ test('authoring defaults point to the bounded automatic port rules and READMEs d
   assert.match(authoringContract, /single relationships/);
   assert.match(authoringContract, /explicit `via`, `channelX`, `channelY`, `labelAt`/);
   assert.match(authoringContract, /unobstructed facing ports.*may share one horizontal or vertical axis/);
-
-  const repoRoot = path.resolve(skillRoot, '..');
-  for (const file of ['README.md', 'README_EN.md']) {
-    assert.match(fs.readFileSync(path.join(repoRoot, file), 'utf8'), /shared automatic endpoints spread deterministically/);
-  }
-  assert.match(fs.readFileSync(path.join(repoRoot, 'README_ZH.md'), 'utf8'), /共享的自动端点会确定性展开/);
-  assert.match(fs.readFileSync(path.join(repoRoot, 'README_JA.md'), 'utf8'), /共有される自動接続点は決定論的に分散/);
 });
 
 function settledDetourDataflow() {

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import fs from 'node:fs';
 import { isExplainerHtml, checkExplainerHtml } from '../explainer/check.mjs';
@@ -7,7 +7,7 @@ import { textUnits } from '../renderers/shared/utils.mjs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectAmbiguousCorridors, collectArrowheadCollisions, collectBorderRuns, collectLabelCanvasOverflow, collectLabelRouteClearance, collectRouteRhythmIssues, describeLabelCanvasOverflow, formatRect, forwardCollinearAnalysisSegments, minimumLabelRouteClearance, normalizeRoutePoints, routeBudgetMetrics } from '../renderers/shared/geometry.mjs';
+import { collectAmbiguousCorridors, collectArrowheadCollisions, collectBorderRuns, collectLabelCanvasOverflow, collectLabelRouteClearance, collectRouteRhythmIssues, describeLabelCanvasOverflow, formatRect, forwardCollinearAnalysisSegments, minimumLabelRouteClearance, normalizeRoutePoints, routeBudgetMetrics } from '../renderers/shared/geometry.ts';
 import {
   DESKTOP_READABILITY_VIEWPORT,
   DESKTOP_READER_DIAGRAM_WIDTH,
@@ -175,7 +175,7 @@ export function checkArtifact(bytes, { file } = {}) {
     });
     // The renderers bound their own label rects, but `check` also re-measures an
     // artifact it did not produce; see collectLabelCanvasOverflow in
-    // shared/geometry.mjs.
+    // shared/geometry.ts.
     const labelCanvasOverflow = collectLabelCanvasOverflow({
       labels: relationshipLabels,
       viewBox: viewBoxRect(svgAttrs),

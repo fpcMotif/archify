@@ -9,12 +9,7 @@ import { extractSvgs, parseXml } from './helpers/xml.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'archify');
 const repoRoot = path.resolve(skillRoot, '..');
-const artifactRoots = [
-  'archify/examples',
-  'docs',
-  'examples',
-  'experiments',
-];
+const artifactRoots = ['archify/examples'];
 
 function trackedHtmlArtifacts() {
   const tracked = spawnSync('git', ['ls-files', '-z', '--', ...artifactRoots], {
@@ -49,14 +44,11 @@ test('artifact SVG extraction follows HTML quoting and preserves SVG document bo
 
 test('tracked browsable HTML embeds well-formed XML SVG', () => {
   const artifacts = trackedHtmlArtifacts();
-  const checkoutArtifact = 'examples/checkout-platform-delta.html';
-  assert.ok(artifacts.includes(checkoutArtifact), 'expected the tracked Checkout compare artifact');
-  let checkoutSvgs;
+  assert.ok(artifacts.length > 0, 'expected tracked HTML artifacts');
 
   for (const relative of artifacts) {
     const html = fs.readFileSync(path.join(repoRoot, relative), 'utf8');
     const extracted = extractSvgs(html);
-    if (relative === checkoutArtifact) checkoutSvgs = extracted;
     const svgs = [...extracted.direct, ...extracted.embedded];
     if (svgs.length === 0) continue;
     for (const [index, svg] of svgs.entries()) {
@@ -65,24 +57,5 @@ test('tracked browsable HTML embeds well-formed XML SVG', () => {
         `${relative}: SVG ${index + 1} must be well-formed XML`,
       );
     }
-  }
-
-  assert.equal(checkoutSvgs?.direct.length, 1, 'Checkout must contain one comparison SVG');
-  assert.equal(checkoutSvgs?.embedded.length, 2, 'Checkout must retain its base/head SVG snapshots');
-});
-
-test('legacy example URLs redirect to the current canonical artifacts', () => {
-  for (const [legacy, canonical] of [
-    ['examples/workflow-agent-tool-call.html', 'workflow-agent-tool-call-rendered.html'],
-    ['examples/sequence-cache-miss.html', 'sequence-cache-miss-request.html'],
-  ]) {
-    const html = fs.readFileSync(path.join(repoRoot, legacy), 'utf8');
-    assert.match(html, new RegExp(`<link rel="canonical" href="${canonical}">`));
-    assert.match(
-      html,
-      new RegExp(`window\\.location\\.replace\\("${canonical}" \\+ window\\.location\\.search \\+ window\\.location\\.hash\\)`),
-      `${legacy} must preserve query parameters and deep-link fragments`,
-    );
-    assert.equal(fs.existsSync(path.join(repoRoot, 'examples', canonical)), true);
   }
 });

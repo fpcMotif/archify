@@ -20,7 +20,7 @@ import {
   collectBorderRuns,
   collectRouteRhythmIssues,
   frameBorderSegments,
-} from '../shared/geometry.mjs';
+} from '../shared/geometry.ts';
 import { shortestOrthogonalGridRoute } from '../shared/route-quality.mjs';
 
 /**

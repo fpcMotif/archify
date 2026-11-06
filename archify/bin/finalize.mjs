@@ -17,10 +17,8 @@ import {
   persistBrowserCheckFailure,
   VISUAL_CHECK_VIEWPORTS,
 } from './visual-check.mjs';
-import { startDeliveryUpdateCheck } from './delivery-update.mjs';
 
 export const FINALIZE_STAGES = Object.freeze(['validate', 'deliver', 'check', 'browser-check']);
-const FINALIZE_UPDATE_DEADLINE_MS = 4_000;
 
 function sha256(buffer) {
   return createHash('sha256').update(buffer).digest('hex');
@@ -639,9 +637,6 @@ export function compactFinalizeReceipt(receipt) {
       ...(truncated ? { omittedByCode: Object.fromEntries([...omittedCounts].filter(([, count]) => count > 0)) } : {}),
     },
     evidence: receipt.evidence,
-    ...(receipt.update && receipt.update.status !== 'unavailable'
-      ? { update: receipt.update }
-      : {}),
     visualReview: receipt.visualReview || 'not-requested',
     durationMs: receipt.durationMs,
     ...(receipt.browserCheck ? {browserCheck:receipt.browserCheck} : {}),
@@ -724,7 +719,6 @@ export async function runFinalize({
   runCommand = defaultRunner,
   runCheck,
   runBrowserCheck,
-  startUpdateCheck = startDeliveryUpdateCheck,
   resolveChrome = findChrome,
   createBrowser = (chromePath, options) => new ChromeVisualBrowser(chromePath, options),
 } = {}) {
@@ -799,9 +793,6 @@ export async function runFinalize({
     summaryCapture = writeJsonAtomic(resolvedSummary, compactFinalizeReceipt(receipt), summaryCapture, assertReceiptPaths);
   };
   persistReceipts();
-  // The gates below usually take seconds, so a slower network can finish the
-  // update check in parallel instead of timing out on every delivery.
-  const updateCheck = startUpdateCheck({ env, deadlineMs: needsBrowser ? FINALIZE_UPDATE_DEADLINE_MS : 200 });
 
   // Resolve and launch Chrome only after delivery and strict artifact checks pass.
   // Invalid candidates must not start a browser that cannot inspect an artifact.
@@ -886,7 +877,7 @@ export async function runFinalize({
         };
       } else {
         result = await runCommand({ stage, cliPath, args, cwd,
-          env: stage === 'deliver' ? { ...env, ARCHIFY_UPDATE_CHECK_DISABLED: '1' } : env });
+          env });
       }
       if (preparedExplainer && result.status === 0) {
         try {
@@ -1038,11 +1029,9 @@ export async function runFinalize({
       : identity(resolvedOutput);
     receipt.finishedAt = new Date().toISOString();
     receipt.durationMs = durationMs(started);
-    receipt.update = await updateCheck;
     persistReceipts();
     return { exitCode, receipt, summary: compactFinalizeReceipt(receipt) };
   } finally {
     if (browser && !browserTransferred) await browser.close();
-    await updateCheck;
   }
 }

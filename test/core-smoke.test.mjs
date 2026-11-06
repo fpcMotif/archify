@@ -101,7 +101,6 @@ test('core smoke: public CLI diagrams, compatibility and delivery safety', async
   fs.mkdirSync(runtimeTmp);
   const env = {
     ...process.env,
-    ARCHIFY_UPDATE_CHECK_DISABLED: '1',
     TMPDIR: runtimeTmp,
     TMP: runtimeTmp,
     TEMP: runtimeTmp,
