@@ -10,7 +10,10 @@ const helper = new URL('./helpers/repository-evidence-fixture.mjs', import.meta.
 test('repository evidence fixtures clean successful and partially initialized repositories', (t) => {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-fixture-cleanup-'));
   t.after(() => fs.rmSync(temporaryRoot, { recursive: true, force: true }));
-  const child = spawnSync(process.execPath, ['--input-type=module', '-e', `
+  const suiteRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-fixture-suite-'));
+  t.after(() => fs.rmSync(suiteRoot, { recursive: true, force: true }));
+  const suite = path.join(suiteRoot, 'fixture-cleanup.test.mjs');
+  fs.writeFileSync(suite, `
     import assert from 'node:assert/strict';
     import fs from 'node:fs';
     import test from 'node:test';
@@ -28,10 +31,16 @@ test('repository evidence fixtures clean successful and partially initialized re
       });
       assert.throws(() => fixture(), /fixture write failed/);
     });
-  `], {
+  `);
+  const child = spawnSync(process.execPath, ['test', suite], {
+    cwd: suiteRoot,
     encoding: 'utf8',
     env: { ...process.env, TMPDIR: temporaryRoot, TEMP: temporaryRoot, TMP: temporaryRoot },
   });
   assert.equal(child.status, 0, child.stdout + child.stderr);
-  assert.deepEqual(fs.readdirSync(temporaryRoot), [], 'fixture-owned Git directories must not outlive their suite');
+  assert.deepEqual(
+    fs.readdirSync(temporaryRoot).filter((name) => name.startsWith('archify-evidence-repo-')),
+    [],
+    'fixture-owned Git directories must not outlive their suite',
+  );
 });

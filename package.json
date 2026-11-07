@@ -8,7 +8,7 @@
   "scripts": {
     "test": "bun test test/core-smoke.test.mjs",
     "test:browser": "bun scripts/run-browser-tests.ts",
-    "test:generated": "bun --cwd archify run check:viewer && bun --cwd archify run check:brand-marks && bun --cwd archify run check:validators && bun test/golden.mjs",
+    "test:generated": "bun run --cwd archify check:viewer && bun run --cwd archify check:brand-marks && bun run --cwd archify check:validators && bun test/golden.mjs",
     "test:all": "bun test --timeout 120000",
     "test:full": "bun run test:generated && bun run test:all"
   },

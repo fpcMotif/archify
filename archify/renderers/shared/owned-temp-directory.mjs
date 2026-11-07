@@ -56,7 +56,13 @@ export function createOwnedTempDirectory(prefix, { parent = os.tmpdir() } = {}) 
       throw error;
     }
     // No internal retry: each new attempt must revalidate the entire binding.
-    fs.rmSync(directory, { recursive: true, force: false, maxRetries: 0 });
+    try {
+      fs.rmSync(directory, { recursive: true, force: false, maxRetries: 0 });
+    } catch (error) {
+      // Chrome can finish deleting its own profile between the check and the removal.
+      if (error.code === 'ENOENT' && !fs.existsSync(directory)) return;
+      throw error;
+    }
   }
 
   return Object.freeze({

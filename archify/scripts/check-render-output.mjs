@@ -6,7 +6,6 @@ import { analyzeSvgPath } from '../renderers/shared/svg-path-analysis.mjs';
 import { textUnits } from '../renderers/shared/utils.mjs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { collectAmbiguousCorridors, collectArrowheadCollisions, collectBorderRuns, collectLabelCanvasOverflow, collectLabelRouteClearance, collectRouteRhythmIssues, describeLabelCanvasOverflow, formatRect, forwardCollinearAnalysisSegments, minimumLabelRouteClearance, normalizeRoutePoints, routeBudgetMetrics } from '../renderers/shared/geometry.ts';
 import {
   DESKTOP_READABILITY_VIEWPORT,
@@ -449,7 +448,7 @@ function runCli(input) {
   process.exitCode = receipt.ok ? 0 : 1;
 }
 
-if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) runCli(process.argv[2]);
+if (import.meta.main) runCli(process.argv[2]);
 
 function collectArrows(fragment, useActualPoints, pathState) {
   const arrows = [];

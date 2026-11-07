@@ -66,7 +66,7 @@ export function generateViewer({ root = defaultRoot, check = false } = {}) {
   }
   if (check) {
     if (!fs.existsSync(output) || fs.readFileSync(output, 'utf8') !== generated) {
-      throw new Error('Viewer template is stale — run npm run generate:viewer from archify/.');
+      throw new Error('Viewer template is stale — run bun run generate:viewer from archify/.');
     }
   } else {
     const temporary = `${output}.${process.pid}.tmp`;
