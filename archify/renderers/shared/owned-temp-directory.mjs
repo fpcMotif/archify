@@ -4,7 +4,8 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { sameEntry } from './path-semantics.mjs';
 
-const retryable = new Set(['EBUSY', 'EPERM', 'EACCES', 'ENOTEMPTY']);
+// Bun's recursive rmSync reports ENOENT on the root when Chrome deletes a profile file mid-walk.
+const retryable = new Set(['EBUSY', 'EPERM', 'EACCES', 'ENOTEMPTY', 'ENOENT']);
 
 function directoryIdentity(directory) {
   const stat = fs.lstatSync(directory, { bigint: true });
@@ -56,13 +57,7 @@ export function createOwnedTempDirectory(prefix, { parent = os.tmpdir() } = {}) 
       throw error;
     }
     // No internal retry: each new attempt must revalidate the entire binding.
-    try {
-      fs.rmSync(directory, { recursive: true, force: false, maxRetries: 0 });
-    } catch (error) {
-      // Chrome can finish deleting its own profile between the check and the removal.
-      if (error.code === 'ENOENT' && !fs.existsSync(directory)) return;
-      throw error;
-    }
+    fs.rmSync(directory, { recursive: true, force: false, maxRetries: 0 });
   }
 
   return Object.freeze({
