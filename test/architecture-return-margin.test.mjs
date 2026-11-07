@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRouter } from '../archify/renderers/architecture/routing.mjs';
 import { reservedLabelRect } from '../archify/renderers/architecture/labels.mjs';
-import { labelPoint, properSegmentIntersection, routeHonorsEndpointSides } from '../archify/renderers/shared/geometry.mjs';
+import { labelPoint, properSegmentIntersection, routeHonorsEndpointSides } from '../archify/renderers/shared/geometry.ts';
 import { textUnits } from '../archify/renderers/shared/utils.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -100,7 +100,7 @@ test('the architecture renderer reserves extra room only for an automatic canvas
     const bytes = JSON.stringify(diagram);
     fs.writeFileSync(input, bytes);
     const result = spawnSync(process.execPath, [cli, 'validate', 'architecture', input, '--layout-json'], {
-      encoding: 'utf8', env: { ...process.env, ARCHIFY_UPDATE_CHECK_DISABLED: '1' },
+      encoding: 'utf8', env: process.env,
     });
     assert.equal(result.status, 0, result.stdout + result.stderr);
     assert.equal(fs.readFileSync(input, 'utf8'), bytes);

@@ -277,6 +277,17 @@ Compare diagnostics by code, subject, and stage instead of total count alone.
 
 After every edit, rerun the complete `finalize` as the delivery contract requires; use `validate` only for focused diagnosis between finalize runs. Consume `diagnostics[]` by stable `code`, exact `subject`, measured `evidence`, and `supportedFixes`. If the diagnostic gives `labelAt`, use that point instead of estimating another offset.
 
+### Structured edits
+
+Some diagnostics also carry `edits`, the machine form of the `set` lines in `supportedFixes`. The text stays the same; `edits` states the exact JSON values.
+
+- `{ "op": "set", "pointer": "/messages/3/y", "value": 238 }` sets one JSON pointer in the candidate to that exact value. The pointer's parent already exists.
+- All entries in one diagnostic's `edits` form one repair. Apply all of them together or none.
+- `{ "op": "choose", "options": [[set, ...], [set, ...]] }` offers alternatives. Apply exactly one option, chosen for the requested meaning. Each option is itself a repair.
+- A fix that needs judgment, such as naming an owner, appears only in `supportedFixes`.
+
+`archify autofix <type> <candidate.json> <output.html> [finalize options]` takes the same arguments as `finalize`. It runs `finalize`, applies every diagnostic whose `edits` hold only `set` entries, rewrites the candidate in place, and runs `finalize` again, for at most four passes. It skips choices, fixes without edits, and repairs that would change a location another repair already changed in the same pass, and it reports each skip with its reason. It exits 0 when `finalize` passes, 1 when it stops with diagnostics left, and 2 for invalid arguments. With `--json` it prints `{ ok, passes: [{ pass, applied, skipped }], summary }`, where `summary` is the compact finalize summary. Today every edit comes from validation-stage diagnostics. Autofix does not support `explainer`. Run it before a manual repair, then resolve what it reports as skipped.
+
 ## Mode placement
 
 ### Architecture

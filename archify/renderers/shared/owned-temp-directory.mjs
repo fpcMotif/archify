@@ -4,7 +4,8 @@ import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { sameEntry } from './path-semantics.mjs';
 
-const retryable = new Set(['EBUSY', 'EPERM', 'EACCES', 'ENOTEMPTY']);
+// Bun's recursive rmSync reports ENOENT on the root when Chrome deletes a profile file mid-walk.
+const retryable = new Set(['EBUSY', 'EPERM', 'EACCES', 'ENOTEMPTY', 'ENOENT']);
 
 function directoryIdentity(directory) {
   const stat = fs.lstatSync(directory, { bigint: true });

@@ -49,7 +49,7 @@ import {
   suggestComponentSeparation,
   suggestLabelObstacleFix,
   variantAccent,
-} from '../shared/geometry.mjs';
+} from '../shared/geometry.ts';
 import { createRouter } from '../architecture/routing.mjs';
 import { placeAutomaticLabels } from '../shared/automatic-labels.mjs';
 import { entityBox, connectionPath as relationshipPath } from '../shared/layout-report.mjs';

@@ -121,23 +121,13 @@ test('Reach Share Card reuses the 1200x630 seam and publishes a truthful scoped 
   assert.match(html, /downloadReachShareCard: runReachShareCard/);
 });
 
-test('Skill, product docs, and READMEs keep the optional truthful boundary explicit', () => {
+test('Skill and product docs keep the optional truthful boundary explicit', () => {
   const viewer = fs.readFileSync(path.join(skillRoot, 'references', 'viewer-runtime.md'), 'utf8');
   assert.match(viewer, /Export → Reach Share Card/);
   assert.match(viewer, /variant=reach/);
   assert.match(viewer, /data-share-reach-\*/);
   assert.match(viewer, /authored reachability/i);
   assert.match(viewer, /download-only/i);
-
-  for (const readme of ['README.md', 'README_EN.md', 'README_ZH.md', 'README_JA.md']) {
-    const text = fs.readFileSync(path.join(repoRoot, readme), 'utf8');
-    assert.match(text, /Reach Share Card/, readme);
-    assert.match(text, /docs\/assets\/mco-runtime-reach-share-card\.png/, readme);
-  }
-  const png = fs.readFileSync(path.join(repoRoot, 'docs/assets/mco-runtime-reach-share-card.png'));
-  assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
-  assert.equal(png.readUInt32BE(16), 1200);
-  assert.equal(png.readUInt32BE(20), 630);
 
   const product = fs.readFileSync(path.join(repoRoot, 'PRODUCT.md'), 'utf8');
   const design = fs.readFileSync(path.join(repoRoot, 'DESIGN.md'), 'utf8');

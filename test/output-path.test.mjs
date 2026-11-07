@@ -274,10 +274,6 @@ test('deliver rechecks aliases immediately before committing a verified candidat
   fs.mkdirSync(installedScripts, { recursive: true });
   fs.copyFileSync(cli, path.join(installedBin, 'archify.mjs'));
   fs.copyFileSync(
-    path.join(skillRoot, 'bin/delivery-update.mjs'),
-    path.join(installedBin, 'delivery-update.mjs'),
-  );
-  fs.copyFileSync(
     path.join(skillRoot, 'renderers/shared/output-path.mjs'),
     path.join(installedShared, 'output-path.mjs'),
   );
@@ -310,7 +306,7 @@ if (!fs.existsSync(release)) throw new Error('timed out waiting for output-path 
 fs.writeFileSync(output, '<!doctype html><title>verified candidate</title><svg></svg>');
 `);
   fs.writeFileSync(path.join(installedScripts, 'check-render-output.mjs'), `
-console.log(JSON.stringify({
+export const checkArtifact = () => ({
   ok: true,
   checks: [{ name: 'single_svg', ok: true }],
   composition: {
@@ -318,7 +314,7 @@ console.log(JSON.stringify({
     status: 'pass',
     summary: { errors: 0, warnings: 0 }
   }
-}));
+});
 `);
 
   const inputDirectory = path.join(cwd, 'input');
@@ -342,7 +338,6 @@ console.log(JSON.stringify({
     encoding: 'utf8',
     env: {
       ...process.env,
-      ARCHIFY_UPDATE_CHECK_DISABLED: '1',
       ARCHIFY_TEST_RENDER_STARTED: marker,
       ARCHIFY_TEST_RENDER_RELEASE: release,
     },
@@ -1039,7 +1034,7 @@ if (path.basename(output) === 'head.html') {
 fs.writeFileSync(output, '<!doctype html><svg role="img"></svg>');
 `);
   fs.writeFileSync(path.join(installedScripts, 'check-render-output.mjs'), `
-console.log(JSON.stringify({
+export const checkArtifact = () => ({
   ok: true,
   checks: [{ name: 'single_svg', ok: true }],
   composition: {
@@ -1047,7 +1042,7 @@ console.log(JSON.stringify({
     status: 'pass',
     summary: { errors: 0, warnings: 0 }
   }
-}));
+});
 `);
   fs.writeFileSync(path.join(installedDelta, 'architecture-delta.mjs'), `
 export class ArchitectureDeltaError extends Error {}

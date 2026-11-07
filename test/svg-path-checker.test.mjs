@@ -42,7 +42,7 @@ async function execute(t, args, description, timeoutMs = deadlineMs) {
   const child = spawn(process.execPath, args, {
     detached: process.platform !== 'win32',
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, ARCHIFY_UPDATE_CHECK_DISABLED: '1' },
+    env: process.env,
   });
   let stdout = '', stderr = '', timedOut = false, exited = false, spawnError, cleanupError;
   child.stdout.on('data', chunk => { stdout += chunk; });

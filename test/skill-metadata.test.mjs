@@ -9,7 +9,6 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.join(here, '..', 'archify');
 const skill = readFileSync(path.join(skillRoot, 'SKILL.md'), 'utf8');
 const defaults = readFileSync(path.join(skillRoot, 'references', 'authoring-defaults.md'), 'utf8');
-const updateAwareness = readFileSync(path.join(skillRoot, 'references', 'update-awareness.md'), 'utf8');
 const authoringContract = readFileSync(path.join(skillRoot, 'references', 'authoring-contract.md'), 'utf8');
 const frontmatter = skill.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
 
@@ -52,17 +51,6 @@ test('main skill stays a bounded authoring router with progressive references', 
     assert.match(skill, new RegExp(reference.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.equal(existsSync(path.join(skillRoot, reference)), true, `${reference} must ship with the skill`);
   }
-});
-
-test('update awareness is notification-only and never replaces the requested workflow', () => {
-  assert.match(skill + updateAwareness, /`finalize` and standalone `deliver` include `update`/);
-  assert.match(skill + updateAwareness, /`update\.noticeRequired`[\s\S]*final response/i);
-  assert.match(skill + updateAwareness, /several diagrams[\s\S]*once in the final response/i);
-  assert.match(skill + updateAwareness, /information, not permission/i);
-  assert.match(skill, /Snooze or ignore a reminder only when the user explicitly asks/);
-  assert.match(updateAwareness, /explicitly asks to pause or stop[\s\S]*--snooze "<eventKey>"[\s\S]*--ignore "<eventKey>"[\s\S]*Never run them on your own initiative/);
-  assert.match(updateAwareness, /Keep the installed version unchanged/i);
-  assert.doesNotMatch(skill, /npx skills update|gh skill update/i);
 });
 
 test('language behavior stays within the bounded locale contract', () => {

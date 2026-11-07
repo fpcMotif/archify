@@ -5,7 +5,7 @@ import {
   normalizeRoutePoints,
   properSegmentIntersection,
   segmentIntersectsRect,
-} from './geometry.mjs';
+} from './geometry.ts';
 
 const DEFAULTS = Object.freeze({
   clearance: 2,

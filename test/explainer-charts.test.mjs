@@ -12,7 +12,7 @@ function finalize(t, chart) {
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const input = path.join(dir, 'draft.md'), output = path.join(dir, 'page.html');
   fs.writeFileSync(input, draft(chart));
-  const run = spawnSync(process.execPath, [cli, 'finalize', 'explainer', input, output, '--json'], { encoding: 'utf8', env: { ...process.env, ARCHIFY_UPDATE_CHECK_DISABLED: '1' } });
+  const run = spawnSync(process.execPath, [cli, 'finalize', 'explainer', input, output, '--json'], { encoding: 'utf8', env: process.env });
   return { status: run.status, receipt: JSON.parse(run.stdout), html: fs.existsSync(output) ? fs.readFileSync(output, 'utf8') : null };
 }
 
@@ -56,7 +56,7 @@ test('a data chart reads its CSV next to the draft, freezes it, and names a miss
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-explainer-data-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   fs.writeFileSync(path.join(dir, 'latency.csv'), 'day,p50,p99\nMon,78,82\nTue,79,600\n');
-  const run = draft => { const input = path.join(dir, 'draft.md'), output = path.join(dir, 'page.html'); fs.writeFileSync(input, draft); const r = spawnSync(process.execPath, [cli, 'finalize', 'explainer', input, output, '--json'], { encoding: 'utf8', env: { ...process.env, ARCHIFY_UPDATE_CHECK_DISABLED: '1' } }); return { status: r.status, receipt: JSON.parse(r.stdout), html: fs.existsSync(output) ? fs.readFileSync(output, 'utf8') : '' }; };
+  const run = draft => { const input = path.join(dir, 'draft.md'), output = path.join(dir, 'page.html'); fs.writeFileSync(input, draft); const r = spawnSync(process.execPath, [cli, 'finalize', 'explainer', input, output, '--json'], { encoding: 'utf8', env: process.env }); return { status: r.status, receipt: JSON.parse(r.stdout), html: fs.existsSync(output) ? fs.readFileSync(output, 'utf8') : '' }; };
   const page = draft => `# Why did P99 jump?\n\nOnly the slowest requests got slower.\n\n@meta locale=en\n\n## How did it move? {#week}\n\n${draft}\n`;
   const ok = run(page('@chart type=bar data=latency.csv x=day y=p50,p99 unit=ms title="Week"'));
   assert.equal(ok.status, 0, JSON.stringify(ok.receipt.diagnostics));

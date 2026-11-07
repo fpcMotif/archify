@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { flowLabelSize, wrapBlockedFlowLabels } from '../archify/renderers/dataflow/label-capacity.mjs';
-import { rectsOverlap, segmentRectClearanceWithin } from '../archify/renderers/shared/geometry.mjs';
+import { rectsOverlap, segmentRectClearanceWithin } from '../archify/renderers/shared/geometry.ts';
 
 function fixture(text = '保存 / 复制结果') {
   const relation = { id: 'output', label: text };

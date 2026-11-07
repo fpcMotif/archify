@@ -74,11 +74,11 @@ test('a freshly delivered artifact of every type reaches no external origin', ()
 
 test('every checked-in viewer artifact carries its font and reaches no external origin', () => {
   // Delivery-chain roots only; frozen experiments are not maintained viewers.
-  const tracked = spawnSync('git', ['ls-files', '-z', '--', 'archify/examples', 'docs', 'examples'], { cwd: repoRoot, encoding: 'utf8' });
+  const tracked = spawnSync('git', ['ls-files', '-z', '--', 'archify/examples'], { cwd: repoRoot, encoding: 'utf8' });
   assert.equal(tracked.status, 0, tracked.stderr);
   const artifacts = tracked.stdout.split('\0').filter((entry) => entry.endsWith('.html'))
     .filter((entry) => /Archify\.readerLayout/.test(fs.readFileSync(path.join(repoRoot, entry), 'utf8')));
-  for (const required of ['examples/checkout-platform-delta.html', ...DIAGRAMS.map(([, , output]) => `archify/examples/${output}`)]) {
+  for (const required of DIAGRAMS.map(([, , output]) => `archify/examples/${output}`)) {
     assert.ok(artifacts.includes(required), `missing delivery-chain artifact: ${required}`);
   }
   for (const relative of artifacts) assertOfflineArtifact(fs.readFileSync(path.join(repoRoot, relative), 'utf8'), relative);
@@ -92,10 +92,4 @@ test('standalone software notices preserve both licenses as non-executable text'
     assert.ok(softwareNotices.includes(`${name}\n${canonical}`), `${name} must retain its complete text`);
   }
   assert.match(softwareNotices, /Copyright \(c\) 2025 Cocoon AI/);
-  for (const name of ['archify-repo-grid', 'archify-repo', 'maka-architecture', 'rag-pipeline', 'web-app']) {
-    const html = fs.readFileSync(path.join(repoRoot, 'examples', `${name}.html`), 'utf8');
-    const embedded = html.match(/id="archify-software-notices">([\s\S]*?)<\/script>/)?.[1];
-    assert.ok(embedded, `${name} must carry software notices`);
-    assert.equal(JSON.parse(embedded), softwareNotices, `${name} must carry current license text`);
-  }
 });

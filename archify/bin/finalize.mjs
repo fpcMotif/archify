@@ -17,10 +17,8 @@ import {
   persistBrowserCheckFailure,
   VISUAL_CHECK_VIEWPORTS,
 } from './visual-check.mjs';
-import { startDeliveryUpdateCheck } from './delivery-update.mjs';
 
 export const FINALIZE_STAGES = Object.freeze(['validate', 'deliver', 'check', 'browser-check']);
-const FINALIZE_UPDATE_DEADLINE_MS = 4_000;
 
 function sha256(buffer) {
   return createHash('sha256').update(buffer).digest('hex');
@@ -480,27 +478,11 @@ function browserEvidence(receipt, artifactPath) {
   };
 }
 
-// Stage receipts (dense validate/check JSON) can exceed execFile's 1 MiB
-// default. Track ARCHIFY_CHECK_MAX_BUFFER so a raised checker limit is not
-// defeated one layer up, with a 4 MiB floor: a lowered knob makes failing
-// stages emit compact classified receipts, but those receipts — and any
-// successful receipt the knob let through — still have to fit the capture.
-// The 64 KiB headroom covers the stage echo over the raw checker receipt:
-// commandCheck appends provenance and deliveryReceiptId after the checker
-// ran, so the printed receipt can exceed the knob that admitted it. Read the
-// knob from the runner's env, not process.env: runFinalize callers supply
-// their own env and the child stages inherit exactly that object.
-function stageCaptureMaxBuffer(env = process.env) {
-  const parsed = Number(env.ARCHIFY_CHECK_MAX_BUFFER);
-  const knob = Number.isFinite(parsed) && Math.floor(parsed) >= 1
-    ? Math.floor(parsed)
-    : 64 * 1024 * 1024;
-  return Math.max(knob, 4 * 1024 * 1024) + 64 * 1024;
-}
+const STAGE_CAPTURE_MAX_BUFFER = 64 * 1024 * 1024;
 
 function defaultRunner({ cliPath, args, cwd, env }) {
   return new Promise((resolve) => {
-    execFile(process.execPath, [cliPath, ...args], { cwd, env, encoding: 'utf8', maxBuffer: stageCaptureMaxBuffer(env) }, (error, stdout, stderr) => {
+    execFile(process.execPath, [cliPath, ...args], { cwd, env, encoding: 'utf8', maxBuffer: STAGE_CAPTURE_MAX_BUFFER }, (error, stdout, stderr) => {
       resolve({
         status: error ? (Number.isInteger(error.code) ? error.code : 1) : 0,
         stdout,
@@ -614,6 +596,7 @@ export function compactFinalizeReceipt(receipt) {
       // Verified repairs may require every edit in the set to be applied together.
       ...(Array.isArray(entry.supportedFixes) && entry.supportedFixes.length
         ? { supportedFixes: [...entry.supportedFixes] } : {}),
+      ...(Array.isArray(entry.edits) && entry.edits.length ? { edits: entry.edits } : {}),
     });
   };
   for (const [index, entry] of allDiagnostics.entries()) {
@@ -654,9 +637,6 @@ export function compactFinalizeReceipt(receipt) {
       ...(truncated ? { omittedByCode: Object.fromEntries([...omittedCounts].filter(([, count]) => count > 0)) } : {}),
     },
     evidence: receipt.evidence,
-    ...(receipt.update && receipt.update.status !== 'unavailable'
-      ? { update: receipt.update }
-      : {}),
     visualReview: receipt.visualReview || 'not-requested',
     durationMs: receipt.durationMs,
     ...(receipt.browserCheck ? {browserCheck:receipt.browserCheck} : {}),
@@ -737,8 +717,8 @@ export async function runFinalize({
   cwd = process.cwd(),
   env = process.env,
   runCommand = defaultRunner,
+  runCheck,
   runBrowserCheck,
-  startUpdateCheck = startDeliveryUpdateCheck,
   resolveChrome = findChrome,
   createBrowser = (chromePath, options) => new ChromeVisualBrowser(chromePath, options),
 } = {}) {
@@ -813,9 +793,6 @@ export async function runFinalize({
     summaryCapture = writeJsonAtomic(resolvedSummary, compactFinalizeReceipt(receipt), summaryCapture, assertReceiptPaths);
   };
   persistReceipts();
-  // The gates below usually take seconds, so a slower network can finish the
-  // update check in parallel instead of timing out on every delivery.
-  const updateCheck = startUpdateCheck({ env, deadlineMs: needsBrowser ? FINALIZE_UPDATE_DEADLINE_MS : 200 });
 
   // Resolve and launch Chrome only after delivery and strict artifact checks pass.
   // Invalid candidates must not start a browser that cannot inspect an artifact.
@@ -891,9 +868,16 @@ export async function runFinalize({
             browserFactory,
           });
         result = { status: checked.exitCode, stdout: JSON.stringify(checked.receipt) };
+      } else if (stage === 'check' && runCheck) {
+        const checked = await runCheck({ artifactPath: resolvedOutput });
+        result = {
+          status: checked.exitCode,
+          stdout: checked.receipt ? JSON.stringify(checked.receipt) : '',
+          ...(checked.stderr ? { stderr: checked.stderr } : {}),
+        };
       } else {
         result = await runCommand({ stage, cliPath, args, cwd,
-          env: stage === 'deliver' ? { ...env, ARCHIFY_UPDATE_CHECK_DISABLED: '1' } : env });
+          env });
       }
       if (preparedExplainer && result.status === 0) {
         try {
@@ -1045,11 +1029,9 @@ export async function runFinalize({
       : identity(resolvedOutput);
     receipt.finishedAt = new Date().toISOString();
     receipt.durationMs = durationMs(started);
-    receipt.update = await updateCheck;
     persistReceipts();
     return { exitCode, receipt, summary: compactFinalizeReceipt(receipt) };
   } finally {
     if (browser && !browserTransferred) await browser.close();
-    await updateCheck;
   }
 }

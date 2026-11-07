@@ -1,6 +1,7 @@
 import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../shared/utils.mjs';
 import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, svgAccessibleText, svgRootAttrs } from '../shared/cli.mjs';
 import { throwDiagnosticProblems, withIsolatedDiagnosticRecording, rendererFailure } from '../shared/diagnostics.mjs';
+import { chooseFix, fixFields, setFix } from '../shared/fixes.mjs';
 import { resolveLegend, renderLegend as renderResolvedLegend, legendFootprint } from '../shared/legend.mjs';
 import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth, nodeLabelLayout } from '../shared/text-fit.mjs';
 import { brandLabelFitWidth, brandMarkFor, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../shared/brand-marks.mjs';
@@ -48,7 +49,7 @@ import {
   arrowClassMap,
   edgeLabelAccent,
   properSegmentIntersection
-} from '../shared/geometry.mjs';
+} from '../shared/geometry.ts';
 
 const nodeTextFit = {
   sublabelPreferred: 7,
@@ -433,7 +434,8 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
               to: flow.to,
             },
             evidence: { endpoint, unknownNodeId: flow[field], availableNodeIds: candidates },
-            supportedFixes: candidates.slice(0, 3).map((id) => `set /flows/${flowIndex}/${field} to verified node id "${id}"`),
+            ...fixFields(candidates.length ? [chooseFix(candidates.slice(0, 3)
+              .map((id) => setFix(`/flows/${flowIndex}/${field}`, id, { label: 'verified node id' })))] : []),
           });
           problems.push(problem);
         }

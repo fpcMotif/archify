@@ -83,7 +83,7 @@ not been replaced, remove only the reported lock, then rerun `deliver`. Do not
 remove an artifact, current provenance, or pending journal as part of
 stale-lock recovery.
 
-The lock protocol targets Node.js 18 or later on a local filesystem with
+The lock protocol targets Node.js 26 or later on a local filesystem with
 cooperating Archify processes. PID, receipt, and file-identity comparisons are
 defensive checks, not an atomic compare-and-swap. Compatibility fences cover
 the requested spelling and an existing physical-target spelling; they cannot
@@ -121,7 +121,7 @@ identity and backup inode, mode, SHA-256, and byte count in private
 specific interrupted publication visible again, stop concurrent writers and run:
 
 ```bash
-node bin/recover-output.mjs /absolute/path/to/.archify-remove-<id> --json
+bun bin/recover-output.mjs /absolute/path/to/.archify-remove-<id> --json
 ```
 
 This is explicit recovery, not a directory scanner. Before linking, the helper
@@ -193,8 +193,8 @@ into a non-zero failure when the workflow requires a successfully delivered
 artifact:
 
 ```bash
-node bin/archify.mjs check <output.html> --require-provenance
-node bin/archify.mjs browser-check <output.html> --json --require-provenance
+bun bin/archify.mjs check <output.html> --require-provenance
+bun bin/archify.mjs browser-check <output.html> --json --require-provenance
 ```
 
 ## Output path contracts
@@ -249,7 +249,7 @@ or prevent replacement of an existing artifact of the expected type.
 Use final verified delivery only after the candidate is frozen:
 
 ```bash
-node bin/archify.mjs deliver <type> <candidate.json> <output.html> --quality showcase --json
+bun bin/archify.mjs deliver <type> <candidate.json> <output.html> --quality showcase --json
 ```
 
 Deliver reads the specification once, writes those exact bytes to a private same-directory candidate snapshot, renders that snapshot, runs the complete artifact checker, and only replaces the target after all artifact checks pass. The JSON receipt includes SHA-256 and byte counts for both `specification` and `artifact`.
@@ -257,7 +257,7 @@ Deliver reads the specification once, writes those exact bytes to a private same
 For the ordinary agent handoff path, prefer the finalizer:
 
 ```bash
-node bin/archify.mjs finalize <type> <candidate.json> <output.html> --quality showcase --json
+bun bin/archify.mjs finalize <type> <candidate.json> <output.html> --quality showcase --json
 ```
 
 `finalize` invokes verified `deliver` once, reuses its embedded showcase
@@ -420,7 +420,7 @@ rerendering or modifying it. For focused diagnosis, the equivalent standalone
 command is:
 
 ```bash
-node bin/archify.mjs browser-check <output.html> --json --require-provenance
+bun bin/archify.mjs browser-check <output.html> --json --require-provenance
 ```
 
 The zero-dependency command uses Chrome/Chromium (or Microsoft Edge)
@@ -502,7 +502,7 @@ Sequence canvases with omitted `meta.column_fit` use `spread`, whether or not `m
 perceptual review:
 
 ```bash
-node bin/archify.mjs visual-check <output.html> --summary --require-provenance
+bun bin/archify.mjs visual-check <output.html> --summary --require-provenance
 ```
 
 `--summary` returns compact JSON with all diagnostics and absolute paths to the complete receipt, contact sheet, and every screenshot. For a chosen visual review, inspect the relevant captures; capture success is not perceptual approval. `--json` retains the full receipt output for existing consumers. Both modes run the same checks and keep the same exit status. If cleanup fails after publication, the summary retains the final failure diagnostics and `publication` recovery details; the linked receipt records the earlier committed evidence.
@@ -565,8 +565,8 @@ a capable environment.
 Browser evidence belongs to exact artifact bytes. After editing a candidate whose previous HTML already has browser evidence, choose a fresh evidence directory before running the next `finalize`; this preserves the old receipts and captures without an avoidable ownership-conflict retry. `--out-dir` relocates the new browser-check receipt and, by default, the finalize receipt and summary. An explicit `--receipt` overrides the finalize receipt path; its summary follows that path. Successful delivery still rewrites the requested HTML and its sibling `*.delivery.json`. Earlier browser or visual evidence remains bound to its original artifact bytes and must not be treated as evidence for changed HTML:
 
 ```bash
-node bin/archify.mjs finalize architecture candidate.json diagram.html --quality showcase --repo-root <root> --out-dir diagram.review-2 --json
-node bin/archify.mjs visual-check diagram.html --out-dir diagram.review-2 --summary --require-provenance
+bun bin/archify.mjs finalize architecture candidate.json diagram.html --quality showcase --repo-root <root> --out-dir diagram.review-2 --json
+bun bin/archify.mjs visual-check diagram.html --out-dir diagram.review-2 --summary --require-provenance
 ```
 
 The evidence directory is not an archive of the HTML. Copying the HTML there alone does not rebind receipt paths or provenance. If a historical snapshot is needed, preserve the candidate and artifact separately before overwriting them; do not assume copied receipts validate a relocated artifact.
@@ -590,7 +590,7 @@ status proves only whether the local opener invocation succeeded.
 For an active desktop authoring loop only:
 
 ```bash
-node bin/archify.mjs preview <type> <input>.json <output>.html --quality showcase
+bun bin/archify.mjs preview <type> <input>.json <output>.html --quality showcase
 ```
 
 Preview watches one explicit input on loopback, binds each stable digest to a private snapshot, and advances only after the existing verified delivery pipeline passes. Invalid, half-written, deleted, or superseded input leaves the previous verified revision on screen and on disk. Identical bytes do not rebuild or reload.

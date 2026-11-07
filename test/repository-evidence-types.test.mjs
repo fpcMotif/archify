@@ -30,7 +30,7 @@ const TYPES = [
 ];
 
 function git(repo, ...args) {
-  return execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
+  return execFileSync('git', ['-c', 'core.fsmonitor=false', '-C', repo, ...args], { encoding: 'utf8' }).trim();
 }
 
 function run(args) {

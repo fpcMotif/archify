@@ -60,7 +60,7 @@ function render(t, document) {
   fs.writeFileSync(input, source);
   const result = spawnSync(process.execPath, [cli, 'render', 'erd', input, output], {
     encoding: 'utf8', timeout: 20_000,
-    env: { ...process.env, ARCHIFY_UPDATE_CHECK_DISABLED: '1' },
+    env: process.env,
   });
   assert.equal(result.status, 0, `${result.error || ''}\n${result.stdout}\n${result.stderr}`);
   assert.equal(fs.readFileSync(input, 'utf8'), source, '作者输入必须保持原样');

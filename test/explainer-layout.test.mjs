@@ -33,7 +33,7 @@ test('native width is estimated from the prepared viewBox; authored spans stay e
 
 test('all three example HTML boards start with the conclusion and every panel row totals twelve',async()=>{
  for(const name of ['comparison','mechanism','diagram']){
-  const url=new URL(`../docs/specs/explainer/examples/${name}.md`,import.meta.url),text=fs.readFileSync(url,'utf8');
+  const url=new URL(`./fixtures/explainer/${name}.md`,import.meta.url),text=fs.readFileSync(url,'utf8');
   const prepared=await prepareExplainer(text,{inputPath:url.pathname});
   assert.equal(prepared.diagnostics.some(d=>d.code==='explainer/writing-qualification'),false);
   const tree=parse(renderExplainer(prepared.document,{...prepared,preparedBundle:prepared}));

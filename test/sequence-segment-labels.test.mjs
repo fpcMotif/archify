@@ -231,8 +231,8 @@ for (const profile of ['standard', 'showcase']) {
       assert.equal(diagnostic.evidence.borderY, 202);
       assert.equal(diagnostic.evidence.messageY, 200);
       assert.deepEqual(diagnostic.supportedFixes, [
-        'set /segments/0/to to at least 204 to leave the message above it',
-        'set /segments/0/to to at most 196 to leave the message below it',
+        'set /segments/0/to to 204 to leave the message above it',
+        'set /segments/0/to to 196 to leave the message below it',
       ]);
     }
   });

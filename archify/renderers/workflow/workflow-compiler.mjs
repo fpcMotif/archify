@@ -1,4 +1,5 @@
 import { proposeWorkflowPlacement } from './workflow-placement-repair.mjs';
+import { chooseFix, fixFields, setFix } from '../shared/fixes.mjs';
 import { createSpatialGrid } from '../shared/spatial-grid.mjs';
 import { shortestOrthogonalGridRoute } from '../shared/route-quality.mjs';
 import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../shared/utils.mjs';
@@ -75,7 +76,7 @@ import {
   variantAccent,
   edgeLabelAccent,
   roundedPath
-} from '../shared/geometry.mjs';
+} from '../shared/geometry.ts';
 
 const LEGACY_COLUMN_CENTERS = Object.freeze([88, 220, 300, 430, 500, 625]);
 const READABLE_CANDIDATE_COST_PRIORITY = Object.freeze([
@@ -1614,15 +1615,20 @@ const edgeIndexByEdge = new Map(asArray(workflow.edges).map((edge, index) => [ed
   // must list that same complete edit set so applying them verbatim is what was
   // verified. Indexes follow the emitter conventions: edges use the
   // sourceIndexes space, mainPath the canonical workflow's.
+  function repointFixFields(options) {
+    const nonEmpty = options.filter((option) => option.length);
+    return fixFields(nonEmpty.length ? [chooseFix(nonEmpty)] : []);
+  }
+
   function unknownIdReferenceFixes(unknownId, nodeId) {
     const fixes = [];
     asArray(qualityResolvedWorkflow.edges).forEach((entry, index) => {
       for (const field of ['from', 'to']) {
-        if (entry[field] === unknownId) fixes.push(`set /edges/${index}/${field} to verified node id "${nodeId}"`);
+        if (entry[field] === unknownId) fixes.push(setFix(`/edges/${index}/${field}`, nodeId, { label: 'verified node id' }));
       }
     });
     asArray(workflow.mainPath).forEach((id, index) => {
-      if (id === unknownId) fixes.push(`set /mainPath/${index} to verified node id "${nodeId}"`);
+      if (id === unknownId) fixes.push(setFix(`/mainPath/${index}`, nodeId, { label: 'verified node id' }));
     });
     return fixes;
   }
@@ -2955,10 +2961,10 @@ function validateWorkflow() {
             availableNodeIds: candidates,
             fixVerification: 'each candidate was verified by applying every listed repoint together and recompiling',
           },
-          supportedFixes: candidates
+          ...repointFixFields(candidates
             .filter((nodeId) => acceptsFix((document) => repointReferences(document, id, nodeId)))
             .slice(0, 3)
-            .flatMap((nodeId) => unknownIdReferenceFixes(id, nodeId)),
+            .map((nodeId) => unknownIdReferenceFixes(id, nodeId))),
         });
       }
     }
@@ -3015,7 +3021,7 @@ function validateWorkflow() {
     if (legendY() + 18 > viewBox[1]) {
       problems.push(`Legend exceeds viewBox height ${viewBox[1]} — set meta.viewBox[1] to at least ${legendY() + 18}.`);
     }
-    // v1 only; see collectLabelCanvasOverflow in shared/geometry.mjs.
+    // v1 only; see collectLabelCanvasOverflow in shared/geometry.ts.
     problems.push(...cleanLabelCanvasContainmentProblems({
       labels: labelRects,
       viewBox,
@@ -3112,10 +3118,10 @@ function validateReadableInputsBeforeRouting() {
     for (const [field, endpoint] of [['from', 'source'], ['to', 'target']]) {
       if (nodes.has(edge[field])) continue;
       const message = `Workflow edge "${workflowEdgeName(edge)}" references unknown ${endpoint} "${edge[field]}".`;
-      const supportedFixes = availableNodeIds
+      const repairFields = repointFixFields(availableNodeIds
         .filter((nodeId) => acceptsFix((document) => repointReferences(document, edge[field], nodeId)))
         .slice(0, 3)
-        .flatMap((nodeId) => unknownIdReferenceFixes(edge[field], nodeId));
+        .map((nodeId) => unknownIdReferenceFixes(edge[field], nodeId)));
       fail({
         code: 'workflow/unknown-edge-endpoint',
         severity: 'error',
@@ -3133,7 +3139,7 @@ function validateReadableInputsBeforeRouting() {
           availableNodeIds,
           fixVerification: 'each candidate was verified by applying every listed repoint together and recompiling',
         },
-        supportedFixes,
+        ...repairFields,
       });
     }
   }
@@ -3151,11 +3157,11 @@ function validateReadableInputsBeforeRouting() {
     if (!laneIds.has(node.lane)) {
       const message = `Workflow node "${node.id}" uses unknown lane "${node.lane}".`;
       const canonicalNodeIndex = workflow.nodes.findIndex((candidate) => candidate.id === node.id);
-      const supportedFixes = availableLaneIds.flatMap((laneId) => (
+      const laneOptions = availableLaneIds.flatMap((laneId) => (
         acceptsFix((document) => {
           document.nodes[canonicalNodeIndex].lane = laneId;
         })
-          ? [`set /nodes/${nodeIndex}/lane to verified lane id "${laneId}"`]
+          ? [setFix(`/nodes/${nodeIndex}/lane`, laneId, { label: 'verified lane id' })]
           : []
       ));
       fail({
@@ -3164,17 +3170,17 @@ function validateReadableInputsBeforeRouting() {
         message,
         subject: { diagramType: 'workflow', node: node.id, path: `/nodes/${nodeIndex}/lane` },
         evidence: { unknownLaneId: node.lane, availableLaneIds },
-        supportedFixes,
+        ...fixFields(laneOptions.length ? [chooseFix(laneOptions)] : []),
       });
     }
     if (!Number.isInteger(node.col) || node.col < 0 || node.col >= layout.colXs.length) {
       const message = `Workflow node "${node.id}" uses column ${node.col}, but valid columns are integers 0..${layout.colXs.length - 1}.`;
       const canonicalNodeIndex = workflow.nodes.findIndex((candidate) => candidate.id === node.id);
-      const supportedFixes = layout.colXs.flatMap((_x, col) => (
+      const columnOptions = layout.colXs.flatMap((_x, col) => (
         acceptsFix((document) => {
           document.nodes[canonicalNodeIndex].col = col;
         })
-          ? [`set /nodes/${nodeIndex}/col to verified column ${col}`]
+          ? [setFix(`/nodes/${nodeIndex}/col`, col, { label: 'verified column' })]
           : []
       ));
       fail({
@@ -3183,7 +3189,7 @@ function validateReadableInputsBeforeRouting() {
         message,
         subject: { diagramType: 'workflow', node: node.id, path: `/nodes/${nodeIndex}/col` },
         evidence: { actualColumn: node.col, minimumColumn: 0, maximumColumn: layout.colXs.length - 1 },
-        supportedFixes,
+        ...fixFields(columnOptions.length ? [chooseFix(columnOptions)] : []),
       });
     }
     if (!isFinitePoint(node.x, node.y, node.cx, node.cy)) {
@@ -3221,12 +3227,12 @@ function validateReadableInputsBeforeRouting() {
           const canonicalNodeIndex = workflow.nodes.findIndex((candidate) => (
             candidate.id === rightNode.id
           ));
-          const supportedFixes = layout.colXs.flatMap((_x, col) => {
+          const freeColumnOptions = layout.colXs.flatMap((_x, col) => {
             if (col === rightNode.col) return [];
             return acceptsFix((document) => {
               document.nodes[canonicalNodeIndex].col = col;
             })
-              ? [`set /nodes/${rightIndex}/col to verified free column ${col}`]
+              ? [setFix(`/nodes/${rightIndex}/col`, col, { label: 'verified free column' })]
               : [];
           });
           const message = `Workflow nodes "${leftNode.id}" and "${rightNode.id}" are less than 8px apart in lane "${lane}".`;
@@ -3243,7 +3249,7 @@ function validateReadableInputsBeforeRouting() {
                 { id: rightNode.id, rect: { x: rightNode.x, y: rightNode.y, width: rightNode.width, height: rightNode.height } },
               ],
             },
-            supportedFixes,
+            ...fixFields(freeColumnOptions.length ? [chooseFix(freeColumnOptions)] : []),
           });
         }
       }

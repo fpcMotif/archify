@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectAmbiguousCorridors, collectArrowheadCollisions } from '../archify/renderers/shared/geometry.mjs';
+import { collectAmbiguousCorridors, collectArrowheadCollisions } from '../archify/renderers/shared/geometry.ts';
 
 const skillRoot = fileURLToPath(new URL('../archify/', import.meta.url));
 const state = (id, type = 'active') => ({ id, type, label: id });

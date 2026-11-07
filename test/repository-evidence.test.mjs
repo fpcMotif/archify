@@ -129,6 +129,8 @@ test('repository root accepts a different spelling of the same physical Git top-
     }
     return Reflect.apply(realpathSync, fs, [target, ...args]);
   });
+  // Bun's mock drops function properties; path identity reads realpathSync.native.
+  fs.realpathSync.native ??= realpathSync.native;
 
   const evidence = verifyRepositoryEvidence('architecture', data.diagram, alias);
   assert.equal(preservedAlias, true);

@@ -20,8 +20,6 @@ const skillRoot = path.resolve(__dirname, '..', 'archify');
 const cli = path.join(skillRoot, 'bin/archify.mjs');
 const baseFixture = path.join(skillRoot, 'examples/checkout-platform.base.architecture.json');
 const headFixture = path.join(skillRoot, 'examples/checkout-platform.head.architecture.json');
-const checkedArtifact = path.resolve(skillRoot, '../examples/checkout-platform-delta.html');
-const checkedReceipt = path.resolve(skillRoot, '../examples/checkout-platform-delta.receipt.json');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-delta-'));
 
 const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -774,26 +772,6 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
   );
   assert.equal(fs.existsSync(output), false);
   assert.deepEqual(fs.readdirSync(outputDirectory), []);
-});
-
-test('checked-in Checkout compare artifact is reproducible from its authoritative inputs', () => {
-  const artifact = path.join(tmp, 'checked-artifact.html');
-  const receipt = path.join(tmp, 'checked-artifact.receipt.json');
-  const result = run([
-    'compare',
-    'architecture',
-    baseFixture,
-    headFixture,
-    artifact,
-    '--receipt',
-    receipt,
-    '--quality',
-    'showcase',
-    '--json',
-  ]);
-  assert.equal(result.status, 0, result.stderr);
-  assert.equal(fs.readFileSync(artifact, 'utf8'), fs.readFileSync(checkedArtifact, 'utf8'));
-  assert.deepEqual(read(receipt), read(checkedReceipt));
 });
 
 test('compare artifact exports standalone SVG with a UTF-8 XML declaration', () => {

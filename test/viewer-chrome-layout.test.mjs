@@ -378,7 +378,7 @@ test('Maka remains collision-free at the reported Retina-equivalent viewport', {
     path.join(skillRoot, 'bin', 'archify.mjs'),
     'render',
     'architecture',
-    path.resolve(skillRoot, '..', 'examples', 'maka-architecture.architecture.json'),
+    path.resolve(skillRoot, '..', 'test', 'fixtures', 'maka-architecture.architecture.json'),
     output,
   ]);
   const browser = new ChromeVisualBrowser(chromePath);

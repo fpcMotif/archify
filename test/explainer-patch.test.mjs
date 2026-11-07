@@ -10,7 +10,7 @@ import { preparePanelPatch } from '../archify/explainer/patch.mjs';
 import { packPageBundle, unpackPageBundle } from '../archify/explainer/page-bundle.mjs';
 import { compileExplainerDiagram } from '../archify/explainer/diagrams.mjs';
 const cli=path.resolve('archify/bin/archify.mjs');
-const run=args=>spawnSync(process.execPath,[cli,...args],{encoding:'utf8',maxBuffer:64*1024*1024,env:{...process.env,ARCHIFY_UPDATE_CHECK_DISABLED:'1'}});
+const run=args=>spawnSync(process.execPath,[cli,...args],{encoding:'utf8',maxBuffer:64*1024*1024,env:process.env});
 const read=file=>unpackPageBundle(JSON.parse(scanHtml(fs.readFileSync(file,'utf8')).scripts.find(s=>s.attrs.id==='archify-explainer-prepared').text));
 const manifest=file=>JSON.parse(scanHtml(fs.readFileSync(file,'utf8')).scripts.find(s=>s.attrs.id==='explainer-manifest').text);
 function temp(t){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'archify-explainer-patch-test-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));return dir;}

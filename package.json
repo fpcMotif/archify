@@ -3,19 +3,14 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=18"
+    "bun": ">=1.4"
   },
   "scripts": {
-    "autofix": "bun scripts/archify-autofix.ts",
-    "test": "npm run test:core",
-    "test:focus": "node scripts/run-tests.mjs --require-files",
-    "test:compat": "npm run test:core",
-    "test:browser": "node scripts/run-browser-tests.mjs",
-    "test:webm": "node test/webm-artifact.smoke.mjs && node --test test/site-language-integration.mjs",
-    "test:core": "node scripts/run-tests.mjs test/core-smoke.test.mjs",
-    "test:generated": "npm --prefix archify run check:viewer && npm --prefix archify run check:brand-marks && npm --prefix archify run check:validators && npm --prefix archify run check:release-identity && node test/golden.mjs",
-    "test:full": "npm run test:generated && node scripts/run-tests.mjs",
-    "test:affected": "node scripts/run-affected-tests.mjs"
+    "test": "bun test test/core-smoke.test.mjs",
+    "test:browser": "bun scripts/run-browser-tests.ts",
+    "test:generated": "bun run --cwd archify check:viewer && bun run --cwd archify check:brand-marks && bun run --cwd archify check:validators && bun test/golden.mjs",
+    "test:all": "bun test --timeout 120000",
+    "test:full": "bun run test:generated && bun run test:all"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

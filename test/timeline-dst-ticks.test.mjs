@@ -32,7 +32,7 @@ function run(t, document) {
   const command = (args) => {
     const result = spawnSync(process.execPath, args, {
       encoding: 'utf8', timeout: 15_000,
-      env: { ...process.env, ARCHIFY_UPDATE_CHECK_DISABLED: '1' },
+      env: process.env,
     });
     assert.equal(result.status, 0, `${result.error || ''}\n${result.stdout}\n${result.stderr}`);
     return result.stdout;

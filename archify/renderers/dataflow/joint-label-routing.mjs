@@ -3,7 +3,7 @@ import {
   collectRouteRhythmIssues, frameBorderSegments, normalizeRoutePoints,
   properSegmentIntersection, rectsOverlap, routeHonorsEndpointSides,
   segmentIntersectsRect, segmentRectClearanceWithin,
-} from '../shared/geometry.mjs';
+} from '../shared/geometry.ts';
 import { shortestOrthogonalGridRoute } from '../shared/route-quality.mjs';
 
 const segments = points => points.slice(1).map((end, index) => ({ start: points[index], end }));

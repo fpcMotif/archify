@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -94,7 +94,7 @@ if (process.argv.includes('--check')) {
     ? fs.readFileSync(output, 'utf8').replace(/\r\n?/g, '\n')
     : '';
   if (current !== generated) {
-    console.error('generated validators are stale — run npm run generate:validators');
+    console.error('generated validators are stale — run bun run generate:validators');
     process.exit(1);
   }
 } else {

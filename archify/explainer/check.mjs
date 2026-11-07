@@ -1,12 +1,8 @@
 import { createHash } from 'node:crypto';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { parseExplainer } from './parse.mjs';
 import { computeExplainerRevision } from './revision.mjs';
 import { unpackPageBundle } from './page-bundle.mjs';
+import { checkArtifact } from '../scripts/check-render-output.mjs';
 
 export const isExplainerHtml = html => /<html\b[^>]*\bdata-archify-artifact\s*=\s*["']explainer["']/i.test(html) || (html.includes('archify-explainer-prepared') && scanHtml(html).scripts.some(s=>s.attrs.id==='archify-explainer-prepared'));
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -149,14 +145,9 @@ export function checkExplainerHtml(html, { file = '<html>', checkNative = true }
     if (typeof child.html!=='string' || hash(child.html || '')!==child.sha256 || Buffer.byteLength(child.html || '')!==child.bytes || binding?.sha256!==child.sha256 || binding?.bytes!==child.bytes) { issue('native-hash',`Native diagram payload is corrupt: ${id}.`,'Re-render the native diagram and freeze its original HTML bytes.',ids.get(id),'diagram'); continue; }
     if (isExplainerHtml(child.html)) {issue('native-family',`Nested explainers are not native diagrams: ${id}.`,'Use an existing Archify native diagram type.',ids.get(id),'diagram');continue;}
     if (checkNative) {
-      const directory=fs.mkdtempSync(path.join(os.tmpdir(),'archify-explainer-check-'));
-      try {
-        const artifactPath=path.join(directory,'child.html'); fs.writeFileSync(artifactPath,child.html);
-        const run=spawnSync(process.execPath,[fileURLToPath(new URL('../scripts/check-render-output.mjs',import.meta.url)),artifactPath],{encoding:'utf8',maxBuffer:8*1024*1024,timeout:60000});
-        let receipt; try {receipt=JSON.parse(run.stdout);} catch {receipt=null;}
-        childReceipts.push({id,receipt});
-        if (run.status!==0 || !receipt?.ok || receipt.artifact?.sha256!==child.sha256 || receipt.composition?.profile!==(bundle?.quality || document?.meta?.quality_profile || 'standard')) issue('native-check',`Native diagram failed its existing composition checks: ${id}.`,'Fix the nested diagram using the native checker diagnostics.',ids.get(id),'diagram');
-      } finally {fs.rmSync(directory,{recursive:true,force:true});}
+      const receipt=checkArtifact(Buffer.from(child.html));
+      childReceipts.push({id,receipt});
+      if (!receipt.ok ||receipt.artifact?.sha256!==child.sha256 || receipt.composition?.profile!==(bundle?.quality || document?.meta?.quality_profile || 'standard')) issue('native-check',`Native diagram failed its existing composition checks: ${id}.`,'Fix the nested diagram using the native checker diagnostics.',ids.get(id),'diagram');
     }
   }
   add('explainer_native_diagrams',before,childReceipts.map(({id,receipt})=>`${id}: ${receipt?.ok ? 'pass':'fail'}`));

@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rectsOverlap, segmentRectClearanceWithin } from '../archify/renderers/shared/geometry.mjs';
+import { rectsOverlap, segmentRectClearanceWithin } from '../archify/renderers/shared/geometry.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cli = path.join(root, 'archify/bin/archify.mjs');
@@ -47,7 +47,7 @@ function invoke(t, document, command = 'render') {
   const output = path.join(folder, 'output.html');
   fs.writeFileSync(input, JSON.stringify(document));
   const result = spawnSync(process.execPath, [cli, command, 'erd', input, ...(command === 'render' ? [output] : ['--json'])], {
-    encoding: 'utf8', env: { ...process.env, ARCHIFY_UPDATE_CHECK_DISABLED: '1' },
+    encoding: 'utf8', env: process.env,
   });
   return { ...result, input, output, html: fs.existsSync(output) ? fs.readFileSync(output, 'utf8') : '' };
 }

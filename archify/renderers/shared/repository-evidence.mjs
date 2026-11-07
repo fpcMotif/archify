@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { throwDiagnosticError, withDiagnosticRecordingSuppressed } from './diagnostics.mjs';
@@ -22,7 +22,7 @@ function evidenceFailure(code, message, { subject = {}, evidence = {}, supported
 
 function runGit(repoRoot, args) {
   // 固定 SHA 的来源必须读取原始对象，不能使用本地 replacement refs 的替换内容。
-  const result = spawnSync('git', ['--no-replace-objects', '-C', repoRoot, ...args], {
+  const result = childProcess.spawnSync('git', ['--no-replace-objects', '-C', repoRoot, ...args], {
     encoding: 'utf8',
     maxBuffer: MAX_SOURCE_BYTES,
     // Older Git may ignore NO_LAZY_FETCH; no transport is needed for local reads.
@@ -54,7 +54,7 @@ function prefetchBlobs(repoRoot, objectNeedsContent) {
 function readBatchObjects(repoRoot, objects, includeContent) {
   if (!objects.length) return new Map();
   const mode = includeContent ? '--batch' : '--batch-check';
-  const result = spawnSync('git', ['--no-replace-objects', '-C', repoRoot, 'cat-file', mode], {
+  const result = childProcess.spawnSync('git', ['--no-replace-objects', '-C', repoRoot, 'cat-file', mode], {
     input: objects.join('\n') + '\n',
     maxBuffer: 64 * 1024 * 1024,
     env: { ...process.env, GIT_NO_LAZY_FETCH: '1', GIT_ALLOW_PROTOCOL: '' },

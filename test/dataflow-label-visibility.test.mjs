@@ -5,7 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { rectsOverlap, segmentRectClearanceWithin } from '../archify/renderers/shared/geometry.mjs';
+import { rectsOverlap, segmentRectClearanceWithin } from '../archify/renderers/shared/geometry.ts';
 
 const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
 const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/dataflow-label-visibility.json', import.meta.url)));
@@ -16,7 +16,7 @@ function render(t, diagram) {
   const output = path.join(directory, 'diagram.html');
   const source = JSON.stringify(diagram);
   fs.writeFileSync(input, source);
-  const env = { ...process.env, ARCHIFY_UPDATE_CHECK_DISABLED: '1' };
+  const env = process.env;
   delete env.ARCHIFY_QUALITY_PROFILE;
   const result = spawnSync(process.execPath, [cli, 'render', 'dataflow', input, output], { encoding: 'utf8', env });
   assert.equal(result.status, 0, result.stdout + result.stderr);

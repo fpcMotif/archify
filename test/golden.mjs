@@ -13,7 +13,6 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'archify');
-const repoRoot = path.resolve(skillRoot, '..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-test-'));
 
 let failures = 0;
@@ -28,7 +27,7 @@ function check(name, ok, detail) {
 }
 
 function render(mode, inputPath, outPath) {
-  execFileSync('node', [
+  execFileSync(process.execPath, [
     path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
     inputPath,
     outPath,
@@ -37,37 +36,6 @@ function render(mode, inputPath, outPath) {
 
 function normalizeNewlines(text) {
   return text.replace(/\r\n?/g, '\n');
-}
-
-function shieldsBadgeMessages(source, label) {
-  const marker = `/badge/${label}-`;
-  const messages = [];
-  let searchFrom = 0;
-  while (searchFrom < source.length) {
-    const start = source.indexOf(marker, searchFrom);
-    if (start === -1) break;
-    let cursor = start + marker.length;
-    let message = '';
-    while (cursor < source.length) {
-      const character = source[cursor];
-      const next = source[cursor + 1];
-      if (character === '-' && next === '-') {
-        message += '-';
-        cursor += 2;
-      } else if (character === '_' && next === '_') {
-        message += '_';
-        cursor += 2;
-      } else if (character === '-') {
-        break;
-      } else {
-        message += character;
-        cursor += 1;
-      }
-    }
-    try { messages.push(decodeURIComponent(message)); } catch { messages.push(message); }
-    searchFrom = cursor + 1;
-  }
-  return messages;
 }
 
 // ---------------------------------------------------------------------------
@@ -96,12 +64,9 @@ for (const [mode, input, golden] of GOLDEN) {
   try {
     render(mode, path.join(skillRoot, 'examples', input), out);
     const fresh = fs.readFileSync(out, 'utf8');
-    const checked = fs.readFileSync(path.join(repoRoot, 'examples', golden), 'utf8');
-    const packaged = fs.readFileSync(path.join(skillRoot, 'examples', golden), 'utf8');
+    const checked = fs.readFileSync(path.join(skillRoot, 'examples', golden), 'utf8');
     check(`${mode}: ${golden}`, normalizeNewlines(fresh) === normalizeNewlines(checked),
-      `fresh render differs from examples/${golden}; if the change is intentional, re-render the examples and commit them`);
-    check(`${mode}: packaged ${golden}`, normalizeNewlines(fresh) === normalizeNewlines(packaged),
-      `fresh render differs from archify/examples/${golden}; re-render the packaged examples and rebuild archify.zip`);
+      `fresh render differs from archify/examples/${golden}; if the change is intentional, run render:examples and commit the result`);
   } catch (err) {
     check(`${mode}: ${golden}`, false, String(err.stderr || err.message).slice(0, 300));
   }
@@ -212,7 +177,7 @@ function blocks(html, tag) {
 }
 
 const template = fs.readFileSync(path.join(skillRoot, 'assets/template.html'), 'utf8');
-const webApp = fs.readFileSync(path.join(repoRoot, 'examples/web-app.html'), 'utf8');
+const webApp = fs.readFileSync(path.join(skillRoot, 'examples/web-app-rendered.html'), 'utf8');
 // Viewer styles in the document head and executable scripts pass through
 // applyTemplate untouched. Renderer-owned SVG styles are covered by golden renders.
 for (const tag of ['style', 'script']) {
@@ -222,9 +187,9 @@ for (const tag of ['style', 'script']) {
   const t = blocks(template, tag).filter((b) => !b.includes('[PROJECT NAME]') && isTemplateOwned(b));
   const viewerHtml = tag === 'style' ? webApp.slice(0, webApp.indexOf('</head>')) : webApp;
   const w = blocks(viewerHtml, tag).filter((b) => !b.includes('Sample Web App') && isTemplateOwned(b));
-  check(`web-app.html ${tag} blocks match template`,
+  check(`web-app-rendered.html ${tag} blocks match template`,
     JSON.stringify(t) === JSON.stringify(w),
-    'examples/web-app.html was generated from a stale template — re-derive it');
+    'archify/examples/web-app-rendered.html was generated from a stale template — re-derive it');
 }
 
 // ---------------------------------------------------------------------------
@@ -235,32 +200,12 @@ check('template generator meta matches package.json version',
   template.includes(`<meta name="generator" content="archify ${pkg.version}">`),
   `package.json says ${pkg.version}`);
 
-const lock = JSON.parse(fs.readFileSync(path.join(skillRoot, 'package-lock.json'), 'utf8'));
-check('package-lock.json version matches package.json',
-  lock.version === pkg.version && lock.packages?.['']?.version === pkg.version,
-  `lockfile says ${lock.version} — run npm install and rebuild the zip`);
-
 const skillMd = fs.readFileSync(path.join(skillRoot, 'SKILL.md'), 'utf8');
 const skillVersion = (skillMd.match(/^\s*version:\s*"([^"]+)"/m) || [])[1];
 const packageMajorMinor = pkg.version.match(/^(\d+\.\d+)\./)?.[1];
 check('SKILL.md metadata version matches package.json major.minor',
   !!packageMajorMinor && skillVersion === packageMajorMinor,
   `SKILL.md says ${skillVersion}, package.json says ${pkg.version}`);
-
-for (const readmeName of ['README.md', 'README_EN.md', 'README_ZH.md', 'README_JA.md']) {
-  const readme = fs.readFileSync(path.join(repoRoot, readmeName), 'utf8');
-  const badgeVersions = shieldsBadgeMessages(readme, 'version');
-  check(`${readmeName} badge matches package.json version`,
-    badgeVersions.length > 0 && badgeVersions.every((version) => version === pkg.version),
-    `${readmeName} badge says ${[...new Set(badgeVersions)].join(', ') || '(missing)'} instead of ${pkg.version}`);
-}
-
-const landingPage = fs.readFileSync(path.join(repoRoot, 'docs/index.html'), 'utf8');
-const landingVersions = [...landingPage.matchAll(/\bv\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?\b/g)]
-  .map((match) => match[0]);
-check('GitHub Pages version labels match package.json',
-  landingVersions.length > 0 && landingVersions.every((v) => v === `v${pkg.version}`),
-  `landing page says ${[...new Set(landingVersions)].join(', ') || '(no version)'}`);
 
 // ---------------------------------------------------------------------------
 fs.rmSync(tmp, { recursive: true, force: true });

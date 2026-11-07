@@ -40,7 +40,7 @@ import {
   segmentIntersectsRect,
   suggestComponentSeparation,
   suggestLabelObstacleFix,
-} from '../shared/geometry.mjs';
+} from '../shared/geometry.ts';
 import { createRouter } from '../architecture/routing.mjs';
 import { placeAutomaticLabels } from '../shared/automatic-labels.mjs';
 import { connectionPath as relationshipPath } from '../shared/layout-report.mjs';

@@ -3,12 +3,13 @@ import { fileURLToPath } from 'node:url';
 import { esc, renderDefinitions, renderSemanticSigil, textUnits, SEMANTIC_SIGIL_FOOTPRINT, SOURCE_BADGE_FOOTPRINT } from '../shared/utils.mjs';
 import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, loadDiagramWithBrandMarks, writeDiagram, svgAccessibleText, svgRootAttrs } from '../shared/cli.mjs';
 import { throwDiagnosticProblems } from '../shared/diagnostics.mjs';
+import { chooseFix, fixFields, setFix } from '../shared/fixes.mjs';
 import { legendFootprint, resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.mjs';
 import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth, nodeLabelLayout, nodeTextFit } from '../shared/text-fit.mjs';
 import { brandLabelFitWidth, brandMarkFor, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../shared/brand-marks.mjs';
 import { translateMessage as i18nText } from '../shared/i18n.mjs';
 import { DESKTOP_READER_DIAGRAM_WIDTH, MIN_PROJECTED_NODE_TEXT_PX } from '../shared/desktop-readability.mjs';
-import { asArray, rectsOverlap, segmentRectClearance, roundedPath, routePointsValue, arrowClassMap, edgeLabelAccent } from '../shared/geometry.mjs';
+import { asArray, rectsOverlap, segmentRectClearance, roundedPath, routePointsValue, arrowClassMap, edgeLabelAccent } from '../shared/geometry.ts';
 
 // Lifecycle v3 draws one shape: the main path as a left-to-right row, loops
 // back to earlier phases as arcs above it, and every other state (exits,
@@ -855,7 +856,7 @@ function placeLabels({ routes, contentRight }) {
 // ---------------------------------------------------------------- validate
 
 function structureProblem(code, message, subject, supportedFixes) {
-  return { code, severity: 'error', message, subject: { diagramType: 'lifecycle', ...subject }, evidence: {}, supportedFixes };
+  return { code, severity: 'error', message, subject: { diagramType: 'lifecycle', ...subject }, evidence: {}, ...fixFields(supportedFixes) };
 }
 
 function validateStructure() {
@@ -873,7 +874,7 @@ function validateStructure() {
   mainPath.forEach((id, index) => {
     if (!states.has(id)) {
       add('lifecycle/unknown-main-path-state', `mainPath[${index}] "${id}" is not a state.`, { path: `/mainPath/${index}` },
-        ids.slice(0, 3).map((known) => `set /mainPath/${index} to state id "${known}"`));
+        ids.length ? [chooseFix(ids.slice(0, 3).map((known) => setFix(`/mainPath/${index}`, known, { label: 'state id' })))] : []);
     }
   });
   if (new Set(mainPath).size !== mainPath.length) {
@@ -885,7 +886,7 @@ function validateStructure() {
       if (states.has(transition[field])) continue;
       add('lifecycle/unknown-endpoint', `Transition ${index} references unknown ${field === 'from' ? 'source' : 'target'} "${transition[field]}".`,
         { collection: 'transitions', path: `/transitions/${index}/${field}`, transition: transition.id ?? null },
-        ids.slice(0, 3).map((known) => `set /transitions/${index}/${field} to state id "${known}"`));
+        ids.length ? [chooseFix(ids.slice(0, 3).map((known) => setFix(`/transitions/${index}/${field}`, known, { label: 'state id' })))] : []);
     }
   });
   for (let index = 0; index + 1 < mainPath.length; index += 1) {

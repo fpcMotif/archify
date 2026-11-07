@@ -206,18 +206,23 @@ test('public post-render checker failures retain the locale warning once', t => 
   document.meta.locale = 'en-US';
   fs.writeFileSync(input, JSON.stringify(document));
   fs.writeFileSync(output, 'trusted artifact');
+  const failingChecker = 'export function checkArtifact(bytes, { file } = {}) { return { ok: false, file, checks: [{ name: "forced", ok: false, details: ["forced checker failure"] }] }; }';
+  const preload = path.join(cwd, 'failing-checker-preload.mjs');
+  fs.writeFileSync(preload, `Bun.plugin({ setup(build) {
+  build.onLoad({ filter: /\\/scripts\\/check-render-output\\.mjs$/ }, () => ({ loader: 'js', contents: ${JSON.stringify(failingChecker)} }));
+} });
+`);
   for (const command of ['validate', 'deliver']) {
-    const result = spawnSync(process.execPath, [cli, command, 'architecture', input, ...(command === 'deliver' ? [output] : []), '--json'], {
+    const result = spawnSync(process.execPath, ['--preload', preload, cli, command, 'architecture', input, ...(command === 'deliver' ? [output] : []), '--json'], {
       cwd,
       encoding: 'utf8',
-      env: { ...process.env, ARCHIFY_CHECK_MAX_BUFFER: '1' },
     });
     assert.notEqual(result.status, 0);
     const receipt = JSON.parse(result.stdout);
     assert.equal(receipt.ok, false);
     assert.equal(receipt.stage, 'check');
-    assert.ok(receipt.diagnostics.some(entry => entry.code === 'artifact/check-output-limit'));
-    assert.equal(result.stderr.trim().split('\n').length, 1);
+    assert.ok(receipt.diagnostics.some(entry => entry.message.includes('forced checker failure')), result.stdout);
+    assert.equal(result.stderr.trim().split('\n').length, 1, result.stderr);
     assert.match(result.stderr, /^archify: meta\.locale "en-US"/);
     assert.equal(fs.readFileSync(output, 'utf8'), 'trusted artifact');
   }
@@ -392,7 +397,7 @@ test('invalid output arguments keep their implementation error instead of a file
     writeDiagram({ outPath: undefined, template: fs.readFileSync(${JSON.stringify(templatePath)}, 'utf8'), diagramType: 'architecture', meta: { title: 'Test' }, svg: '', cards: [] });`;
   const human = run(['--input-type=module', '-e', script], cwd);
   assert.equal(human.status, 1);
-  assert.match(human.stderr, /TypeError \[ERR_INVALID_ARG_TYPE\]/);
+  assert.match(human.stderr, /TypeError(?: \[ERR_INVALID_ARG_TYPE\])?: The "path" (?:argument|property) must be of type string/);
   assert.match(human.stderr, /\n\s+at\s/);
   assert.doesNotMatch(human.stderr, /output\/write|choose a writable/);
   const machine = run(['--input-type=module', '-e', script], cwd, true);

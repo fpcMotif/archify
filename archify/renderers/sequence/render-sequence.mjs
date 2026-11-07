@@ -3,8 +3,9 @@ import { fileURLToPath } from 'node:url';
 import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../shared/utils.mjs';
 import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, loadDiagramWithBrandMarks, writeDiagram, svgAccessibleText, svgRootAttrs } from '../shared/cli.mjs';
 import { throwDiagnosticProblems } from '../shared/diagnostics.mjs';
+import { chooseFix, fixFields, setFix } from '../shared/fixes.mjs';
 import { legendFootprint, measureLegend, resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.mjs';
-import { componentFill, arrowClassMap, rectsOverlap, cleanFlowProblems, cleanCrossingProblems, cleanAmbiguousCorridorProblems, cleanBorderRunProblems, cleanRouteRhythmProblems, cleanLabelRouteClearanceProblems, cleanLabelCanvasContainmentProblems, routePointsValue, asArray, isFinitePoint, edgeLabelAccent } from '../shared/geometry.mjs';
+import { componentFill, arrowClassMap, rectsOverlap, cleanFlowProblems, cleanCrossingProblems, cleanAmbiguousCorridorProblems, cleanBorderRunProblems, cleanRouteRhythmProblems, cleanLabelRouteClearanceProblems, cleanLabelCanvasContainmentProblems, routePointsValue, asArray, isFinitePoint, edgeLabelAccent } from '../shared/geometry.ts';
 import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth } from '../shared/text-fit.mjs';
 import { brandLabelFitWidth, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../shared/brand-marks.mjs';
 import { translateMessage as i18nText } from '../shared/i18n.mjs';
@@ -620,7 +621,8 @@ function validateSequence() {
           to: message.to,
         },
         evidence: { endpoint, unknownNodeId: message[field], availableNodeIds: candidates },
-        supportedFixes: candidates.slice(0, 3).map((id) => `set /messages/${messageIndex}/${field} to verified node id "${id}"`),
+        ...fixFields(candidates.length ? [chooseFix(candidates.slice(0, 3)
+          .map((id) => setFix(`/messages/${messageIndex}/${field}`, id, { label: 'verified node id' })))] : []),
       });
       problems.push(problem);
     }
@@ -736,7 +738,7 @@ function validateSequence() {
           message: msg,
           subject: { diagramType: 'sequence', messageIndex: placed[j].index, label: placed[j].label },
           evidence: { currentY: placed[j].y, requiredY, clearance: 28 },
-          supportedFixes: [`set /messages/${placed[j].index}/y to ${requiredY}`],
+          ...fixFields([setFix(`/messages/${placed[j].index}/y`, requiredY)]),
         });
       }
     }
@@ -807,13 +809,13 @@ function validateSequence() {
         // A visible legend needs its own room below the note as well.
         const requiredHeight = Math.max(Math.ceil(viewBox[1] + note.bottom - noteFloor), legendRequiredHeight(viewBox[0]));
         const fix = sequence.meta?.viewBox
-          ? `set /meta/viewBox/1 to ${requiredHeight}`
-          : `set /meta/viewBox to [${viewBox[0]}, ${requiredHeight}]`;
+          ? setFix('/meta/viewBox/1', requiredHeight)
+          : setFix('/meta/viewBox', [viewBox[0], requiredHeight]);
         report(`Note on message "${message.label}" wraps to ${lines} and ends at y=${bottom}, below the canvas content limit y=${noteFloor} — set meta.viewBox[1] to at least ${requiredHeight}, move the message up, or shorten the note.`, {
           code: 'sequence/note-canvas-limit',
           subject,
           evidence: { lines: note.lines.length, note: bounds(ownRect), canvasLimitY: noteFloor, viewBoxHeight: viewBox[1], requiredViewBoxHeight: requiredHeight },
-          supportedFixes: [fix],
+          ...fixFields([fix]),
         });
       }
       const blocker = messages
@@ -840,7 +842,7 @@ function validateSequence() {
           blocker: { message: blocker.message.label ?? null, path: blockerPath, y: blocker.message.y, kind: blocker.kind, bounds: bounds(blocker.rect) },
           requiredY,
         },
-        supportedFixes: messageFitsAt(blocker.index, requiredY) ? [`set ${blockerPath} to ${requiredY}`] : [],
+        ...fixFields(messageFitsAt(blocker.index, requiredY) ? [setFix(blockerPath, requiredY)] : []),
       });
     });
   }
@@ -868,7 +870,10 @@ function validateSequence() {
             code: 'sequence/segment-message-border-run', severity: 'error', message: problem,
             subject: { diagramType: 'sequence', collection: 'segments', index: segmentIndex, path: `/segments/${segmentIndex}/${edge}` },
             evidence: { segmentLabel: segment.label, edge, borderY: border, messageIndex: messageList.indexOf(message), messageLabel: message.label, messageY: message.y, minimumClearancePx: 4 },
-            supportedFixes: [`set /segments/${segmentIndex}/${edge} to at least ${message.y + 4} to leave the message above it`, `set /segments/${segmentIndex}/${edge} to at most ${message.y - 4} to leave the message below it`],
+            ...fixFields([chooseFix([
+              setFix(`/segments/${segmentIndex}/${edge}`, message.y + 4, { note: 'to leave the message above it' }),
+              setFix(`/segments/${segmentIndex}/${edge}`, message.y - 4, { note: 'to leave the message below it' }),
+            ])]),
           });
         }
       }
@@ -909,7 +914,7 @@ function validateSequence() {
           attempts: 4,
           covered: { kind: covered.kind, message: covered.message.label ?? null, path: covered.path, bounds: bounds(covered.rect) },
         },
-        supportedFixes: clearFrom === null ? [] : [`set ${fromPath} to ${clearFrom}`],
+        ...fixFields(clearFrom === null ? [] : [setFix(fromPath, clearFrom)]),
       });
     }
   });

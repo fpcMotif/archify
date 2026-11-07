@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { properSegmentIntersection, rectsOverlap } from '../archify/renderers/shared/geometry.mjs';
+import { properSegmentIntersection, rectsOverlap } from '../archify/renderers/shared/geometry.ts';
 import { routeHugs } from './helpers/route-hugs.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
