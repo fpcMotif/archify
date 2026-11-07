@@ -1,7 +1,6 @@
-import assert from 'node:assert/strict';
+import { expect, test } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
-import test from 'node:test';
 import { createOwnedTempDirectory } from '../archify/renderers/shared/owned-temp-directory.mjs';
 
 test('cleanup finishes while another process deletes the same directory', async () => {
@@ -15,6 +14,6 @@ test('cleanup finishes while another process deletes the same directory', async 
     const racer = Bun.spawn(['rm', '-rf', owned.path]);
     await owned.cleanup();
     await racer.exited;
-    assert.equal(fs.existsSync(owned.path), false);
+    expect(fs.existsSync(owned.path)).toBe(false);
   }
 });
