@@ -46,7 +46,6 @@ const layout = {
   minTickPx: 80,
 };
 
-// ---- Timing checks -------------------------------------------------------------
 // Bars are drawn from recorded timing only. A span states `end` or `duration`
 // (not both unless they agree); only `status: "incomplete"` may state neither,
 // and it is drawn as an open bar up to the last recorded instant instead of
@@ -104,7 +103,6 @@ for (const [index, span] of raw.entries()) {
 }
 if (problems.length) throwDiagnosticProblems('Waterfall validation failed', problems, { code: 'waterfall/input', subject: { diagramType: 'waterfall' }, diagnostics: details });
 
-// ---- Timing model --------------------------------------------------------------
 const recordedEnd = (span) => (Number.isFinite(span.end) ? span.end : Number.isFinite(span.duration) ? span.start + span.duration : null);
 const t0 = Math.min(...raw.map((span) => span.start));
 const t1 = Math.max(...raw.map((span) => recordedEnd(span) ?? span.start));
@@ -143,7 +141,6 @@ function percent(value) {
   return `${share >= 10 ? Math.round(share) : Math.round(share * 10) / 10}%`;
 }
 
-// ---- Tones ---------------------------------------------------------------------
 // Colour states who did the work: each service gets its own palette family in
 // order of first appearance, and a span without one inherits its parent's.
 // A span no service owns stays neutral. Red is never a service colour: it is
@@ -156,7 +153,6 @@ const serviceTone = (service) => (service === undefined ? 'external' : SERVICE_T
 const STATUS_TONE = { error: 'security', cancelled: 'external' };
 const toneOf = (row) => STATUS_TONE[row.status] ?? serviceTone(serviceOf.get(row.id));
 
-// ---- Geometry ------------------------------------------------------------------
 // Name column: tree indent, then a service dot, then the name.
 const NAME_DOT = 14;
 const nameWidth = (row) => row.depth * layout.indent + NAME_DOT + textUnits(row.name) * layout.nameFont * ADVANCE * 1.04;
@@ -218,7 +214,6 @@ const placed = rows.map((row, index) => {
   return { ...row, y, x0, x1, width, label, labelWidth, placement: 'after', tone: toneOf(row), parentBar: parentIds.has(row.id) };
 });
 
-// ---- Legend & canvas -----------------------------------------------------------
 // The legend names the services (when more than one does work) and any status
 // that changes a bar's paint; a single-service trace with only ok spans needs
 // no key.
@@ -269,7 +264,6 @@ const footprint = legendFootprint(legendEntries, { width: width - layout.margin 
 const height = Math.ceil(contentBottom + layout.margin + (legendEntries.length ? 34 + footprint.extraHeight : 0));
 const viewBox = [width, height];
 
-// ---- Rendering -----------------------------------------------------------------
 function renderHeader() {
   const evidence = i18nText(locale, `waterfall.evidence.${wf.meta.evidence}`);
   const evidenceW = Math.ceil(textUnits(evidence) * 10.5 * ADVANCE + 24);

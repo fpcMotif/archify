@@ -4,6 +4,10 @@ local mjsRatchet = new Step {
     check = "bun scripts/check-mjs-ratchet.ts"
 }
 
+local boundaries = new Step {
+    check = "bun run lint:boundaries"
+}
+
 hooks {
     ["pre-commit"] {
         steps {
@@ -13,6 +17,7 @@ hooks {
     ["check"] {
         steps {
             ["mjs-ratchet"] = mjsRatchet
+            ["boundaries"] = boundaries
         }
     }
 }

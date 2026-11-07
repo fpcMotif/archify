@@ -53,6 +53,11 @@ test('Bottom node index preserves readable rows and native Viewer interaction', 
   assert.equal(await run('document.documentElement.getAttribute("data-reader-rail")'), 'true');
   await click('#rail-placement');
   await run('Archify.readerLayout.whenStable()');
+  // The bottom index rests folded to its summary line until the reader opens it.
+  assert.equal(await run('getComputedStyle(document.getElementById("node-outline-list")).display'), 'none');
+  await click('.node-outline-toggle');
+  await run('Archify.readerLayout.whenStable()');
+  assert.equal(await run('document.querySelector(".node-outline-toggle").getAttribute("aria-expanded")'), 'true');
   const bottom = await run(`(() => {
     const item = document.querySelector('[data-outline-node]');
     const name = item.querySelector('strong');

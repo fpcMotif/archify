@@ -4,7 +4,7 @@ import { esc, textUnits } from './utils.mjs';
 import { translateMessage } from './i18n.mjs';
 
 const DEFAULT_FONT_SIZE = 8;
-const DEFAULT_ITEM_GAP = 22;
+const DEFAULT_ITEM_GAP = 14;
 const DEFAULT_LINE_GAP = 22;
 const DEFAULT_SWATCH_GAP = 8;
 const TEXT_ADVANCE_EM = 0.62;

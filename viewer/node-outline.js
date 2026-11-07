@@ -129,6 +129,25 @@
         new MutationObserver(syncCurrent).observe(svg, { attributes: true, subtree: true, attributeFilter: ['aria-pressed', 'data-intent-trace-active'] });
       }
       if (count) count.textContent = String(nodes.length);
+      // Below the notes the index folds to one summary line; the reader opens
+      // it on demand. The side rail ignores the fold and always lists.
+      var head = panel.querySelector('.node-outline-head');
+      var title = document.getElementById('node-outline-title');
+      if (head && title) {
+        var toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'node-outline-toggle';
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-controls', 'node-outline-list');
+        head.insertBefore(toggle, title);
+        toggle.appendChild(title);
+        toggle.addEventListener('click', function () {
+          var open = toggle.getAttribute('aria-expanded') !== 'true';
+          toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+          panel.toggleAttribute('data-open', open);
+          if (Archify.readerLayout && typeof Archify.readerLayout.schedule === 'function') Archify.readerLayout.schedule();
+        });
+      }
       panel.hidden = nodes.length < 2;
       syncCurrent();
       if (Archify.readerLayout && typeof Archify.readerLayout.schedule === 'function') Archify.readerLayout.schedule();

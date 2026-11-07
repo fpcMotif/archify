@@ -48,7 +48,6 @@ const layout = {
   toggleR: 7.5,
 };
 
-// ---- Structure -----------------------------------------------------------------
 // The hierarchy is exactly what the author declared: one root, and every other
 // node names its parent. Nothing is inferred, so a missing parent, a cycle, or
 // a second root is refused rather than silently attached somewhere.
@@ -115,7 +114,6 @@ const { root: authoredRoot } = validateStructure();
 const childrenOf = new Map(asArray(tree.nodes).map((node) => [node.id, []]));
 for (const node of asArray(tree.nodes)) if (node.parent !== undefined) childrenOf.get(node.parent).push(node.id);
 
-// ---- Measurement ---------------------------------------------------------------
 // Labels wrap at word boundaries (CJK at any character) inside a bounded box,
 // so a long name grows the node downward instead of overflowing or being cut.
 const ADVANCE = nodeTextFit.widthFactor;
@@ -234,7 +232,6 @@ for (const group of new Set(stackOf.values())) {
   for (const node of members) measured.set(node.id, { ...node, width: group.width, height: group.rowH });
 }
 
-// ---- Layout --------------------------------------------------------------------
 // Every generation shares one band (a row going down, a column going right),
 // sized by its largest node, so siblings and cousins line up. Along the other
 // axis each subtree owns a contiguous span: leaves are laid out in order and a
@@ -321,7 +318,6 @@ const viewBox = Array.isArray(tree.meta?.viewBox) ? tree.meta.viewBox : [
   Math.max(240, Math.ceil(Math.max(...all.map((node) => node.y + node.height)) + layout.margin + (down ? layout.toggleR + 4 : 0))),
 ];
 
-// ---- Edges ---------------------------------------------------------------------
 // One elbow per parent-child link: out of the parent's toggle side, across at
 // the midpoint of the generation gap, and into the child. Siblings share the
 // stem and the crossbar, which is how a containment tree is read. A stacked
@@ -376,7 +372,6 @@ function descendantCount(id) {
   return childrenOf.get(id).reduce((sum, child) => sum + 1 + descendantCount(child), 0);
 }
 
-// ---- Canvas checks -------------------------------------------------------------
 {
   const problems = [];
   if (Array.isArray(tree.meta?.viewBox)) {
@@ -399,7 +394,6 @@ function buildLayoutReport() {
   };
 }
 
-// ---- Rendering -----------------------------------------------------------------
 function treeAttrs(id) {
   const ancestors = ancestorsOf(id);
   return ancestors.length ? ` data-tree-ancestors="${esc(ancestors.join(' '))}"` : '';

@@ -173,6 +173,7 @@ export async function resolveExplainerSources(document, { repoRoot, baseDir, sou
   const sources = Object.create(null);
   const assets = Object.create(null);
   const dependencies = [];
+  const diagnostics = [];
   const entries = document.sources || [];
   const blocks = resources(document);
   const codeIds = new Set();
@@ -265,21 +266,42 @@ export async function resolveExplainerSources(document, { repoRoot, baseDir, sou
   // check the claim in place. A citation that cannot be verified or read stays a plain reference.
   const cited = document.sources.map((entry,index)=>({entry,index})).filter(({entry})=>entry.path && entry.lines && !codeIds.has(entry.id));
   if (cited.length && repoRoot) {
+    const unverified = (index, reason) => diagnostics.push(Object.freeze({ code: 'explainer/citation-unverified', severity: 'warning',
+      message: 'This cited repository location shows no excerpt because it could not be verified or read.',
+      subject: location(context, `/sources/${index}`, 'source'), evidence: { reason },
+      supportedFixes: ['Correct the path, line range and pinned revision, or pass --repo-root with the matching checkout.'] }));
+    const reasonOf = error => {
+      const code = error.archifyDiagnostics?.[0]?.code;
+      if (!code) throw error;
+      return code;
+    };
     let metadata = null;
-    try { metadata = document.meta?.repository ? { ...document.meta.repository } : deriveRepository(context, repoRoot); } catch {}
+    try { metadata = document.meta?.repository ? { ...document.meta.repository } : deriveRepository(context, repoRoot); } catch (error) {
+      const reason = reasonOf(error);
+      for (const { index } of cited) unverified(index, reason);
+    }
     for (const { entry, index } of metadata ? cited : []) {
       try {
         const verified = verifyRepositoryEvidence('architecture', { meta: { repository: metadata }, components: [{ id: entry.id, sources: [{ path: entry.path, line: entry.lines[0], end_line: entry.lines[1] }] }] }, repoRoot);
         const reference = verified.nodes[entry.id][0];
         const bytes = gitBytes(context, repoRoot, ['show', `${verified.repository.revision}:${entry.path}`], `/sources/${index}`);
-        const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-        if (text.includes('\0') || containsExplainerSecret(text, entry.path)) continue;
+        let text;
+        try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch {
+          unverified(index, 'explainer/source-encoding');
+          continue;
+        }
+        if (text.includes('\0') || containsExplainerSecret(text, entry.path)) {
+          unverified(index, 'explainer/secret-content');
+          continue;
+        }
         const frozen = digest(bytes);
         sources[entry.id] = Object.freeze({ id: entry.id, ...(entry.title === undefined ? {} : { title: entry.title }), revision: verified.repository.revision, path: reference.path,
           lines: Object.freeze([...entry.lines]), ...(reference.href ? { url: reference.href } : {}), text: text.split(/\r\n|\n|\r/).slice(entry.lines[0] - 1, entry.lines[1]).join('\n'), sha256: frozen.sha256, bytes: frozen.bytes });
         dependencies.push(Object.freeze({ kind: 'repository', id: entry.id, path: entry.path, revision: verified.repository.revision, ...frozen }));
         repository ||= Object.freeze({ ...verified.repository });
-      } catch {}
+      } catch (error) {
+        unverified(index, reasonOf(error));
+      }
     }
   }
   for (const { block, pointer } of blocks) {
@@ -314,5 +336,6 @@ export async function resolveExplainerSources(document, { repoRoot, baseDir, sou
     charts[block.id] = built.text;
     dependencies.push(Object.freeze({ kind: 'data', id: block.id, path: relative, ...digest(bytes) }));
   }
-  return { sources: Object.freeze(sources), assets: Object.freeze(assets), charts: Object.freeze(charts), dependencies: Object.freeze(dependencies), repository };
+  return { sources: Object.freeze(sources), assets: Object.freeze(assets), charts: Object.freeze(charts), dependencies: Object.freeze(dependencies),
+    diagnostics: Object.freeze(diagnostics), repository };
 }

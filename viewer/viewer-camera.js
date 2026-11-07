@@ -531,6 +531,8 @@
       }
       function pinControls() {
         container.style.setProperty('--archify-scroll-x', container.scrollLeft + 'px');
+        container.toggleAttribute('data-scroll-more', container.scrollLeft + container.clientWidth < container.scrollWidth - 2);
+        if (container.scrollLeft > 0) container.setAttribute('data-scrolled', '');
       }
       function onScroll() {
         pinControls();

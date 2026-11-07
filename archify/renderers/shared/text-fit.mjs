@@ -48,6 +48,28 @@ export function availableNodeTextWidth(width) {
   return width - nodeTextFit.horizontalPadding;
 }
 
+// The icon leads the title line and every text line starts on one inset, so a
+// card reads as a typeset block. Returns null when a line would not fit after
+// the icon column, so the caller keeps the centred corner placement.
+const INLINE_SIGIL_GAP = 6;
+const INLINE_CARD_INSET = 12;
+const INLINE_SIGIL_SIZE = 16;
+export function inlineTitleSigilLayout({ x, width, lines, baselineY }) {
+  const textX = x + INLINE_CARD_INSET + INLINE_SIGIL_SIZE + INLINE_SIGIL_GAP;
+  const room = x + width - INLINE_CARD_INSET - textX;
+  if (lines.some(({ text, fontSize }) => text && minimumNodeTextWidth(text, fontSize) > room)) return null;
+  const titleSize = lines[0].fontSize;
+  return {
+    sigilX: round1(x + INLINE_CARD_INSET),
+    sigilY: round1(baselineY - titleSize * 0.36 - INLINE_SIGIL_SIZE / 2),
+    sigilSize: INLINE_SIGIL_SIZE,
+    textX: round1(textX),
+  };
+}
+function round1(value) {
+  return Math.round(value * 10) / 10;
+}
+
 // Adapted from Souptik Chakraborty's #220: shift only labels which reach a
 // corner icon. Unlike the original hard gate, a narrow valid node uses a
 // separate text row; its authored bounds and acceptance remain unchanged.

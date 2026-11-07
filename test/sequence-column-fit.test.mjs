@@ -510,7 +510,10 @@ test('wide authored canvases never enlarge sublabels beyond the historical card 
     doc.meta.quality_profile = 'standard';
     doc.meta.viewBox = [3000, 760];
     doc.participants[0].sublabel = 'DB';
-    assert.match(render(doc, true), /y="122" class="t-muted" font-size="7"[^>]*>DB<\/text>/);
+    // A fixed 86px card stacks its icon (subtitle at topY + 50); a spread card
+    // is wide enough for an inline icon (subtitle at topY + 43).
+    const row = columnFit === 'fixed' ? 122 : 115;
+    assert.match(render(doc, true), new RegExp(`y="${row}" class="t-muted" font-size="7"[^>]*>DB</text>`));
   }
 });
 

@@ -111,7 +111,8 @@ export async function preparePanelPatch({artifactPath,panelId,replacementPath,re
   const dependencies=[...(previous.dependencies||[]).filter(entry=>!preparedIds.has(dependencyKey(entry)) && (entry.kind!=='image'||imageIds.has(entry.id)) && (entry.kind!=='data'||dataChartIds.has(entry.id)) && (entry.kind!=='diagram-spec'||diagramIds.has(entry.id))).map(entry=>localDependency(entry,path.dirname(artifactPath))),
     ...newDependencies.map(entry=>localDependency(entry,common.baseDir))];
   // Old dependencies are embedded immutable bytes. Only newly prepared resources are reread/verified.
-  const bundle=rebindPreparedBundle({...previous,sourcePath:common.sourcePath,baseDir:common.baseDir,preparedSources,preparedDiagrams,dependencies,quality:selectedQuality,writingMode:writingMode || previous.writingMode || 'warn'},parsed);
+  const patched={...parsed,diagnostics:[...parsed.diagnostics,...newSources.diagnostics]};
+  const bundle=rebindPreparedBundle({...previous,sourcePath:common.sourcePath,baseDir:common.baseDir,preparedSources,preparedDiagrams,dependencies,quality:selectedQuality,writingMode:writingMode || previous.writingMode || 'warn'},patched);
   bundle.dependencies = dependencies.map(entry => ({...entry, retained: entry.retained===true || !preparedIds.has(dependencyKey(entry))}));
-  return {bundle:rebindPreparedBundle(bundle,parsed),sourceText,sourcePath:draft.sourcePath || artifactPath,previousRevision:computeExplainerRevision(previous),previousSourceSha256:previous.source.sha256,panelId};
+  return {bundle:rebindPreparedBundle(bundle,patched),sourceText,sourcePath:draft.sourcePath || artifactPath,previousRevision:computeExplainerRevision(previous),previousSourceSha256:previous.source.sha256,panelId};
 }

@@ -357,7 +357,7 @@
 
           style.textContent =
             fontCss + "\n" +
-            "svg { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono CJK SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', monospace; }\n" +
+            "svg { font-family: 'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono CJK SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', monospace; }\n" +
             hostStyle + "\n" +
             ":root, svg { " + darkTheme.vars + " }\n" +
             "@media (prefers-color-scheme: light) { :root, svg { " + lightTheme.vars + " } }\n" +
@@ -386,7 +386,7 @@
           // Keep this order.
           style.textContent =
             fontCss + "\n" +
-            "svg { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono CJK SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', monospace; }\n" +
+            "svg { font-family: 'Geist Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono CJK SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', monospace; }\n" +
             hostStyle + "\n" +
             ":root, svg { " + vars + " }\n";
 
@@ -607,7 +607,7 @@
       function fitCanvasText(ctx, text, maxWidth, startSize, minSize, weight, fontFamily) {
         var value = String(text || '').trim();
         var size = startSize;
-        var family = fontFamily || "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+        var family = fontFamily || "'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
         while (size > minSize) {
           ctx.font = (weight || '600') + ' ' + size + 'px ' + family;
           if (ctx.measureText(value).width <= maxWidth) return value;

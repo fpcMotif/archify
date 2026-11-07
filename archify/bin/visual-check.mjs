@@ -1294,6 +1294,16 @@ function executable(file, platform = process.platform) {
   }
 }
 
+function executableProblem(file, platform = process.platform) {
+  if (!file) return null;
+  try {
+    fs.accessSync(file, platform === 'win32' ? fs.constants.F_OK : fs.constants.X_OK);
+    return null;
+  } catch (error) {
+    return error.code || 'access-failed';
+  }
+}
+
 function findOnPath(command, env, platform, resolveExecutable) {
   // Use the target platform's path grammar, not the host's: these candidates
   // are checked through an injected platform (see the findChrome tests), and
@@ -2446,6 +2456,7 @@ async function runBrowserEvidence({
   outDir,
   chromePath,
   resolveChrome = findChrome,
+  chromeOverride = process.env.ARCHIFY_CHROME,
   browserFactory = async (resolvedChrome) => new ChromeVisualBrowser(resolvedChrome),
   deliveryProvenance,
   verifyArtifact,
@@ -2554,13 +2565,16 @@ async function runBrowserEvidence({
     receipt.viewerChrome.status = 'skipped';
     receipt.themeStates.status = 'skipped';
     if (capture) receipt.captures.status = 'skipped';
-    receipt.error = 'No supported browser found. Install Chrome/Chromium (or Microsoft Edge), or set ARCHIFY_CHROME to its executable path.';
+    const overrideProblem = executableProblem(chromeOverride);
+    receipt.error = overrideProblem
+      ? `ARCHIFY_CHROME is set to ${chromeOverride}, which cannot be run (${overrideProblem}).`
+      : 'No supported browser found. Install Chrome/Chromium (or Microsoft Edge), or set ARCHIFY_CHROME to its executable path.';
     receipt.diagnostics = [failureDiagnostic({
       code: 'viewer/chrome-unavailable',
       severity: 'warning',
       message: receipt.error,
       subject: { artifact },
-      evidence: { executable: null },
+      evidence: { executable: null, ...(overrideProblem ? { override: chromeOverride, reason: overrideProblem } : {}) },
       supportedFixes: [`set ARCHIFY_CHROME to a Chrome/Chromium executable (or Microsoft Edge) and rerun ${command}`],
     })];
     const publication = publishReceiptOnly(artifact, outputs, receipt, ownership);

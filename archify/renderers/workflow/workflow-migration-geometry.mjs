@@ -69,6 +69,10 @@ export function planningWorkflow(workflow) {
   return planned;
 }
 
+export class WorkflowRankMappingError extends TypeError {
+  name = 'WorkflowRankMappingError';
+}
+
 function mappedNumber(value) {
   return Number(value.toFixed(6));
 }
@@ -88,16 +92,16 @@ export function createHorizontalRankMapper(oldColumns, newColumns) {
     || !oldColumns.every(Number.isFinite)
     || !newColumns.every(Number.isFinite)
   ) {
-    throw new TypeError('Horizontal rank mapping requires matching finite column arrays.');
+    throw new WorkflowRankMappingError('Horizontal rank mapping requires matching finite column arrays.');
   }
   for (let index = 1; index < oldColumns.length; index += 1) {
     if (oldColumns[index] <= oldColumns[index - 1] || newColumns[index] <= newColumns[index - 1]) {
-      throw new TypeError('Horizontal rank mapping requires strictly increasing columns.');
+      throw new WorkflowRankMappingError('Horizontal rank mapping requires strictly increasing columns.');
     }
   }
 
   return (x) => {
-    if (!Number.isFinite(x)) throw new TypeError('Horizontal rank mapping requires a finite x coordinate.');
+    if (!Number.isFinite(x)) throw new WorkflowRankMappingError('Horizontal rank mapping requires a finite x coordinate.');
     let segment = oldColumns.length - 2;
     if (x <= oldColumns[0]) {
       segment = 0;

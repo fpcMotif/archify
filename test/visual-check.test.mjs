@@ -3274,6 +3274,19 @@ test('visual-check returns 2 with a truthful skipped receipt when Chrome is unav
   assert.equal(fs.existsSync(sidecarPaths(input).receipt), true);
 });
 
+test('visual-check names an ARCHIFY_CHROME override that exists but cannot run', { skip: process.platform === 'win32' }, async () => {
+  const input = artifact('no-chrome-override.html');
+  const override = path.join(path.dirname(input), 'not-executable-chrome');
+  fs.writeFileSync(override, '#!/bin/sh\n', { mode: 0o644 });
+  const result = await runVisualCheck({ artifactPath: input, resolveChrome: () => null, chromeOverride: override });
+
+  assert.equal(result.exitCode, 2);
+  assert.equal(result.receipt.diagnostics[0]?.code, 'viewer/chrome-unavailable');
+  assert.ok(result.receipt.error.includes(override), 'the error names the configured path');
+  assert.match(result.receipt.error, /EACCES/);
+  assert.deepEqual(result.receipt.diagnostics[0]?.evidence, { executable: null, override, reason: 'EACCES' });
+});
+
 test('a no-Chrome rerun retires captures only when the successful receipt proves ownership', async () => {
   const input = artifact('no-chrome-owned-rerun.html');
   const outputs = sidecarPaths(input);

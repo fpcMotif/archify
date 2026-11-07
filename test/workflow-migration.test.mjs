@@ -14,6 +14,7 @@ import {
   createMappedWorkflowCandidate,
   intrinsicWorkflow,
   planningWorkflow,
+  WorkflowRankMappingError,
 } from '../archify/renderers/workflow/workflow-migration-geometry.mjs';
 import { compileWorkflow } from '../archify/renderers/workflow/workflow-compiler.mjs';
 
@@ -185,6 +186,11 @@ test('migration geometry helpers construct mapped v2 candidates without mutating
 
   const mapX = createHorizontalRankMapper([88, 220, 300], [94, 214, 334]);
   assert.equal(mapX(260), 274, 'the migration module must preserve the mapper re-export');
+  assert.throws(() => createHorizontalRankMapper([88], [94]), WorkflowRankMappingError);
+  assert.throws(() => createHorizontalRankMapper([88, 88], [94, 214]), WorkflowRankMappingError);
+  assert.throws(() => mapX(Number.NaN), WorkflowRankMappingError);
+  assert.throws(() => createMappedWorkflowCandidate(null, [88, 220], [94, 214]),
+    error => !(error instanceof WorkflowRankMappingError), 'a malformed workflow is a bug, not a rejected mapping');
 
   const mapped = createMappedWorkflowCandidate(
     source,

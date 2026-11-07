@@ -224,7 +224,8 @@ test('sequence repair height also holds a wrapped legend', () => {
   assert.equal(repaired.status, 0, repaired.stderr);
   const html = fs.readFileSync(output, 'utf8');
   const baselines = new Set([...html.matchAll(/data-legend-semantic-kind="[^"]+"[^>]*data-legend-baseline="([\d.]+)"/g)].map((match) => match[1]));
-  assert.equal([...html.matchAll(/data-legend-semantic-kind="/g)].length, variants.length, 'every variant appears in the repaired legend');
+  // The plain message is the unmarked case, so an auto legend keys only the other variants.
+  assert.equal([...html.matchAll(/data-legend-semantic-kind="/g)].length, variants.filter((variant) => variant !== 'default').length, 'every keyed variant appears in the repaired legend');
   assert.ok(baselines.size >= 2, 'the fixture must exercise a wrapped legend');
   const legendTitle = Number(html.match(/<text x="[\d.]+" y="([\d.]+)"[^>]*>Legend<\/text>/)[1]);
   const noteY = Number(html.match(/<text data-detail="context"[^>]*>completed<\/text>/)[0].match(/ y="([\d.]+)"/)[1]);

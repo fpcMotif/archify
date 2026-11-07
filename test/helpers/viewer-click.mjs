@@ -59,9 +59,16 @@ function installClickObserver() {
   };
 }
 
+export function foldedDockTool(selector) {
+  return `(() => { const el = document.querySelector(${JSON.stringify(selector)}); const more = document.getElementById('btn-nav-more'); return Boolean(el && more && el.closest('.diagram-nav') && getComputedStyle(el).display === 'none' && getComputedStyle(more).display !== 'none'); })()`;
+}
+
 export async function createViewerClick({ send, run, timeout }) {
   await send('Page.addScriptToEvaluateOnNewDocument', { source: `(${installClickObserver.toString()})();` });
-  return async selector => {
+  return async function click(selector) {
+    // Secondary dock tools rest behind the overflow button; open it the way a
+    // reader would before clicking a folded tool.
+    if (selector !== '#btn-nav-more' && await run(foldedDockTool(selector))) await click('#btn-nav-more');
     const point = await run(`viewerClick.ready(${JSON.stringify(selector)}, ${timeout})`);
     await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...point, button: 'left', clickCount: 1 });
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount: 1 });

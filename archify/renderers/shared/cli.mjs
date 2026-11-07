@@ -302,19 +302,6 @@ export function writeDiagram({ outPath, template, diagramType, meta, svg, cards,
   console.log(outPath);
 }
 
-const SEMANTIC_COLLECTIONS = {
-  architecture: 'components',
-  workflow: 'nodes',
-  sequence: 'participants',
-  dataflow: 'nodes',
-  lifecycle: 'states',
-  erd: 'entities',
-  tree: 'nodes',
-  class: 'types',
-  timeline: 'events',
-  waterfall: 'spans',
-};
-
 const RELATIONSHIP_COLLECTIONS = {
   architecture: 'connections',
   workflow: 'edges',
@@ -357,7 +344,6 @@ export function validateCrossCollectionContracts(diagramType, diagram) {
   validateRelationshipIds(diagramType, diagram);
 }
 
-// Accessible name for the generated diagram SVG.
 export function svgRootAttrs(meta, explicitQualityProfile) {
   // Motion is a Viewer capability for every diagram; Live/Still controls playback.
   const animation = ' data-animation="trace"';

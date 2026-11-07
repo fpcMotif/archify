@@ -63,8 +63,6 @@ const onSpine = (id) => spineIndex.has(id);
 
 validateStructure();
 
-// ---------------------------------------------------------------- measure
-
 function fonts(state, width) {
   return {
     label: fittedNodeFontSize(state.label, brandLabelFitWidth(state, width), TEXT.labelPreferred, TEXT.labelMinimum),
@@ -104,8 +102,6 @@ function labelBox(transition) {
   return { width, height: text && note ? 28 : 16 };
 }
 const hasLabel = (transition) => Boolean(transition.label || transition.note);
-
-// ---------------------------------------------------------------- classify
 
 // The first forward transition between consecutive main-path states is the
 // row itself; any other main-path pair is an arc above the row.
@@ -201,8 +197,6 @@ for (const bracket of brackets.values()) for (const target of bracket.targets) b
 
 const outgoing = new Set(transitions.map((transition) => transition.from));
 const isFinal = (state) => !outgoing.has(state.id);
-
-// ---------------------------------------------------------------- layout
 
 // Each round tries ports pulled toward their partners and ports spread evenly,
 // and keeps the placed layout with the fewest bends and short jogs.
@@ -853,8 +847,6 @@ function placeLabels({ routes, contentRight }) {
   return { placedLabels, unplacedLabels };
 }
 
-// ---------------------------------------------------------------- validate
-
 function structureProblem(code, message, subject, supportedFixes) {
   return { code, severity: 'error', message, subject: { diagramType: 'lifecycle', ...subject }, evidence: {}, ...fixFields(supportedFixes) };
 }
@@ -957,8 +949,6 @@ function validateLayout() {
   if (problems.length) throwDiagnosticProblems('Lifecycle layout validation failed', problems, { subject: { diagramType: 'lifecycle' }, diagnostics });
 }
 
-// ---------------------------------------------------------------- canvas
-
 const LEGEND_CATALOG = ['start', 'active', 'waiting', 'decision', 'success', 'failure', 'neutral', 'external'].map((kind) => ({
   kind,
   label: i18nText(lifecycle.meta.locale, `legend.lifecycle.${kind}`),
@@ -983,8 +973,6 @@ mainPath.forEach((id, index) => stateSteps.set(id, index));
 for (const [index, transition] of transitions.entries()) {
   if (!stateSteps.has(transition.to)) stateSteps.set(transition.to, index + 1);
 }
-
-// ---------------------------------------------------------------- render
 
 function renderState(state) {
   const fill = typeClass[state.type] || typeClass.neutral;

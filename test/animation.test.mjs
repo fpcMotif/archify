@@ -128,7 +128,11 @@ test('all five renderers add one geometry-neutral semantic sigil per sigil-beari
     const traceHtml = render(mode, example, 'trace', 'classic');
     const staticSvg = svgBlock(staticHtml);
     const traceSvg = svgBlock(traceHtml);
-    const sigils = (svg) => [...svg.matchAll(/<g aria-hidden="true" data-semantic-sigil="[^"]+"[\s\S]*?<\/g>/g)].map((match) => match[0]);
+    // Legend swatches reuse the sigil glyph; only node sigils are counted.
+    const legendSwatch = (svg, index) => /data-legend-semantic-kind="[^"]*"[^>]*>\s*$/.test(svg.slice(Math.max(0, index - 300), index));
+    const sigils = (svg) => [...svg.matchAll(/<g aria-hidden="true" data-semantic-sigil="[^"]+"[\s\S]*?<\/g>/g)]
+      .filter((match) => !legendSwatch(svg, match.index))
+      .map((match) => match[0]);
 
     assert.equal(sigils(staticSvg).length, expected, mode);
     assert.deepEqual(sigils(traceSvg), sigils(staticSvg), `${mode} trace must not change sigil geometry`);

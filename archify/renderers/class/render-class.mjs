@@ -82,7 +82,6 @@ const layout = {
   minRelationshipLength: 28,
 };
 
-// ---- Type kinds --------------------------------------------------------------
 // The kind owns the box's colour family and its header keyword. A plain class
 // carries no keyword, which is the UML default; every other kind states it, so
 // an interface can never be read as a class that merely has no fields.
@@ -268,7 +267,6 @@ for (const [index, type] of asArray(cd.types).entries()) {
   if (!typeSteps.has(type.id)) typeSteps.set(type.id, index);
 }
 
-// ---- Relationship notation -----------------------------------------------------
 // One notation table owns the line dash, the marker at each end, and the legend
 // swatch, so the legend can never teach a different symbol than the lines draw.
 //
@@ -321,7 +319,6 @@ function renderMarkerDefs() {
   return markup.length ? `\n          <!-- UML relationship markers -->\n${markup.join('\n')}` : '';
 }
 
-// ---- Layout --------------------------------------------------------------------
 function placedByGrid(type) {
   return !(Array.isArray(type.pos) && type.pos.length === 2);
 }
@@ -374,7 +371,6 @@ function autoViewBox() {
 
 const viewBox = Array.isArray(cd.meta?.viewBox) ? cd.meta.viewBox : autoViewBox();
 
-// ---- Routing -------------------------------------------------------------------
 // A generalization is drawn vertically whenever the two types are not side by
 // side: the supertype above, its subtypes below, which is how a reader expects
 // a hierarchy to stand. Other relationships keep the shared horizontal-first
@@ -398,7 +394,6 @@ function renderableRelationship(relationship) {
 
 const routable = relationships.filter(renderableRelationship);
 
-// ---- Hierarchy bus -------------------------------------------------------------
 // Two or more automatic generalizations of one kind into one supertype, all
 // from subtypes placed below it, draw as one tree: a single triangle and trunk
 // under the supertype, a horizontal bus, and a drop to each subtype. That is
@@ -615,7 +610,6 @@ function markerBox([x, y], side) {
   }
 }
 
-// ---- Validation ----------------------------------------------------------------
 function detail(code, message, subject, evidence, supportedFixes) {
   return { code, severity: 'error', message, subject: { diagramType: 'class', ...subject }, evidence, supportedFixes };
 }
@@ -840,7 +834,6 @@ function buildLayoutReport() {
   };
 }
 
-// ---- Rendering -----------------------------------------------------------------
 // A member reads like a signature in an editor: the visibility glyph and every
 // type annotation are quiet, so the names carry the row. Wrapping never splits
 // an annotation, so each line is coloured on its own.

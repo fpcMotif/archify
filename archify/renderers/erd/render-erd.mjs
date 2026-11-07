@@ -128,7 +128,6 @@ function renderKeyGlyphs(attribute, x0, baseline) {
     .join('');
 }
 
-// ---- Measure entities from the banded grid -----------------------------------
 // Header and row metrics live in the grid contract so the banded layout and the
 // renderer can never disagree about a box's height.
 const metrics = grid ?? DEFAULT_ER_GRID;
@@ -199,7 +198,6 @@ const entities = new Map(measuredEntities.map((entity) => {
 
 const relationships = asArray(er.relationships);
 
-// ---- Domain bands ------------------------------------------------------------
 // A `tag` names a domain, and a domain has to read as one block. The band is
 // measured from the placed boxes of the entities that carry the tag, so it
 // follows the authored grid instead of introducing a second layout pass. Only a
@@ -330,7 +328,6 @@ for (const [index, entity] of asArray(er.entities).entries()) {
   if (!entitySteps.has(entity.id)) entitySteps.set(entity.id, index);
 }
 
-// ---- Cardinality -------------------------------------------------------------
 // A relationship reads `from` -> `to` and both ends declare their own maximum.
 // The schema requires each one, so an unstated maximum fails validation before
 // rendering instead of reading as a fact the author never asserted; this
@@ -429,7 +426,6 @@ function renderCardinalityDefs() {
   return `\n          <!-- Cardinality symbols -->\n${markup.join('\n')}`;
 }
 
-// ---- Legend ------------------------------------------------------------------
 // The ERD kinds are column keys and relationship ends, not `data-node-kind`
 // values, so the Viewer's counted node lens would mark every entry as zero.
 // The entries stay static and highlight their matches in the SVG on hover.
@@ -525,7 +521,6 @@ function autoViewBox() {
 // failure and keeps its diagnostic.
 const viewBox = Array.isArray(er.meta?.viewBox) ? er.meta.viewBox : autoViewBox();
 
-// ---- Routing -----------------------------------------------------------------
 // Relationships that would share one corridor get a deterministic lane each, so
 // two routes never sit on the identical channel line. The lane is only a
 // preference: a lane that breaks the endpoint contract or hits an entity is
@@ -625,7 +620,6 @@ const laneOffsets = new Map();
   }
 }
 
-// ---- Bundled fan-in / fan-out trunks ------------------------------------------
 // Relationships that share one entity side read better as a single trunk with
 // short branches than as a sheaf of parallel lines (bus-style fan-in). A trunk
 // group shares the resolved side, the marker style, and automatic routing;
@@ -943,7 +937,6 @@ function erLabelPoint(relationship) {
   return resolvedLabelPoints.get(relationship) ?? defaultErLabelPoint(relationship);
 }
 
-// ---- Automatic label placement ----------------------------------------------
 // The default point is the midpoint of one segment, which knows nothing about
 // the tables, glyphs, or other routes around it: a vertical relationship put
 // its label on the source table's cardinality glyph, and a label in a busy gap
@@ -1041,7 +1034,6 @@ function laneCandidates(context) {
   return [channel.toPoints(base + lane * LANE_STEP)];
 }
 
-// ---- Validation --------------------------------------------------------------
 function renderableRelationship(relationship) {
   return entities.has(relationship.from) && entities.has(relationship.to);
 }
@@ -1372,7 +1364,6 @@ function buildLayoutReport() {
   };
 }
 
-// ---- Rendering ---------------------------------------------------------------
 function renderEntityColumnRows(entity) {
   const keyColumn = keyColumnWidth(entity);
   return entity.attributes.map((attribute, index) => {

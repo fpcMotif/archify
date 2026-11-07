@@ -970,7 +970,7 @@ function collectSequenceColumnSpace({ svgAttrs, fragment, nodeRects, arrows }) {
       continue;
     }
     const attrs = parseAttrs(token[0]);
-    const inBrand = brandGroups.at(-1) === true || (name === 'g'
+    const inBrand = brandGroups.at(-1) || (name === 'g'
       && Boolean(attrs['data-brand-mark'])
       && String(attrs.class || '').split(/\s+/).includes('brand-mark'));
     if (!inBrand && attrs.transform && ['g', 'path', 'line', 'rect', 'text'].includes(name)

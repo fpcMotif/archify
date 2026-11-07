@@ -11,7 +11,7 @@ import {
   writeDiagram,
 } from '../shared/cli.mjs';
 import { throwDiagnosticProblems } from '../shared/diagnostics.mjs';
-import { legendFootprint, measureLegend, resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.mjs';
+import { legendFootprint, resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.mjs';
 import { nodeTextFit } from '../shared/text-fit.mjs';
 import { translateMessage as i18nText } from '../shared/i18n.mjs';
 import { asArray } from '../shared/geometry.ts';
@@ -58,7 +58,6 @@ const layout = {
   minTickPx: 84,
 };
 
-// ---- Input checks --------------------------------------------------------------
 // Time is the one fact this diagram draws, so every timestamp must parse and
 // state its own offset (the schema requires Z or ±HH:MM); the display zone must
 // be a real IANA zone, and every event must sit in a declared lane.
@@ -109,7 +108,6 @@ const timezone = tl.meta.timezone || 'UTC';
   if (problems.length) throwDiagnosticProblems('Timeline validation failed', problems, { code: 'timeline/input', subject: { diagramType: 'timeline' }, diagnostics: details });
 }
 
-// ---- Time zone formatting ------------------------------------------------------
 const partsFormat = new Intl.DateTimeFormat('en-US', {
   timeZone: timezone, hourCycle: 'h23', era: 'short', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
 });
@@ -132,7 +130,6 @@ function offsetLabel(ms) {
   return `UTC${sign}${String(Math.floor(abs / 60)).padStart(2, '0')}:${String(abs % 60).padStart(2, '0')}`;
 }
 
-// ---- Events in time order -------------------------------------------------------
 const events = asArray(tl.events)
   .map((event, index) => ({ ...event, index, t: Date.parse(event.at) }))
   .sort((a, b) => a.t - b.t || a.index - b.index);
@@ -181,7 +178,6 @@ function approximateDuration(ms) {
   return rest ? `${whole} ${major} ${rest} ${minor}` : `${whole} ${major}`;
 }
 
-// ---- Axis segments and disclosed breaks ----------------------------------------
 // A quiet period much longer than the timeline's ordinary rhythm would squeeze
 // every other event into a sliver. With `layout.breaks: "auto"` (the default)
 // such a gap is drawn as a fixed-width break that states the omitted duration,
@@ -290,7 +286,6 @@ for (const segment of segments) {
 }
 const tickSeconds = ticks.some((tick) => tick.interval < MINUTE);
 
-// ---- Lanes and event cards ------------------------------------------------------
 const lanes = asArray(tl.lanes).length ? tl.lanes : [{ id: '__all', label: '' }];
 const laneOf = (event) => (asArray(tl.lanes).length ? event.lane : '__all');
 
@@ -376,7 +371,6 @@ const laneLayout = [];
   }
 }
 
-// ---- Legend ---------------------------------------------------------------------
 const KIND_TONE = { default: 'external', change: 'frontend', alert: 'security', action: 'messagebus', recovery: 'backend' };
 const kindOf = (event) => event.kind || 'default';
 const legendEntries = resolveLegend(undefined,
@@ -394,7 +388,6 @@ function legendLayout() {
   return { x: layout.margin, baselineY: height - 16, width: width - layout.margin * 2, fontSize: 11, minTitleY: contentBottom + 8, diagramType: 'timeline' };
 }
 
-// ---- Rendering ------------------------------------------------------------------
 function renderAxis() {
   const top = layout.top;
   const bottom = contentBottom;

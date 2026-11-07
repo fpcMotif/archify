@@ -65,7 +65,11 @@
           }
         }
         var width = rect.width / scaleX;
-        var height = rect.height / scaleY;
+        // A negative bottom margin tucks a declared empty band under the
+        // canvas edge; that band holds no paint for the dock to clear.
+        var emptyBottom = 0;
+        try { emptyBottom = Math.max(0, -parseFloat(window.getComputedStyle(svg).marginBottom) || 0); } catch (_) {}
+        var height = Math.max(0, rect.height / scaleY - emptyBottom);
         var left = rect.left - translateX;
         var top = rect.top - translateY;
         return {
@@ -170,6 +174,7 @@
       }
       function measure() {
         frame = 0;
+        updateDockLegend();
         scheduleLift();
         if (probingBaseline) return null;
         if (!eligible()) return clear({ preserveBaseline: !cameraAtBaseline() });
@@ -337,10 +342,114 @@
           attributeFilter: ['data-embed', 'data-present', 'data-preset', 'data-theme']
         });
       }
+      // A phone keeps a wide diagram at its natural width, so its SVG legend
+      // scrolls out of view. Mirror the same entries as a wrapping list below
+      // the stage; CSS shows one or the other.
+      // Copies leave the stage's preset scope, so each one carries the stroke
+      // geometry its source resolved to; colors stay theme tokens in CSS.
+      var PAINT = ['stroke-width', 'stroke-dasharray', 'stroke-linecap'];
+      function paintedClone(source) {
+        var copy = source.cloneNode(true);
+        var sources = [source].concat(Array.prototype.slice.call(source.querySelectorAll('*')));
+        var copies = [copy].concat(Array.prototype.slice.call(copy.querySelectorAll('*')));
+        sources.forEach(function (element, index) {
+          var computed = window.getComputedStyle(element);
+          PAINT.forEach(function (name) { copies[index].style.setProperty(name, computed.getPropertyValue(name)); });
+        });
+        return copy;
+      }
+      function buildLegendList(className) {
+        var entries = Array.prototype.slice.call(legend.querySelectorAll(':scope > [data-legend-semantic-kind]'));
+        if (!entries.length) return null;
+        var title = legend.querySelector(':scope > text');
+        var list = document.createElement('ul');
+        list.className = className + ' no-print';
+        if (title) list.setAttribute('aria-label', title.textContent);
+        var NS = 'http://www.w3.org/2000/svg';
+        entries.forEach(function (entry) {
+          var label = entry.querySelector(':scope > text');
+          if (!label) return;
+          var divider = entry.querySelector(':scope > [data-legend-divider]');
+          if (divider) {
+            var rule = document.createElement('li');
+            rule.className = 'phone-legend-rule';
+            rule.setAttribute('aria-hidden', 'true');
+            list.appendChild(rule);
+          }
+          var x = Number(entry.getAttribute('data-legend-x'));
+          var baseline = Number(entry.getAttribute('data-legend-baseline'));
+          var swatchLeft = divider ? x + 34 : x;
+          var swatchRight = Number(label.getAttribute('x')) - 4;
+          var item = document.createElement('li');
+          var icon = document.createElementNS(NS, 'svg');
+          var swatchWidth = Math.max(1, swatchRight - swatchLeft);
+          icon.setAttribute('viewBox', swatchLeft + ' ' + (baseline - 13) + ' ' + swatchWidth + ' 18');
+          icon.style.width = (swatchWidth / 18 * 0.875) + 'rem';
+          icon.setAttribute('aria-hidden', 'true');
+          Array.prototype.forEach.call(entry.children, function (child) {
+            if (child !== label && child !== divider) icon.appendChild(paintedClone(child));
+          });
+          var text = document.createElement('span');
+          text.textContent = label.textContent;
+          item.appendChild(icon);
+          item.appendChild(text);
+          list.appendChild(item);
+        });
+        return list;
+      }
+      var dockLegend = null;
+      if (legend && container.parentNode) {
+        var phoneLegend = buildLegendList('phone-legend');
+        if (phoneLegend) container.insertAdjacentElement('afterend', phoneLegend);
+        dockLegend = buildLegendList('dock-legend');
+        var legendBox = null;
+        try { legendBox = legend.getBBox(); } catch (_) {}
+        var stageBox = svg.viewBox && svg.viewBox.baseVal;
+        // Only a key that closes the canvas can leave with its band.
+        if (dockLegend && legendBox && stageBox && stageBox.width > 0 &&
+            legendBox.y + legendBox.height >= stageBox.height - 72) {
+          var band = (stageBox.height - legendBox.y + 4) / stageBox.width * 100;
+          svg.style.setProperty('--archify-legend-band', (Math.round(band * 100) / 100) + '%');
+          container.appendChild(dockLegend);
+        } else {
+          dockLegend = null;
+        }
+      }
+      function updateDockLegend() {
+        if (!dockLegend || !nav) return;
+        container.setAttribute('data-dock-legend', '');
+        if (window.innerWidth <= 720) return;
+        var navLeft = nav.getBoundingClientRect().left;
+        var legendRight = dockLegend.getBoundingClientRect().right;
+        if (legendRight > navLeft - 24) container.removeAttribute('data-dock-legend');
+      }
+      updateDockLegend();
+
+      // Secondary tools fold behind one overflow button so the resting dock
+      // shows only zoom. Keyboard shortcuts reach the folded tools directly.
+      var moreButton = nav && nav.querySelector('#btn-nav-more');
+      function setNavOpen(open) {
+        if (!moreButton) return;
+        nav.toggleAttribute('data-nav-open', open);
+        moreButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+        schedule();
+      }
+      if (moreButton) {
+        moreButton.addEventListener('click', function () {
+          setNavOpen(moreButton.getAttribute('aria-expanded') !== 'true');
+        });
+        document.addEventListener('pointerdown', function (event) {
+          if (nav.hasAttribute('data-nav-open') && !nav.contains(event.target)) setNavOpen(false);
+        });
+        nav.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape' && nav.hasAttribute('data-nav-open')) { setNavOpen(false); moreButton.focus(); }
+        });
+      }
       schedule();
 
       return {
         measure: measure,
+        setNavOpen: setNavOpen,
         schedule: schedule,
         reprobe: reprobe,
         whenStable: whenStable,

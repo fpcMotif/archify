@@ -70,8 +70,9 @@ test('only legends with an exact node-kind meaning publish bridge entries', () =
   ]);
 
   const sequence = canonicalSvg(render('sequence'));
+  // The plain message is the unmarked case, so an auto legend leaves it unkeyed.
   assert.deepEqual(values(sequence, 'data-legend-semantic-kind'), [
-    'emphasis', 'return', 'security', 'dashed', 'default',
+    'emphasis', 'return', 'security', 'dashed',
   ]);
   assert.doesNotMatch(sequence, /data-legend-bridge|data-legend-kind=/);
   assert.match(sequence, />Legend</);

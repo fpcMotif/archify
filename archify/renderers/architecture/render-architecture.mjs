@@ -7,7 +7,7 @@ import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, loadDiagra
 import { componentBox, boundaryBox, connectionPath } from '../shared/layout-report.mjs';
 import { rendererFailure, throwDiagnosticProblems } from '../shared/diagnostics.mjs';
 import { legendFootprint, relationshipLegendObstacles, resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.mjs';
-import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth } from '../shared/text-fit.mjs';
+import { availableNodeTextWidth, fittedNodeFontSize, inlineTitleSigilLayout, minimumNodeTextWidth } from '../shared/text-fit.mjs';
 import { brandLabelFitWidth, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../shared/brand-marks.mjs';
 import { minimumReadableSourceTextPx } from '../shared/desktop-readability.mjs';
 import { translateMessage as i18nText } from '../shared/i18n.mjs';
@@ -135,7 +135,7 @@ function boundaryRect(boundary) {
     x: minX - pad,
     y: minY - topPad,
     width: maxX - minX + pad * 2,
-    height: maxY - minY + topPad + layout.boundaryExtraBottom,
+    height: maxY - minY + topPad + Math.max(pad, layout.boundaryExtraBottom),
     memberTop: minY,
   };
 }
@@ -152,11 +152,36 @@ function boundaryLabelWidth(label, fontSize) {
   return Math.max(30, textUnits(label) * fontSize * 0.6 + 10);
 }
 
-const architectureLegendEntries = resolveLegend(
+// Edge styles carry meaning too; when a diagram mixes them, the legend names
+// each one after the node kinds.
+// The default edge is the unmarked case, so it gets no key.
+const EDGE_LEGEND_ORDER = ['emphasis', 'dashed', 'security'];
+function edgeLegendEntries() {
+  if (arch.meta?.legend?.mode === 'hidden') return [];
+  const variants = new Set((arch.connections || []).map((connection) => connection.variant || 'default'));
+  if (variants.size < 2) return [];
+  return EDGE_LEGEND_ORDER.filter((variant) => variants.has(variant)).map((variant) => ({
+    kind: `edge-${variant}`,
+    variant,
+    interactive: false,
+    swatchWidth: 22,
+    label: i18nText(arch.meta.locale, `legend.architecture.edge${variant[0].toUpperCase()}${variant.slice(1)}`),
+  }));
+}
+const nodeLegendEntries = resolveLegend(
   arch.meta?.legend,
   LEGEND_CATALOG,
   new Set([...components.values()].map((component) => component.type)),
 );
+// A hairline rule separates node keys from edge keys: the first edge entry
+// carries it inside a widened swatch, 24 units clear on each side.
+const LEGEND_DIVIDER_ROOM = 34;
+const architectureLegendEntries = [
+  ...nodeLegendEntries,
+  ...edgeLegendEntries().map((entry, index) => (index === 0 && nodeLegendEntries.length
+    ? { ...entry, divider: true, swatchWidth: entry.swatchWidth + LEGEND_DIVIDER_ROOM }
+    : entry)),
+];
 
 // One source for connection label geometry: the rect the containment rule
 // measures is the rect the SVG mask draws, the auto canvas covers, the legend
@@ -1082,27 +1107,54 @@ function renderConnectionLabel(conn, index) {
         </g>`;
 }
 
+// Card text metrics shared by the per-diagram alignment choice and rendering.
+function componentCardText(c) {
+  const hasSub = c.sublabel != null && c.sublabel !== '';
+  const labelY = hasSub ? c.y + c.height / 2 - 2 : c.y + c.height / 2 + 4;
+  const labelFontSize = fittedNodeFontSize(c.label, brandLabelFitWidth(c, c.width), 11, 8);
+  const subFontSize = hasSub ? fittedNodeFontSize(c.sublabel, c.width, componentTextFit.sublabelPreferred, componentTextFit.sublabelMinimum) : 0;
+  const tagFontSize = c.tag ? fittedNodeFontSize(c.tag, c.width, componentTextFit.tagPreferred, componentTextFit.tagMinimum) : 0;
+  const plain = Boolean(renderBrandMark(c)) || c.icon === 'none';
+  const inline = plain ? null : inlineTitleSigilLayout({
+    x: c.x,
+    width: c.width,
+    baselineY: labelY,
+    lines: [{ text: c.label, fontSize: labelFontSize }, { text: hasSub && c.sublabel, fontSize: subFontSize }, { text: c.tag, fontSize: tagFontSize }],
+  });
+  return { hasSub, labelY, labelFontSize, subFontSize, tagFontSize, plain, inline };
+}
+// One alignment per diagram: cards go left-aligned only when every card fits.
+let inlineCardsChoice = null;
+function inlineCards() {
+  inlineCardsChoice ??= [...components.values()].every((c) => {
+    const text = componentCardText(c);
+    return text.plain || text.inline;
+  });
+  return inlineCardsChoice;
+}
+
 function renderComponent(c) {
   const fill = componentFill[c.type] || 'c-external';
   const accent = componentText[c.type] || 't-muted';
   const cx = c.cx;
-  const hasSub = c.sublabel != null && c.sublabel !== '';
-  const labelY = hasSub ? c.y + c.height / 2 - 2 : c.y + c.height / 2 + 4;
+  const brand = renderBrandMark(c, { x: c.x + c.width - 22, y: c.y + 6 });
+  const { hasSub, labelY, labelFontSize, subFontSize, tagFontSize, inline: fitted } = componentCardText(c);
+  const inline = !brand && inlineCards() ? fitted : null;
+  const textX = inline ? inline.textX : cx;
+  const anchor = inline ? 'start' : 'middle';
   const sub = hasSub
-    ? `\n        <text data-detail="context" x="${cx}" y="${c.y + c.height / 2 + 14}" class="t-muted" font-size="${fittedNodeFontSize(c.sublabel, c.width, componentTextFit.sublabelPreferred, componentTextFit.sublabelMinimum)}" text-anchor="middle">${esc(c.sublabel)}</text>`
+    ? `\n        <text data-detail="context" x="${textX}" y="${c.y + c.height / 2 + 14}" class="t-muted" font-size="${subFontSize}" text-anchor="${anchor}">${esc(c.sublabel)}</text>`
     : '';
   const tag = c.tag
-    ? `\n        <text data-detail="fine" x="${cx}" y="${c.y + c.height - 8}" class="${accent}" font-size="${fittedNodeFontSize(c.tag, c.width, componentTextFit.tagPreferred, componentTextFit.tagMinimum)}" text-anchor="middle">${esc(c.tag)}</text>`
+    ? `\n        <text data-detail="fine" x="${textX}" y="${c.y + c.height - 8}" class="${accent}" font-size="${tagFontSize}" text-anchor="${anchor}">${esc(c.tag)}</text>`
     : '';
-  const brand = renderBrandMark(c, { x: c.x + c.width - 22, y: c.y + 6 });
-  const labelFontSize = fittedNodeFontSize(c.label, brandLabelFitWidth(c, c.width), 11, 8);
   const passport = { kind: c.type, sublabel: c.sublabel, tag: c.tag, context: componentContext(c), ...brandMetadataFor(c) };
   return `        <g ${focusNodeAttrs(c.id, c.label, passport, arch.meta.locale)}>
           ${focusNodeTitle(c.label, passport)}
           <rect x="${c.x}" y="${c.y}" width="${c.width}" height="${c.height}" rx="8" class="c-mask"/>
           <rect x="${c.x}" y="${c.y}" width="${c.width}" height="${c.height}" rx="8" class="${fill}"${animateAttr(arch.meta, 'node', componentSteps.get(c.id))} stroke-width="1.5"/>
-          ${renderSemanticSigil(c.type, { icon: c.icon, x: c.x + 6, y: c.y + 6 })}${brand ? `\n          ${brand}` : ''}
-          <text data-node-label=""${hasSub ? ' data-detail-anchor=""' : ''} x="${cx}" y="${labelY}" class="t-primary" font-size="${labelFontSize}" font-weight="600" text-anchor="middle">${esc(c.label)}</text>${sub}${tag}
+          ${renderSemanticSigil(c.type, { icon: c.icon, x: inline ? inline.sigilX : c.x + 6, y: inline ? inline.sigilY : c.y + 6, size: inline?.sigilSize })}${brand ? `\n          ${brand}` : ''}
+          <text data-node-label=""${hasSub ? ' data-detail-anchor=""' : ''} x="${textX}" y="${labelY}" class="t-primary" font-size="${labelFontSize}" font-weight="600" text-anchor="${anchor}">${esc(c.label)}</text>${sub}${tag}
         </g>`;
 }
 
@@ -1123,7 +1175,7 @@ function renderLegend() {
     entries,
     locale: arch.meta.locale,
     layout: {
-      x: layout.margin,
+      x: Math.min(layout.margin, ...[...components.values()].map((component) => component.x)),
       baselineY: legendY(),
       width: viewBox[0] - layout.margin * 2,
       minTitleY: contentBottom + 8,
@@ -1131,7 +1183,15 @@ function renderLegend() {
       unfit: arch.meta?.legend === undefined ? 'hide' : 'error',
       diagramType: 'architecture',
     },
-    renderSwatch: (entry) => `<rect x="${entry.x}" y="${entry.baseline - 9}" width="16" height="10" rx="2.5" class="${componentFill[entry.kind] || 'c-external'}" stroke-width="1"/>`,
+    renderSwatch: (entry) => {
+      if (!entry.variant) return renderSemanticSigil(entry.kind, { x: entry.x + 2, y: entry.baseline - 10 });
+      const [cls, marker] = arrowClassMap[entry.variant];
+      const x = entry.divider ? entry.x + LEGEND_DIVIDER_ROOM : entry.x;
+      const rule = entry.divider
+        ? `<path d="M ${entry.x + 10} ${entry.baseline - 12} L ${entry.x + 10} ${entry.baseline + 4}" data-legend-divider="" stroke="var(--panel-border)" stroke-width="1"/>`
+        : '';
+      return `${rule}<path d="M ${x} ${entry.baseline - 4} L ${x + 18} ${entry.baseline - 4}" class="${cls}" stroke-width="1.5" marker-end="url(#${marker})"/>`;
+    },
   });
 }
 
@@ -1149,7 +1209,11 @@ function renderSvg() {
   // shrinking a semantically rich graph to the universal emergency floor.
   const readerMinimumText = arch.meta?.viewBox ? '' : ' data-reader-min-text="7.5"';
   const readerPrimaryText = arch.meta?.viewBox ? '' : ' data-reader-primary-text="14"';
-  return `      <svg viewBox="0 0 ${viewBox[0]} ${viewBox[1]}" ${svgRootAttrs(arch.meta)} ${NODE_CARD_ATTR}${readerFit}${readerMinimumText}${readerPrimaryText}>
+  // The legend baseline sits 16 units above the canvas bottom; the lower 8
+  // hold no paint, so the reader may tuck them under the canvas edge.
+  const legend = renderLegend();
+  const emptyBottom = legend ? ` style="--archify-empty-bottom:${Math.round((8 / viewBox[0]) * 10000) / 100}%"` : '';
+  return `      <svg viewBox="0 0 ${viewBox[0]} ${viewBox[1]}" ${svgRootAttrs(arch.meta)} ${NODE_CARD_ATTR}${readerFit}${readerMinimumText}${readerPrimaryText}${emptyBottom}>
 ${svgAccessibleText(arch.meta, 'architecture')}
 ${renderDefinitions()}
 ${nodeCardStyle()}
@@ -1173,7 +1237,7 @@ ${asArray(arch.connections).map(renderConnectionLabel).join('\n')}
 ${boundaries.map(renderBoundaryLabel).join('\n\n')}
 
         <!-- Legend -->
-${renderLegend()}
+${legend}
       </svg>`;
 }
 

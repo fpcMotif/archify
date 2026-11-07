@@ -35,6 +35,7 @@ import {
   intrinsicWorkflow,
   planningWorkflow,
   preservesWorkflowAbsoluteGeometry,
+  WorkflowRankMappingError,
 } from './workflow-migration-geometry.mjs';
 import {
   joinRoutePoints,
@@ -1119,7 +1120,8 @@ function createLegacyCapacityRepair({
             LEGACY_COLUMN_CENTERS,
             planned.receipt.columns,
           ).document;
-        } catch {
+        } catch (error) {
+          if (!(error instanceof WorkflowRankMappingError)) throw error;
           return false;
         }
         let compiled = compileWorkflowWithFeedback({

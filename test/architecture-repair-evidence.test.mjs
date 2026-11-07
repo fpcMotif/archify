@@ -68,7 +68,7 @@ for (const [side, positions, expected, growsCanvas] of [
   ['left', [[20, 70], [80, 240]], 10, false],
   ['top', [[80, 20], [150, 240]], 10, false],
   ['right', [[480, 70], [440, 240]], 30, true],
-  ['bottom', [[80, 70], [150, 350]], 10, true],
+  ['bottom', [[80, 70], [150, 350]], 20, true],
 ]) {
   test(`boundary ${side} overflow gives measured side, members and applicable fixes`, t => {
     const { cwd, input } = setup(t, positions);

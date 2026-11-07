@@ -39,7 +39,9 @@ for (const [mode, [example, collection, index = 0]] of Object.entries(cases)) {
         spec[collection][index].icon = icon;
         const html = render();
         if (icon === 'none') {
-          assert.equal(html, baseline.replace(old, ''));
+          // A hidden inline icon re-centres its title block; nothing else may move.
+          const titleX = (value) => value.replace(/<text (data-node-label=""|data-detail="context")[^>]*>/g, (tag) => tag.replace(/ (x|y|text-anchor)="[^"]+"/g, ''));
+          assert.equal(titleX(html), titleX(baseline.replace(old, '')));
         } else {
           const current = html.match(sigil)?.[0];
           assert.ok(current.includes(`data-semantic-sigil="${icon}"`));

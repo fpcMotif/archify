@@ -1,12 +1,12 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../shared/utils.mjs';
+import { esc, renderDefinitions, renderSemanticSigil, textUnits, SEMANTIC_SIGIL_SIZE } from '../shared/utils.mjs';
 import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, loadDiagramWithBrandMarks, writeDiagram, svgAccessibleText, svgRootAttrs } from '../shared/cli.mjs';
 import { throwDiagnosticProblems } from '../shared/diagnostics.mjs';
 import { chooseFix, fixFields, setFix } from '../shared/fixes.mjs';
 import { legendFootprint, measureLegend, resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.mjs';
 import { componentFill, arrowClassMap, rectsOverlap, cleanFlowProblems, cleanCrossingProblems, cleanAmbiguousCorridorProblems, cleanBorderRunProblems, cleanRouteRhythmProblems, cleanLabelRouteClearanceProblems, cleanLabelCanvasContainmentProblems, routePointsValue, asArray, isFinitePoint, edgeLabelAccent } from '../shared/geometry.ts';
-import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth } from '../shared/text-fit.mjs';
+import { availableNodeTextWidth, fittedNodeFontSize, inlineTitleSigilLayout, minimumNodeTextWidth } from '../shared/text-fit.mjs';
 import { brandLabelFitWidth, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../shared/brand-marks.mjs';
 import { translateMessage as i18nText } from '../shared/i18n.mjs';
 import { DESKTOP_READER_DIAGRAM_WIDTH, MIN_PROJECTED_NODE_TEXT_PX, minimumReadableSourceTextPx } from '../shared/desktop-readability.mjs';
@@ -39,7 +39,13 @@ const LEGEND_CATALOG = [
 
 function legendEntries() {
   const presentKinds = new Set(asArray(sequence.messages).map((message) => message.variant || 'default'));
-  return resolveLegend(sequence.meta?.legend, LEGEND_CATALOG, presentKinds);
+  const entries = resolveLegend(sequence.meta?.legend, LEGEND_CATALOG, presentKinds);
+  // The plain message is the unmarked case; it needs a key only when it is
+  // alone or the author asked for it.
+  const keepDefault = entries.length === 1
+    || (sequence.meta?.legend?.mode ?? 'auto') !== 'auto'
+    || sequence.meta?.legend?.entries?.default?.visible === true;
+  return keepDefault ? entries : entries.filter((entry) => entry.kind !== 'default');
 }
 
 // The legend sits below the timeline content: the last message and its note,
@@ -949,11 +955,32 @@ function validateSequence() {
 function renderParticipant(participant) {
   const fill = componentFill[participant.type] || 'c-external';
   const hasSub = participant.sublabel != null && participant.sublabel !== '';
-  const sub = hasSub
-    ? `\n          <text data-detail="context" x="${participant.cx}" y="${layout.topY + layout.participantSublabelY}" class="t-muted" font-size="${fittedNodeFontSize(participant.sublabel, layout.participantW, readableSublabelPreferred, readableSublabelMinimum)}" text-anchor="middle">${esc(participant.sublabel)}</text>`
-    : '';
+  const subFontSize = hasSub ? fittedNodeFontSize(participant.sublabel, layout.participantW, readableSublabelPreferred, readableSublabelMinimum) : 0;
   const brand = renderBrandMark(participant, { x: participant.x + layout.participantW - 22, y: layout.topY + 6 });
   const labelFontSize = fittedNodeFontSize(participant.label, brandLabelFitWidth(participant, layout.participantW), 11, 8);
+  // Participants share the architecture card: icon left of a left-aligned
+  // title block when both lines fit beside it, else the icon stacks above.
+  const inline = brand || participant.icon === 'none'
+    ? null
+    : inlineTitleSigilLayout({
+      x: participant.x,
+      width: layout.participantW,
+      baselineY: layout.topY + 27,
+      lines: [{ text: participant.label, fontSize: labelFontSize }, ...(hasSub ? [{ text: participant.sublabel, fontSize: subFontSize }] : [])],
+    });
+  const stacked = inline || brand || participant.icon === 'none'
+    ? null
+    : { sigilX: participant.cx - SEMANTIC_SIGIL_SIZE / 2, sigilY: layout.topY + 12 };
+  const textX = inline ? inline.textX : participant.cx;
+  const anchor = inline ? 'start' : 'middle';
+  const labelY = layout.topY + (inline ? 27 : layout.participantLabelY);
+  const subY = layout.topY + (inline ? 43 : layout.participantSublabelY);
+  const sub = hasSub
+    ? `\n          <text data-detail="context" x="${textX}" y="${subY}" class="t-muted" font-size="${subFontSize}" text-anchor="${anchor}">${esc(participant.sublabel)}</text>`
+    : '';
+  const sigil = inline
+    ? { x: inline.sigilX, y: inline.sigilY, size: inline.sigilSize }
+    : { x: stacked ? stacked.sigilX : participant.x + 6, y: stacked ? stacked.sigilY : layout.topY + 6 };
   const passport = {
     kind: participant.type,
     sublabel: participant.sublabel,
@@ -964,8 +991,8 @@ function renderParticipant(participant) {
           ${focusNodeTitle(participant.label, passport)}
           <rect x="${participant.x}" y="${layout.topY}" width="${layout.participantW}" height="${layout.participantH}" rx="6" class="c-mask"/>
           <rect x="${participant.x}" y="${layout.topY}" width="${layout.participantW}" height="${layout.participantH}" rx="6" class="${fill}"${animateAttr(sequence.meta, 'node', participant.index)} stroke-width="1.5"/>
-          ${renderSemanticSigil(participant.type, { icon: participant.icon, x: participant.x + 6, y: layout.topY + 6 })}${brand ? `\n          ${brand}` : ''}
-          <text data-node-label=""${hasSub ? ' data-detail-anchor=""' : ''} x="${participant.cx}" y="${layout.topY + layout.participantLabelY}" class="t-primary" font-size="${labelFontSize}" font-weight="600" text-anchor="middle">${esc(participant.label)}</text>${sub}
+          ${renderSemanticSigil(participant.type, { icon: participant.icon, x: sigil.x, y: sigil.y, size: sigil.size })}${brand ? `\n          ${brand}` : ''}
+          <text data-node-label=""${hasSub ? ' data-detail-anchor=""' : ''} x="${textX}" y="${labelY}" class="t-primary" font-size="${labelFontSize}" font-weight="600" text-anchor="${anchor}">${esc(participant.label)}</text>${sub}
         </g>`;
 }
 
@@ -998,7 +1025,7 @@ function renderActivation(activation) {
   const x = participant.cx - 5;
   const height = activation.to - activation.from;
   return `        <rect x="${x}" y="${activation.from}" width="10" height="${height}" rx="3" class="c-mask"/>
-        <rect x="${x}" y="${activation.from}" width="10" height="${height}" rx="3" class="${fill}" stroke-width="1"/>`;
+        <rect data-activation="" x="${x}" y="${activation.from}" width="10" height="${height}" rx="3" class="${fill}" stroke-width="1"/>`;
 }
 
 function messageLabel(message, x1, x2) {
@@ -1080,7 +1107,13 @@ function renderSvg() {
   // ratio, so without intrinsic-height the desktop Reader can neither narrow
   // nor scroll it and every default sequence fails the browser gate.
   const readerFit = sequence.meta?.viewBox ? '' : ' data-reader-fit="width-first"';
-  return `      <svg viewBox="0 0 ${viewBox[0]} ${viewBox[1]}" data-sequence-column-fit="${columnFit}"${readerFit} ${svgRootAttrs(sequence.meta)} data-motion-choreography="sequence">
+  // The band above the participants and below the legend holds no paint. The
+  // viewBox stays authored; the viewer pulls these empty bands under the
+  // canvas edge so the title sits a fixed 16 units above the first participant.
+  const cropTop = Math.max(0, layout.topY - 16);
+  const cropBottom = 44;
+  const percent = (units) => `${Math.round((units / viewBox[0]) * 10000) / 100}%`;
+  return `      <svg viewBox="0 0 ${viewBox[0]} ${viewBox[1]}" data-sequence-column-fit="${columnFit}"${readerFit} ${svgRootAttrs(sequence.meta)} data-motion-choreography="sequence" style="--archify-empty-top:${percent(cropTop)};--archify-empty-bottom:${percent(cropBottom)}">
 ${svgAccessibleText(sequence.meta, 'sequence')}
 ${renderDefinitions()}
 

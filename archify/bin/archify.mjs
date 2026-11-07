@@ -1318,7 +1318,6 @@ function writeCapturedDeliveryProvenance(file, value, {
   const stagingDirectory = staging.directory;
   const candidate = path.join(stagingDirectory, path.basename(file));
   const backup = path.join(stagingDirectory, '.previous-provenance');
-  let candidateIdentity;
   let candidateBinding;
   let previousBinding;
   let candidatePresent = false;
@@ -1343,10 +1342,6 @@ function writeCapturedDeliveryProvenance(file, value, {
       throw deliveryTargetStateError(file, 'delivery provenance', candidateCapture);
     }
     candidateBinding = candidateCapture.binding;
-    candidateIdentity = {
-      dev: candidateCapture.identity.device,
-      ino: candidateCapture.identity.inode,
-    };
     beforeCommit?.();
     const verification = verifyAtomicOutput(capture.snapshot);
     if (verification.status !== 'match') {
@@ -4245,7 +4240,7 @@ function commandRender(args) {
   // stripped, so anything left starting with -- is a typo. Without this a
   // mistyped flag was taken as the output path: `render architecture spec.json
   // --json out.html` wrote a file literally named `--json` and never wrote
-  // out.html, exiting 0. Every sibling subcommand already guards this.
+  // out.html, exiting 0.
   const unknown = repoArgs.rest.filter((arg) => arg.startsWith('--'));
   if (unknown.length) fail(`Unknown render option "${unknown[0]}".`);
   const [type, input, output] = repoArgs.rest;

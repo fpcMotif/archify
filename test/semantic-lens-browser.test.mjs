@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { findChrome } from '../archify/bin/visual-check.mjs';
 import { desktopBrowser, desktopPointerCheck } from './helpers/desktop-browser.mjs';
+import { foldedDockTool } from './helpers/viewer-click.mjs';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
 const chrome = process.env.ARCHIFY_CHROME ? findChrome() : null;
@@ -86,6 +87,7 @@ test('Semantic Lens preserves selection, legend preview and panel contracts', {
   }
   async function move(selector) { await send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...(selector ? await point(selector) : { x: 0, y: 0 }) }); }
   async function click(selector) {
+    if (selector !== '#btn-nav-more' && await run(foldedDockTool(selector))) await click('#btn-nav-more');
     const p = await point(selector);
     await send('Input.dispatchMouseEvent', { type: 'mousePressed', ...p, button: 'left', clickCount: 1 });
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...p, button: 'left', clickCount: 1 });

@@ -1607,10 +1607,6 @@ function pointSegmentDistanceXY(px: number, py: number, start: Point, end: Point
   return Math.hypot(px - (start[0] + t * dx), py - (start[1] + t * dy));
 }
 
-function pointSegmentDistance(point: Point, start: Point, end: Point): number {
-  return pointSegmentDistanceXY(point[0], point[1], start, end);
-}
-
 function collinearForward(a: Point, b: Point, c: Point): boolean {
   if (Math.abs(crossProduct(a, b, c)) > 0.0001) return false;
   return (b[0] - a[0]) * (c[0] - b[0]) + (b[1] - a[1]) * (c[1] - b[1]) >= -0.0001;
