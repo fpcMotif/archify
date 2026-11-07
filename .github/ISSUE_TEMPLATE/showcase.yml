@@ -74,7 +74,7 @@ body:
     id: artifact
     attributes:
       label: Artifact
-      description: Drag in a screenshot and, when practical, attach or link the self-contained HTML, PNG, or WebM.
+      description: Drag in a screenshot and, when practical, attach or link the self-contained HTML or PNG.
     validations:
       required: true
 

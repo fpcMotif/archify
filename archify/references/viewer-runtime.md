@@ -35,7 +35,7 @@ Every rendered diagram enables reader-controlled Live/Still motion by default. I
 
 ## Canonical exports
 
-The export menu can copy/download full-diagram PNG, download JPEG/WebP, download a dual-theme SVG, and record a trace-enabled WebM. Viewer state—Guide, Lens, finder, focus, route, camera, radar, presentation, motion ownership, and temporary overlays—must be removed from canonical export.
+The export menu can copy/download full-diagram PNG, download JPEG/WebP, and download a dual-theme SVG. Viewer state—Guide, Lens, finder, focus, route, camera, radar, presentation, motion ownership, and temporary overlays—must be removed from canonical export.
 
 Opening, closing, or completing an export preserves the live Focus/Reach selection for continued exploration. Export-owned download activation is not outside dismissal; genuine outside activation and Escape retain their existing behavior. Full-diagram PNG/SVG exports still contain the complete canonical diagram, while the Reach Share Card communicates the active authored closure.
 

@@ -55,8 +55,8 @@ test('Finder preserves search, keyboard, contextual Route selection and cleanup'
   const session = await browser.sessionPromise;
   await browser.cdp.send('Browser.setDownloadBehavior', { behavior: 'deny' });
   const send = (method, params = {}) => browser.cdp.send(method, params, session);
-  // Match the focused-page setup used by the WebM browser harness so that
-  // programmatic SVG focus also dispatches native focusin/focusout events.
+  // Emulate a focused page so that programmatic SVG focus also
+  // dispatches native focusin/focusout events.
   await send('Emulation.setFocusEmulationEnabled', { enabled: true });
   async function run(expression) {
     const result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });

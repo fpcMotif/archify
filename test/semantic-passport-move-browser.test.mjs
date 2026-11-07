@@ -576,7 +576,7 @@ test('move affordance exposes localized accessible names and a visible keyboard 
   }
 });
 
-test('manual Passport placement composes with Radar, Legend, Dock, and clean SVG, PNG, and WebM export', {
+test('manual Passport placement composes with Radar, Legend, Dock, and clean SVG and PNG export', {
   skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
 }, async () => {
   const browser = desktopBrowser(chromePath);
@@ -615,17 +615,11 @@ test('manual Passport placement composes with Radar, Legend, Dock, and clean SVG
         var svg = await summarize(objectUrlBlobs.splice(0));
         await Archify.exportMenu.run('png');
         var png = await summarize(objectUrlBlobs.splice(0));
-        var canRecordWebm = Archify.motion.canRecord();
-        var webm = canRecordWebm ? await Archify.motion.recordWebm({ duration: 300, fps: 5 }) : null;
-        var webmSources = await summarize(objectUrlBlobs.splice(0));
         return {
           canonical: document.documentElement.getAttribute('data-last-export-canonical'),
           manual: document.getElementById('focus-chip').getAttribute('data-manual-placement'),
           svg: svg,
           png: png,
-          webm: webmSources,
-          canRecordWebm: canRecordWebm,
-          webmBlob: webm ? { type: webm.type, size: webm.size } : null,
           liveSvg: document.querySelector('.diagram-container > svg').outerHTML
         };
       } finally {
@@ -635,7 +629,7 @@ test('manual Passport placement composes with Radar, Legend, Dock, and clean SVG
     })()`, true);
     assert.equal(exported.canonical, 'true', JSON.stringify(exported, null, 2));
     assert.equal(exported.manual, 'true', JSON.stringify(exported, null, 2));
-    for (const format of ['svg', 'png', 'webm']) {
+    for (const format of ['svg', 'png']) {
       assert.ok(exported[format].sources.length > 0, `${format} did not serialize the canonical diagram: ${JSON.stringify(exported[format], null, 2)}`);
       for (const serialization of exported[format].sources) {
         assert.ok(serialization.bytes > 0, JSON.stringify({ format, serialization }, null, 2));
@@ -645,9 +639,6 @@ test('manual Passport placement composes with Radar, Legend, Dock, and clean SVG
     }
     assert.ok(exported.svg.blobs.some((blob) => blob.type.startsWith('image/svg+xml') && blob.size > 0), JSON.stringify(exported.svg.blobs, null, 2));
     assert.ok(exported.png.blobs.some((blob) => blob.type === 'image/png' && blob.size > 0), JSON.stringify(exported.png.blobs, null, 2));
-    assert.equal(exported.canRecordWebm, true, JSON.stringify(exported, null, 2));
-    assert.match(exported.webmBlob.type, /^video\/webm/, JSON.stringify(exported.webmBlob, null, 2));
-    assert.ok(exported.webmBlob.size > 0, JSON.stringify(exported.webmBlob, null, 2));
     assert.equal(exported.liveSvg.includes('btn-focus-move'), false);
 
     const combined = await evaluate(browser, sessionId, `(async function () {

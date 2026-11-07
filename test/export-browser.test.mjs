@@ -10,7 +10,7 @@ import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
 const chrome = process.env.ARCHIFY_CHROME ? findChrome() : null;
 
-test('Export preserves menu, clipboard, semantic cards and recording lifecycles', {
+test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
   skip: chrome ? false : 'Set ARCHIFY_CHROME to run real-browser Export checks.',
 }, async (t) => {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-export-'));
@@ -45,16 +45,12 @@ test('Export preserves menu, clipboard, semantic cards and recording lifecycles'
     addEventListener('unhandledrejection',e=>exportErrors.push(String(e.reason)));
     window.alert=message=>exportAlerts.push(message);
     console.error=(...args)=>exportConsole.push(args.map(String).join(' '));
-    window.exportUrls=new Map();window.exportDownloads=[];window.exportTracks=[];window.exportCancelled=[];
+    window.exportUrls=new Map();window.exportDownloads=[];
     const create=URL.createObjectURL.bind(URL),revoke=URL.revokeObjectURL.bind(URL);
     URL.createObjectURL=blob=>{const url=create(blob);exportUrls.set(url,{blob,revoked:false,revocations:0});return url;};
     URL.revokeObjectURL=url=>{const item=exportUrls.get(url);if(item){item.revoked=true;item.revocations++;}revoke(url);};
     const click=HTMLAnchorElement.prototype.click;
     HTMLAnchorElement.prototype.click=function(){if(this.download){exportDownloads.push({name:this.download,blob:exportUrls.get(this.href).blob,attached:this.isConnected});return;}return click.call(this);};
-    const capture=HTMLCanvasElement.prototype.captureStream;
-    if(capture)HTMLCanvasElement.prototype.captureStream=function(...args){const stream=capture.apply(this,args);exportTracks.push(...stream.getTracks());return stream;};
-    const cancel=window.cancelAnimationFrame;
-    window.cancelAnimationFrame=id=>{exportCancelled.push(id);return cancel(id);};
     // Activation can survive asynchronous work. Observe the actual handler
     // stack so even a microtask cannot masquerade as synchronous construction.
     window.copyInClickHandler=false;
@@ -71,7 +67,7 @@ test('Export preserves menu, clipboard, semantic cards and recording lifecycles'
     };
     window.exportWait=predicate=>new Promise((resolve,reject)=>{const start=performance.now();function poll(){if(predicate())return resolve();if(performance.now()-start>12000)return reject(new Error('Export observation timed out'));setTimeout(poll,20);}poll();});
     const fault=new URL(location.href).searchParams.get('fault');
-    if(fault==='unsupported'){window.MediaRecorder=undefined;window.ClipboardItem=undefined;HTMLCanvasElement.prototype.toDataURL=()=> 'data:image/png;base64,';}
+    if(fault==='unsupported'){window.ClipboardItem=undefined;HTMLCanvasElement.prototype.toDataURL=()=> 'data:image/png;base64,';}
   ` });
   async function load({ width = 1440, theme = 'dark', extra = '' } = {}) {
     await send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
@@ -96,7 +92,7 @@ test('Export preserves menu, clipboard, semantic cards and recording lifecycles'
     const value = await run(`({open:Archify.exportMenu.isOpen(),expanded:document.getElementById('btn-export').getAttribute('aria-expanded'),
       active:document.activeElement.id||document.activeElement.dataset.action||document.activeElement.dataset.format,
       downloads:exportDownloads.map(d=>({name:d.name,type:d.blob.type,attached:d.attached})),
-      urls:[...exportUrls.values()].map(u=>({type:u.blob.type,revoked:u.revoked})),tracks:exportTracks.map(t=>t.readyState),
+      urls:[...exportUrls.values()].map(u=>({type:u.blob.type,revoked:u.revoked})),
       receipt:Object.fromEntries([...document.documentElement.attributes].filter(a=>a.name.startsWith('data-last-export-')&&!a.name.endsWith('-bytes')).map(a=>[a.name,a.value])),
       errors:exportErrors,alerts:exportAlerts,console:exportConsole,
       external:performance.getEntriesByType('resource').map(r=>r.name).filter(n=>/^https?:/.test(n))})`);
@@ -125,8 +121,8 @@ test('Export preserves menu, clipboard, semantic cards and recording lifecycles'
     for (const width of [390, 720, 1440]) {
       await load({ width, extra: '&fault=unsupported' });
       assert.deepEqual(await run('Object.keys(Archify.exportMenu).sort()'), ['close','downloadReachShareCard','downloadRouteShareCard','isOpen','open','run','shareCard','syncReachShare','syncRouteShare'].sort());
-      assert.deepEqual(await run('Object.keys(Archify.motion).sort()'), ['canRecord','recordWebm']);
-      assert.deepEqual(await run(`[...document.querySelectorAll('#export-menu [data-format="jpeg"],#export-menu [data-format="webp"],#export-menu [data-format="webm"],#export-menu [data-action="copy"]')].map(e=>e.disabled)`), [true,true,true,true]);
+      assert.equal(await run('Archify.motion'), undefined);
+      assert.deepEqual(await run(`[...document.querySelectorAll('#export-menu [data-format="jpeg"],#export-menu [data-format="webp"],#export-menu [data-action="copy"]')].map(e=>e.disabled)`), [true,true,true]);
       const controls = await run(`(() => {
         const visible = element => { const r = element.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(element).visibility !== 'hidden'; };
         const facts = element => { const r = element.getBoundingClientRect(); return { id: element.id, width: r.width, height: r.height, name: (element.getAttribute('aria-label') || element.textContent).trim(), tabIndex: element.tabIndex }; };
@@ -374,190 +370,5 @@ test('Export preserves menu, clipboard, semantic cards and recording lifecycles'
       fs.writeFileSync(input, originalInput);
       execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'), input, file]);
     }
-  });
-
-  await t.test('recording succeeds with real encoding and releases tracks and the background URL', async () => {
-    await load();assert.equal(await run('Archify.motion.canRecord()'),true);
-    const result = await run(`(async()=>{const blob=await Archify.motion.recordWebm({duration:500,fps:10});window.recordedBlob=blob;const url=URL.createObjectURL(blob),video=document.createElement('video');video.muted=true;video.src=url;await new Promise((resolve,reject)=>{video.onloadeddata=resolve;video.onerror=()=>reject(new Error('WebM decode failed'));});const dimensions=[video.videoWidth,video.videoHeight];await video.play();await new Promise(resolve=>video.requestVideoFrameCallback(resolve));video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(url);return {type:blob.type,nonempty:blob.size>0,dimensions,cancelled:exportCancelled.length>0};})()`);
-    assert.match(result.type,/^video\/webm/);assert.equal(result.nonempty,true);assert.equal(result.cancelled,true);assert.ok(result.dimensions.every(n=>n>0&&n%2===0));
-    const state = await record('webm-real');assert.ok(state.tracks.length>0);assert.ok(state.tracks.every(s=>s==='ended'));assert.ok(state.urls.every(u=>u.revoked));assert.deepEqual(state.console,[]);
-    if(evidence){const bytes=await run(`(async()=>Array.from(new Uint8Array(await recordedBlob.arrayBuffer())))()`);fs.writeFileSync(path.join(evidence,'recording.webm'),Buffer.from(bytes));}
-  });
-
-  await t.test('menu recording writes its receipt and downloads the real default-duration WebM', async () => {
-    await load();await run('Archify.exportMenu.open()');
-    await click('[data-format="webm"]');
-    await run('exportWait(()=>exportDownloads.length===1)');
-    const state=await record('webm-download');
-    assert.equal(state.active,'btn-export');assert.equal(state.receipt['data-last-export-format'],'webm');
-    assert.equal(state.receipt['data-last-export-canonical'],'true');assert.deepEqual(state.console,[]);
-    assert.ok(state.downloads[0].name.endsWith('.webm'));assert.match(state.downloads[0].type,/^video\/webm/);
-    assert.equal(await run('Number(document.documentElement.dataset.lastMotionBytes)===exportDownloads[0].blob.size&&exportDownloads[0].blob.size>0'),true);
-    assert.ok(state.tracks.length>0);assert.ok(state.tracks.every(s=>s==='ended'));
-    assert.deepEqual(state.urls.map(u=>u.revoked),[true,false]);
-    await run('exportWait(()=>[...exportUrls.values()].every(u=>u.revoked))');
-  });
-
-  // 只替换指定的浏览器故障边界；图片、画布、流和其余编码过程仍使用真实实现。
-  async function recordingFault(fault) {
-    await run(`window.webmOriginals={Image,MediaRecorder,capture:HTMLCanvasElement.prototype.captureStream,
-      context:HTMLCanvasElement.prototype.getContext,draw:CanvasRenderingContext2D.prototype.drawImage};
-      window.webmRecorders=[];window.webmLateEvents=0;window.webmDraws=0;
-      window.restoreWebmFault=()=>{window.Image=webmOriginals.Image;window.MediaRecorder=webmOriginals.MediaRecorder;
-        HTMLCanvasElement.prototype.captureStream=webmOriginals.capture;
-        HTMLCanvasElement.prototype.getContext=webmOriginals.context;
-        CanvasRenderingContext2D.prototype.drawImage=webmOriginals.draw;};
-      window.webmFault=${JSON.stringify(fault)};
-      window.webmFailure=new Error('recording boundary: '+webmFault);
-      if(webmFault==='image')window.Image=class {set src(value){queueMicrotask(()=>this.onerror&&this.onerror());}};
-      if(webmFault==='context-null')HTMLCanvasElement.prototype.getContext=()=>null;
-      if(webmFault==='context-throw')HTMLCanvasElement.prototype.getContext=()=>{throw webmFailure;};
-      if(webmFault==='capture')HTMLCanvasElement.prototype.captureStream=()=>{throw webmFailure;};
-      if(webmFault==='first-frame'||webmFault==='later-frame')CanvasRenderingContext2D.prototype.drawImage=function(...args){
-        if(++webmDraws>=(webmFault==='first-frame'?1:2))throw webmFailure;
-        return webmOriginals.draw.apply(this,args);
-      };
-      window.MediaRecorder=class extends webmOriginals.MediaRecorder {
-        constructor(...args){super(...args);webmRecorders.push(this);this.stopCalls=0;}
-        start(...args){
-          if(webmFault==='start')throw webmFailure;
-          const value=super.start(...args);
-          if(webmFault==='async-error'){
-            const lateData=this.ondataavailable,lateStop=this.onstop,lateError=this.onerror;
-            setTimeout(()=>{
-              this.dispatchEvent(new ErrorEvent('error',{error:webmFailure}));
-              // 模拟错误之后已经排队的回调，不能恢复成功状态或重复清理资源。
-              setTimeout(()=>{lateData({data:new Blob(['late'])});lateStop();lateError({error:new Error('late error')});webmLateEvents++;},20);
-            },20);
-          }
-          return value;
-        }
-        requestData(){if(webmFault==='flush')throw webmFailure;return super.requestData();}
-        stop(){this.stopCalls++;if(webmFault==='stop')throw webmFailure;return super.stop();}
-      };`);
-  }
-  async function recordingOutcome(expression = 'Archify.motion.recordWebm({duration:250,fps:10})') {
-    return run(`Promise.race([
-      ${expression}.then(blob=>({status:'resolved',bytes:blob.size}),error=>({status:'rejected',message:error.message})),
-      new Promise(resolve=>setTimeout(()=>resolve({status:'pending'}),2000))
-    ])`);
-  }
-
-  for (const fault of ['image','context-null','context-throw','capture','start','first-frame','later-frame','async-error','stop']) {
-    await t.test('recording settles and releases its resources after ' + fault, async () => {
-      await load();
-      await recordingFault(fault);
-      const outcome = await recordingOutcome();
-      assert.equal(outcome.status,'rejected',JSON.stringify(outcome));
-      if (!['image','context-null'].includes(fault)) assert.equal(outcome.message,'recording boundary: '+fault);
-      if (fault === 'async-error') await run('exportWait(()=>webmLateEvents===1)');
-      const state=await record('webm-boundary-'+fault);
-      assert.deepEqual(state.downloads,[]);
-      assert.ok(state.urls.length>0);assert.ok(state.urls.every(u=>u.revoked));
-      assert.ok(state.tracks.every(s=>s==='ended'));
-      assert.deepEqual(await run('[...exportUrls.values()].map(u=>u.revocations)'),[1]);
-      if (fault === 'async-error') {
-        assert.deepEqual(await run('webmRecorders.map(r=>r.state)'),['inactive']);
-        const stops=await run('webmRecorders.map(r=>r.stopCalls)');
-        await run('new Promise(resolve=>setTimeout(resolve,400))');
-        assert.deepEqual(await run('webmRecorders.map(r=>r.stopCalls)'),stops,'完成后定时器不能再次停止录制');
-      }
-    });
-  }
-
-  await t.test('recording failures reach the menu receipt and a later same-page recording succeeds', async () => {
-    await load();
-    await recordingFault('capture');
-    const outcome=await recordingOutcome(`Archify.exportMenu.run('webm').then(()=>new Blob())`);
-    assert.equal(outcome.status,'resolved','菜单应处理失败并完成调用');
-    const failed=await record('webm-menu-boundary');
-    assert.equal(failed.receipt['data-last-export-error-format'],'webm');
-    assert.equal(failed.receipt['data-last-export-error'],'recording boundary: capture');
-    assert.equal(failed.receipt['data-last-export-format'],undefined);
-    assert.deepEqual(failed.downloads,[]);
-    assert.equal(await run(`document.querySelector('[data-format="webm"]').disabled`),true);
-    await run('restoreWebmFault()');
-    const retry=await recordingOutcome();
-    assert.equal(retry.status,'resolved');assert.ok(retry.bytes>0);
-    const retried=await record('webm-recovered');
-    assert.ok(retried.urls.every(u=>u.revoked));assert.ok(retried.tracks.every(s=>s==='ended'));
-    assert.deepEqual(await run('[...exportUrls.values()].map(u=>u.revocations)'),[1,1]);
-  });
-
-  await t.test('recording keeps flush best-effort and isolates overlapping calls', async () => {
-    await load();
-    await recordingFault('flush');
-    const flushed=await recordingOutcome();
-    assert.equal(flushed.status,'resolved');assert.ok(flushed.bytes>0);
-    assert.ok((await record('webm-flush')).urls.every(u=>u.revoked));
-    await run('restoreWebmFault()');
-    const parallel=await run(`(async()=>{
-      // 保留真实图片解码，确定性地让第二次调用先完成背景加载。
-      const NativeImage=Image,ready=[];let imageSequence=0;
-      window.Image=function(...args){
-        const image=new NativeImage(...args),index=imageSequence++;let onload;
-        Object.defineProperty(image,'onload',{get:()=>onload,set:value=>{onload=value;}});
-        image.addEventListener('load',()=>{
-          ready[index]=()=>onload&&onload.call(image);
-          if(ready[0]&&ready[1]){ready[1]();ready[0]();}
-        },{once:true});
-        return image;
-      };
-      // 用调用指定的帧率标识真实流，不能把编码器构造顺序当成调用顺序。
-      const capture=HTMLCanvasElement.prototype.captureStream,streamRates=new WeakMap();
-      HTMLCanvasElement.prototype.captureStream=function(fps){
-        const stream=capture.call(this,fps);streamRates.set(stream,fps);return stream;
-      };
-      const NativeRecorder=MediaRecorder,recorders=[],started=[];let overlappingStates;
-      window.MediaRecorder=class extends NativeRecorder {
-        constructor(stream,...args){super(stream,...args);this.rate=streamRates.get(stream);recorders.push(this);}
-        start(...args){
-          const result=super.start(...args);started.push(this.rate);
-          if(recorders.length===2&&recorders.every(recorder=>recorder.state==='recording')){
-            overlappingStates=recorders.map(recorder=>recorder.state);
-            queueMicrotask(()=>recorders.find(recorder=>recorder.rate===10).dispatchEvent(
-              new ErrorEvent('error',{error:new Error('first recording failed')})));
-          }
-          return result;
-        }
-      };
-      const observe=promise=>promise.then(blob=>({status:'resolved',bytes:blob.size}),error=>({status:'rejected',message:error.message}));
-      try{
-        const outcomes=await Promise.all([observe(Archify.motion.recordWebm({duration:250,fps:10})),observe(Archify.motion.recordWebm({duration:500,fps:20}))]);
-        return {outcomes,started,overlappingStates};
-      }finally{window.Image=NativeImage;window.MediaRecorder=NativeRecorder;HTMLCanvasElement.prototype.captureStream=capture;}
-    })()`);
-    assert.deepEqual(parallel.started,[20,10],'第二次调用必须先启动编码器');
-    assert.deepEqual(parallel.overlappingStates,['recording','recording'],'注入错误时两次录制必须都在进行');
-    assert.equal(parallel.outcomes[0].status,'rejected');assert.equal(parallel.outcomes[0].message,'first recording failed');
-    assert.equal(parallel.outcomes[1].status,'resolved');assert.ok(parallel.outcomes[1].bytes>0);
-    const state=await record('webm-parallel');
-    assert.ok(state.tracks.every(s=>s==='ended'));assert.ok(state.urls.every(u=>u.revoked));
-    assert.deepEqual(await run('[...exportUrls.values()].map(u=>u.revocations)'),[1,1,1]);
-  });
-
-  await t.test('recording constructor/error/empty failures clean up and public run disables WebM', async () => {
-    await load();
-    let previousTracks = 0;
-    // Consecutive failures must release their own resources without a page
-    // reload doing the cleanup for them. Keep the unsupported startup separate.
-    for (const fault of ['constructor','error','empty']) {
-      await run(`window.MediaRecorder=class {
-        static isTypeSupported(){return true;}
-        constructor(){if(${JSON.stringify(fault)}==='constructor')throw new Error('recorder constructor');this.state='inactive';this.mimeType='video/webm';}
-        start(){this.state='recording';if(${JSON.stringify(fault)}==='error')setTimeout(()=>{this.state='inactive';this.onerror({error:new Error('recorder error')});},20);}
-        requestData(){} stop(){this.state='inactive';this.onstop();}
-      };`);
-      assert.equal(await run('Archify.motion.recordWebm({duration:250,fps:10}).then(()=>false,()=>true)'),true);
-      const state=await record('webm-'+fault);
-      assert.ok(state.urls.every(u=>u.revoked));
-      assert.ok(state.tracks.length>previousTracks, `${fault}: the attempt must acquire its own stream`);
-      assert.ok(state.tracks.every(s=>s==='ended'));
-      previousTracks = state.tracks.length;
-    }
-    await load({extra:'&fault=unsupported'});
-    await run(`Archify.exportMenu.run('webm')`);
-    const state=await record('webm-unavailable');assert.equal(state.receipt['data-last-export-error-format'],'webm');assert.deepEqual(state.alerts,[]);
-    assert.deepEqual(await run(`(()=>{const b=document.querySelector('[data-format="webm"]');return {disabled:b.disabled,opacity:b.style.opacity};})()`),{disabled:true,opacity:'0.5'});
   });
 });

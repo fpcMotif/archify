@@ -65,16 +65,13 @@ test('classic preset remains the default for existing diagrams', () => {
   assert.match(svgBlock(html), /data-preset="classic"/);
 });
 
-test('signal-flow preset reaches the page, SVG, and motion export surface', () => {
+test('signal-flow preset reaches the page, SVG, and export surface', () => {
   const html = render('workflow', CASES.workflow, 'trace', 'signal-flow');
   assert.match(html, /<html lang="en" data-theme="dark" data-preset="signal-flow">/);
   assert.match(svgBlock(html), /data-preset="signal-flow"/);
   assert.match(html, /content: attr\(data-preset-badge-signal-flow\)/);
   assert.match(html, /data-preset-badge-signal-flow="SIGNAL FLOW"/);
-  assert.match(html, /data-format="webm"/);
-  assert.match(html, /data-last-motion-bytes/);
-  assert.match(html, /Archify\.motion = \{ canRecord: canRecordMotion, recordWebm: recordWebm \}/);
-  assert.match(html, /recorder\.requestData\(\)/);
+  assert.doesNotMatch(html, /data-last-motion-bytes|Archify\.motion = /);
   assert.match(html, /aria-label="Diagram view controls"/);
   assert.match(html, /Archify\.focus = \(function \(\)/);
   assert.match(html, /Archify\.view = \(function \(\)/);
@@ -83,24 +80,8 @@ test('signal-flow preset reaches the page, SVG, and motion export surface', () =
   assert.match(html, /data-last-export-canonical/);
   assert.match(html, /data-last-export-error-format/);
   assert.match(html, /data-last-export-error/);
-  assert.match(html, /WebM unavailable in this browser/);
-  assert.match(html, /Motion capture unavailable in this browser/);
   assert.match(html, /canonicalStateClean: canonicalStateClean/);
   assert.match(html, /recordExportReceipt\('svg', blob, d\.canonicalStateClean\)/);
-});
-
-test('webm renders an explicit time-varying canvas scene instead of replaying one cached SVG bitmap', () => {
-  const html = render('architecture', CASES.architecture, 'trace', 'signal-flow');
-  const recordBlock = html.match(/function recordWebm\(options\) \{[\s\S]*?\n      var menu =/)?.[0] || '';
-
-  assert.match(recordBlock, /var motionScene = createMotionScene\(svg\)/);
-  assert.match(recordBlock, /drawMotionFrame\(ctx, backgroundImage, motionScene, elapsed\)/);
-  assert.match(recordBlock, /getPointAtLength/);
-  assert.match(recordBlock, /performance\.now\(\)/);
-  assert.doesNotMatch(
-    recordBlock,
-    /function draw\(\) \{[\s\S]*?ctx\.drawImage\(img, 0, 0, canvas\.width, canvas\.height\);[\s\S]*?requestAnimationFrame\(draw\)/,
-  );
 });
 
 test('blueprint preset reaches every visual surface without changing the default', () => {

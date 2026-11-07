@@ -694,7 +694,6 @@ test('Share Card and export failures use catalog messages instead of fixed Engli
     "'Share Card variants cannot be combined'",
     "canvas2dOrThrow(canvas, 'Share Card')",
     "'Share Card export could not remove temporary viewer state'",
-    "'WebM motion export requires a trace animation and browser MediaRecorder support'",
   ]) {
     assert.ok(!template.includes(hardcoded), hardcoded);
   }

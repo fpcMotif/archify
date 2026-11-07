@@ -162,7 +162,7 @@
       "id": "v_export",
       "label": "export.js",
       "parent": "viewer",
-      "sublabel": "SVG, PNG, WebM export"
+      "sublabel": "SVG and image export"
     },
     {
       "id": "v_tree",

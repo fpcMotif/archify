@@ -110,8 +110,8 @@ still succeed; otherwise an encoding error is retained instead of being hidden
 by an unrelated favicon 404.
 
 The final artifact never fetches a brand asset when opened. Preset vectors and
-digest-verified captured site icons remain embedded in SVG, PNG, WebP, JPEG,
-Share Card, and WebM exports.
+digest-verified captured site icons remain embedded in SVG, PNG, WebP, JPEG
+and Share Card exports.
 
 Use `bun bin/archify.mjs brands --json` to inspect all canonical IDs, aliases,
 categories, domains, and provenance. Current categories cover AI, cloud,
