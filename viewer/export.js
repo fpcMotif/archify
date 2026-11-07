@@ -1,5 +1,5 @@
     /* ============================================================
-       Export — Share Card / PNG / JPEG / WebP / SVG / WebM and clipboard
+       Export — Share Card / PNG / JPEG / WebP / SVG and clipboard
 
        Raster exports are always rendered at 4x source resolution for
        maximum sharpness. The trick: we set the serialized SVG's
@@ -12,8 +12,6 @@
        ============================================================ */
     (function () {
       var RASTER_SCALE = 4;
-      var MOTION_DURATION = 6000;
-      var MOTION_FPS = 30;
       var SHARE_CARD_WIDTH = 1200;
       var SHARE_CARD_HEIGHT = 630;
       var SHARE_CARD_PADDING = 40;
@@ -771,296 +769,6 @@
         return renderShareCard({ reachSnapshot: snapshot });
       }
 
-      function motionMimeType() {
-        if (typeof MediaRecorder === 'undefined') return '';
-        var candidates = [
-          'video/webm;codecs=vp9',
-          'video/webm;codecs=vp8',
-          'video/webm'
-        ];
-        for (var i = 0; i < candidates.length; i++) {
-          if (!MediaRecorder.isTypeSupported || MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
-        }
-        return '';
-      }
-
-      function canRecordMotion() {
-        var svg = document.querySelector('.diagram-container svg');
-        return !!(svg && svg.getAttribute('data-animation') === 'trace' &&
-          typeof MediaRecorder !== 'undefined' && motionMimeType() &&
-          typeof HTMLCanvasElement !== 'undefined' &&
-          typeof HTMLCanvasElement.prototype.captureStream === 'function');
-      }
-
-      // Record the live CSS animation without Puppeteer, ffmpeg, or a network
-      // dependency. SVG files loaded through Image are commonly rasterized as
-      // one cached bitmap, so repeatedly drawing that Image does not reliably
-      // advance its CSS animation. Keep one crisp static SVG background, then
-      // render an explicit time-varying signal scene over the real authored
-      // relationship geometry on every captured canvas frame.
-      function recordWebm(options) {
-        options = options || {};
-        if (!canRecordMotion()) {
-          return Promise.reject(exportError('viewer.export.error.webmRequirements'));
-        }
-        var duration = Math.max(250, Number(options.duration) || MOTION_DURATION);
-        var fps = Math.max(1, Number(options.fps) || MOTION_FPS);
-        var svg = document.querySelector('.diagram-container svg');
-        var vb = svg.viewBox.baseVal;
-        var scale = Math.min(1, 1280 / vb.width);
-        var data = serializeSvg(scale);
-
-        function createMotionScene(root) {
-          var rootMatrix = root.getCTM ? root.getCTM() : null;
-
-          function pointInRoot(element, point) {
-            if (!rootMatrix || !element.getCTM || !point.matrixTransform) return { x: point.x, y: point.y };
-            try {
-              var elementMatrix = element.getCTM();
-              if (!elementMatrix) return { x: point.x, y: point.y };
-              var mapped = point.matrixTransform(rootMatrix.inverse().multiply(elementMatrix));
-              return { x: mapped.x, y: mapped.y };
-            } catch (_) {
-              return { x: point.x, y: point.y };
-            }
-          }
-
-          function samplesFor(element) {
-            if (typeof element.getTotalLength !== 'function' || typeof element.getPointAtLength !== 'function') return [];
-            var geometry = element;
-            if (element.getAttribute('data-motion-path')) {
-              geometry = element.cloneNode(false);
-              geometry.setAttribute('d', element.getAttribute('data-motion-path'));
-            }
-            var length;
-            try { length = geometry.getTotalLength(); } catch (_) { return []; }
-            if (!Number.isFinite(length) || length <= 0) return [];
-            var count = Math.max(12, Math.min(72, Math.ceil(length / 12)));
-            var points = [];
-            for (var i = 0; i <= count; i++) {
-              points.push(pointInRoot(element, geometry.getPointAtLength(length * i / count)));
-            }
-            return points;
-          }
-
-          function authoredStep(element, fallback) {
-            var raw = element.style.getPropertyValue('--step') || getComputedStyle(element).getPropertyValue('--step');
-            var value = Number(raw);
-            return Number.isFinite(value) ? value : fallback;
-          }
-
-          var edges = Array.prototype.slice.call(root.querySelectorAll('[data-animate="edge"]')).map(function (element, index) {
-            var computed = getComputedStyle(element);
-            return {
-              points: samplesFor(element),
-              color: computed.stroke && computed.stroke !== 'none' ? computed.stroke : '#22d3ee',
-              width: Math.max(1.5, parseFloat(computed.strokeWidth) || 1.5),
-              delay: Math.min(12, authoredStep(element, index)) * 0.16
-            };
-          }).filter(function (edge) { return edge.points.length > 1; });
-
-          var nodes = Array.prototype.slice.call(root.querySelectorAll('[data-node-id][data-animate="node"]')).map(function (element, index) {
-            var box;
-            try { box = element.getBBox(); } catch (_) { return null; }
-            var painted = element.querySelector('[class*="c-"]') || element;
-            var computed = getComputedStyle(painted);
-            return {
-              x: box.x,
-              y: box.y,
-              width: box.width,
-              height: box.height,
-              color: computed.stroke && computed.stroke !== 'none' ? computed.stroke : '#22d3ee',
-              delay: Math.min(12, authoredStep(element, index)) * 0.16
-            };
-          }).filter(Boolean);
-
-          return { edges: edges, nodes: nodes, x: vb.x, y: vb.y, width: vb.width, height: vb.height };
-        }
-
-        function pointAlong(points, progress) {
-          var scaled = Math.max(0, Math.min(1, progress)) * (points.length - 1);
-          var index = Math.min(points.length - 2, Math.floor(scaled));
-          var mix = scaled - index;
-          return {
-            x: points[index].x + (points[index + 1].x - points[index].x) * mix,
-            y: points[index].y + (points[index + 1].y - points[index].y) * mix
-          };
-        }
-
-        function roundedRectPath(ctx, x, y, width, height, radius) {
-          var r = Math.max(0, Math.min(radius, width / 2, height / 2));
-          ctx.beginPath();
-          ctx.moveTo(x + r, y);
-          ctx.lineTo(x + width - r, y);
-          ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-          ctx.lineTo(x + width, y + height - r);
-          ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-          ctx.lineTo(x + r, y + height);
-          ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-          ctx.lineTo(x, y + r);
-          ctx.quadraticCurveTo(x, y, x + r, y);
-          ctx.closePath();
-        }
-
-        function drawMotionFrame(ctx, backgroundImage, motionScene, elapsed) {
-          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-          ctx.drawImage(backgroundImage, 0, 0, ctx.canvas.width, ctx.canvas.height);
-          ctx.save();
-          ctx.scale(ctx.canvas.width / motionScene.width, ctx.canvas.height / motionScene.height);
-          ctx.translate(-motionScene.x, -motionScene.y);
-
-          motionScene.edges.forEach(function (edge) {
-            var duration = 1.75;
-            var progress = (elapsed - edge.delay) / duration;
-            if (progress < 0 || progress > 1) return;
-            var head = Math.max(0, Math.min(1, progress));
-            var tail = Math.max(0, head - 0.24);
-            var opacity = Math.sin(Math.PI * Math.min(1, progress));
-
-            ctx.save();
-            ctx.strokeStyle = edge.color;
-            ctx.fillStyle = edge.color;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.lineWidth = Math.max(3.2, edge.width * 2.2);
-            ctx.globalAlpha = 0.42 + opacity * 0.5;
-            ctx.shadowColor = edge.color;
-            ctx.shadowBlur = 10;
-            ctx.beginPath();
-            for (var i = 0; i <= 14; i++) {
-              var trailPoint = pointAlong(edge.points, tail + (head - tail) * i / 14);
-              if (i === 0) ctx.moveTo(trailPoint.x, trailPoint.y);
-              else ctx.lineTo(trailPoint.x, trailPoint.y);
-            }
-            ctx.stroke();
-
-            var point = pointAlong(edge.points, head);
-            ctx.globalAlpha = 0.95;
-            ctx.beginPath();
-            ctx.arc(point.x, point.y, 4.8, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-          });
-
-          motionScene.nodes.forEach(function (node) {
-            var progress = (elapsed - node.delay) / 2.6;
-            if (progress < 0 || progress > 1) return;
-            var pulse = Math.sin(Math.PI * progress);
-            if (pulse <= 0.02) return;
-            ctx.save();
-            ctx.strokeStyle = node.color;
-            ctx.lineWidth = 1.4 + pulse * 1.8;
-            ctx.globalAlpha = pulse * 0.5;
-            ctx.shadowColor = node.color;
-            ctx.shadowBlur = 12 * pulse;
-            var inset = 2 + pulse * 3;
-            roundedRectPath(ctx, node.x - inset, node.y - inset, node.width + inset * 2, node.height + inset * 2, 8);
-            ctx.stroke();
-            ctx.restore();
-          });
-
-          ctx.restore();
-        }
-
-        var motionScene = createMotionScene(svg);
-
-        return new Promise(function (resolve, reject) {
-          var sourceUrl = null;
-          var backgroundImage = null;
-          var stream = null;
-          var recorder = null;
-          var raf = 0;
-          var durationTimer = 0;
-          var flushTimer = 0;
-          var settled = false;
-
-          function finish(error, blob) {
-            if (settled) return;
-            // 先锁定终态：停止录制和释放流可能产生晚到的编码事件。
-            settled = true;
-            cancelAnimationFrame(raf);
-            clearTimeout(durationTimer);
-            clearTimeout(flushTimer);
-            if (backgroundImage) {
-              backgroundImage.onload = null;
-              backgroundImage.onerror = null;
-            }
-            if (recorder) {
-              recorder.ondataavailable = null;
-              recorder.onerror = null;
-              recorder.onstop = null;
-              try { if (recorder.state !== 'inactive') recorder.stop(); } catch (_) {}
-            }
-            if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
-            if (sourceUrl) URL.revokeObjectURL(sourceUrl);
-            if (blob) resolve(blob);
-            else reject(error);
-          }
-
-          try {
-            sourceUrl = URL.createObjectURL(new Blob([data.svgString], { type: 'image/svg+xml;charset=utf-8' }));
-            backgroundImage = new Image();
-            backgroundImage.onload = function () {
-              if (settled) return;
-              try {
-                var canvas = document.createElement('canvas');
-                canvas.width = Math.max(2, Math.round(data.width / 2) * 2);
-                canvas.height = Math.max(2, Math.round(data.height / 2) * 2);
-                var ctx = canvas.getContext('2d');
-                if (!ctx) throw exportError('viewer.export.error.contextUnavailable', { label: 'WebM' });
-                stream = canvas.captureStream(fps);
-                var mime = motionMimeType();
-                recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6000000 });
-                var chunks = [];
-                var startedAt = performance.now();
-                function draw(now) {
-                  if (settled) return;
-                  try {
-                    var elapsed = Math.max(0, ((Number(now) || performance.now()) - startedAt) / 1000);
-                    drawMotionFrame(ctx, backgroundImage, motionScene, elapsed);
-                    raf = requestAnimationFrame(draw);
-                  } catch (error) { finish(error); }
-                }
-                recorder.ondataavailable = function (event) {
-                  if (!settled && event.data && event.data.size) chunks.push(event.data);
-                };
-                recorder.onerror = function (event) {
-                  finish(event.error || exportError('viewer.export.error.mediaRecorder'));
-                };
-                recorder.onstop = function () {
-                  if (settled) return;
-                  try {
-                    var blob = new Blob(chunks, { type: recorder.mimeType || mime });
-                    if (!blob.size) throw exportError('viewer.export.error.emptyWebm');
-                    finish(null, blob);
-                  } catch (error) { finish(error); }
-                };
-                drawMotionFrame(ctx, backgroundImage, motionScene, 0);
-                recorder.start(250);
-                if (settled) return;
-                startedAt = performance.now();
-                raf = requestAnimationFrame(draw);
-                durationTimer = setTimeout(function () {
-                  if (settled || recorder.state === 'inactive') return;
-                  // 保留最佳努力的编码器 flush；失败后仍通过 stop 收集最后的片段。
-                  try { recorder.requestData(); } catch (_) {}
-                  if (settled) return;
-                  flushTimer = setTimeout(function () {
-                    if (settled) return;
-                    try { if (recorder.state !== 'inactive') recorder.stop(); }
-                    catch (error) { finish(error); }
-                  }, 120);
-                }, duration);
-              } catch (error) { finish(error); }
-            };
-            backgroundImage.onerror = function () {
-              finish(exportError('viewer.export.error.webmBackground'));
-            };
-            backgroundImage.src = sourceUrl;
-          } catch (error) { finish(error); }
-        });
-      }
-
       var menu = document.getElementById('export-menu');
       var btn = document.getElementById('btn-export');
       var routeShareItem = menu.querySelector('button[data-action="route-share-card"]');
@@ -1099,7 +807,6 @@
       // WebP encoding (older Safari), so detect explicitly.
       function supports(format) {
         if (format === 'svg' || format === 'svg-light' || format === 'svg-dark' || format === 'png') return true;
-        if (format === 'webm') return canRecordMotion();
         var mime = format === 'jpeg' ? 'image/jpeg' : 'image/webp';
         try {
           var c = document.createElement('canvas');
@@ -1206,7 +913,7 @@
       });
 
       function runExport(format) {
-        if (['svg', 'svg-light', 'svg-dark', 'png', 'jpeg', 'webp', 'webm'].indexOf(format) === -1) {
+        if (['svg', 'svg-light', 'svg-dark', 'png', 'jpeg', 'webp'].indexOf(format) === -1) {
           return Promise.reject(exportError('viewer.export.unsupported'));
         }
         var base = diagramFilename();
@@ -1215,20 +922,12 @@
           format === 'svg-dark' ? 'dark' : null;
         close(true);
         clearExportReceipt();
-        if (format === 'webm') toast(viewerText('viewer.export.recording'));
         return (svgTheme
           ? Promise.resolve(serializeSvg(1, { theme: svgTheme })).then(function (d) {
               var blob = new Blob([d.svgString], { type: 'image/svg+xml;charset=utf-8' });
               recordExportReceipt('svg', blob, d.canonicalStateClean);
               download(blob, base + (svgTheme === 'auto' ? '' : '-' + svgTheme) + '.svg');
             })
-          : format === 'webm'
-            ? recordWebm().then(function (blob) {
-                document.documentElement.setAttribute('data-last-motion-bytes', String(blob.size));
-                recordExportReceipt('webm', blob, true);
-                download(blob, base + '.webm');
-                toast(viewerText('viewer.export.downloadedWebm'));
-              })
           : rasterize(format).then(function (blob) {
               recordExportReceipt(format, blob, true);
               download(blob, base + '.' + format);
@@ -1239,16 +938,6 @@
           var message = exportMessage(err);
           document.documentElement.setAttribute('data-last-export-error-format', format);
           document.documentElement.setAttribute('data-last-export-error', technicalMessage);
-          if (format === 'webm') {
-            var motionItem = menu.querySelector('button[data-format="webm"]');
-            if (motionItem) {
-              motionItem.disabled = true;
-              motionItem.title = viewerText('viewer.export.motionUnavailable');
-              motionItem.style.opacity = '0.5';
-            }
-            toast(viewerText('viewer.export.webmUnavailable'));
-            return;
-          }
           alert(viewerText('viewer.export.failed', { message: message }));
         });
       }
@@ -1388,7 +1077,6 @@
         if (formatBtn && !formatBtn.disabled) { runExport(formatBtn.dataset.format); }
       });
 
-      Archify.motion = { canRecord: canRecordMotion, recordWebm: recordWebm };
       Archify.exportMenu = {
         open: open,
         close: close,

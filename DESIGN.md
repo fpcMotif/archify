@@ -230,7 +230,7 @@ An active reach query may expose one contextual **Export → Reach Share Card** 
 - **Do** keep ordinary artifacts source-free and make repository evidence explicitly opt-in.
 - **Do** use 140–200ms transitions for control state and honor `prefers-reduced-motion`.
 - **Do** preserve keyboard access, visible focus, semantic labels, dark/light parity, and non-color state cues.
-- **Do** keep runtime exploration outside canonical SVG, raster, Share Card, and WebM backgrounds.
+- **Do** keep runtime exploration outside canonical SVG, raster, and Share Card backgrounds.
 - **Do** name an intentionally scoped Route or Reach Share Card in its header and machine-readable receipt.
 
 ### Don't:

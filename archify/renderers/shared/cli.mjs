@@ -380,7 +380,7 @@ export function svgAccessibleText(meta, kind) {
 }
 
 export function animateAttr(meta, kind, step) {
-  // Ambient trace must finish inside the fixed six-second WebM capture. The
+  // Ambient trace must finish within six seconds of load. The
   // cap affects visual delay only; authored order and semantic identity stay
   // untouched in the JSON, DOM, and relationship contracts.
   const safeStep = Number.isFinite(step) && step >= 0 ? Math.min(12, Math.floor(step)) : 0;

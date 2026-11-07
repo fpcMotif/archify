@@ -8,7 +8,7 @@ motion mode and ownership, `node-finder.js` for node search and endpoint picking
 and legend previews, `route-probe.js` for directed paths and Route Journey,
 `focus.js` for semantic selection, relationships, reachability and shared flow tokens,
 `tree-branches.js` for hierarchy expand/collapse (active only on tree diagrams),
-`export.js` for export menus, serialization, images, cards, clipboard and WebM,
+`export.js` for export menus, serialization, images, cards and clipboard,
 `export-cleanup.js` for its private SVG clone cleanup, `viewer.css` for the
 main Viewer stylesheet, and `template.source.html` for the remaining shell.
 `viewer.css` owns the complete main `<style>` block; the font-face block remains
@@ -57,13 +57,11 @@ loader or a second runtime initialization step.
 
 The interface includes all nine `Archify.exportMenu` methods: open, close, isOpen,
 run, shareCard, downloadRouteShareCard, downloadReachShareCard, syncRouteShare,
-and syncReachShare. The same closure installs
-`Archify.motion.canRecord` and `recordWebm`; this recording capability is distinct
-from Motion Governor. Return values and synchronous/asynchronous failure modes
+and syncReachShare. Return values and synchronous/asynchronous failure modes
 are part of the interface, not normalized by the extraction.
 
 - Initialization requires the export menu, trigger and Route/Reach menu items;
-  it probes format/clipboard/recording support, registers listeners and creates
+  it probes format/clipboard support, registers listeners and creates
   one toast live region. Later calls require the main diagram SVG and use the
   existing header, document title, font style and computed theme/preset styles.
 - Shared viewerText, viewerCount and hasDrawableGeometry remain in classic-script
@@ -75,7 +73,6 @@ are part of the interface, not normalized by the extraction.
 - Preset, Lens, Finder and Presentation close Export through its existing
   interface. Guide/Presentation open it; Route Probe and Focus synchronize their
   share items. The DOM menu routes clicks to the private ordinary PNG copy path.
-  External consumers of Archify.motion retain both recording methods.
 
 ### DOM, styles and output state
 
@@ -91,7 +88,7 @@ are part of the interface, not normalized by the extraction.
   provider, reject unavailable/invalid snapshots,
   and retain the existing clone geometry/identity checks. Menu visibility does
   not grant a stale snapshot permission to export after Route/Reach is cleared.
-- Downloaded SVG embeds both themes. Raster/card/recording serialization locks
+- Downloaded SVG embeds both themes. Raster/card serialization locks
   current theme variables after host CSS. CSS rule filtering, stylesheet order,
   cross-origin cssRules catches, embedded fonts and temporary theme probes stay
   unchanged. Moving CSS can change export output even when the live page looks
@@ -108,7 +105,7 @@ are part of the interface, not normalized by the extraction.
   writes format/bytes/canonical and optional dimensions/variant/clean flags. Route/Reach downloads
   return their Blob and mark canonical=false. Their failures report share-card
   errors and alert. Regular run resolves through its existing handlers; failures
-  record an error and alert, except WebM disables its item and shows a toast.
+  record an error and alert.
 - Ordinary PNG copy only toasts on success. Unsupported copy can return undefined.
   ClipboardItem construction with a Promise stays inside the user gesture;
   synchronous rejection falls back to a Blob, asynchronous write rejection does
@@ -122,26 +119,20 @@ are part of the interface, not normalized by the extraction.
 | Auto-theme probes | Detached after computed-style sampling, including finally on failure |
 | Download URL/anchor | Anchor appended/clicked/removed synchronously; URL revoked after 1000ms |
 | Raster/card SVG URL | Lives until Image load/draw or error; revoked before toBlob completion, with existing catch cleanup |
-| 录制背景 URL | 从背景加载持续到录制结束，由下文说明的统一终态在成功或失败后释放 |
-| 录制 tracks/rAF | 统一终态停止已创建的 tracks 并取消动画帧回调，晚到事件不重复清理 |
-| 录制定时器 | 统一终态取消录制时长和最终 flush 定时器，防止失败后再次操作编码器 |
 | Toast 定时器 | 保留既有有界回调和状态检查，不增加共享 busy 状态或取消协议 |
 
-recordWebm retains duration/fps options, defaults, minimums, MIME selection,
-geometry-driven scene and encoder flush timing. This table describes existing
-paths; it does not add universal recovery from arbitrary browser API exceptions.
+This table describes existing paths; it does not add universal recovery from
+arbitrary browser API exceptions.
 
 `export-browser.test.mjs` exercises native menu input, unavailable formats,
 auto-open/themes, real semantic cards, clipboard call order/fallback, raster
-failures/retry, synchronous serialization failure, real WebM decode and recorder
-failure cleanup. It intercepts download and clipboard boundaries without changing
+failures/retry and synchronous serialization failure. It intercepts download and clipboard boundaries without changing
 production serialization. `export-cleanup-browser.test.mjs` supplies five-mode
-canonical SVG and real raster/theme coverage. Existing share-card and WebM smoke
-checks retain their broader artifact contracts. Set ARCHIFY_CHROME for browser
-checks; ARCHIFY_EXPORT_RUNTIME_EVIDENCE optionally saves runtime observations,
-menu screenshots and a real recording. CI runs the browser suite without relying
-on optional evidence capture. Compare the same final tests on a fixed baseline
-and candidate; encoding bytes/timing are not a deterministic oracle for video.
+canonical SVG and real raster/theme coverage. Existing share-card smoke checks
+retain their broader artifact contracts. Set ARCHIFY_CHROME for browser
+checks; ARCHIFY_EXPORT_RUNTIME_EVIDENCE optionally saves runtime observations
+and menu screenshots. CI runs the browser suite without relying on optional
+evidence capture. Compare the same final tests on a fixed baseline and candidate.
 
 ## Focus / Semantic Explorer contract
 
@@ -223,7 +214,7 @@ provider is part of Focus ownership, not a second initialization step.
   token with the existing path, duration/class options and null behavior. Motion
   ownership remains in its existing module. If the visual `d` runs in reverse,
   `data-motion-path` supplies the canonical from→to semantic path shared by
-  Focus, Intent Trace, Semantic Lens, Route Probe and WebM.
+  Focus, Intent Trace, Semantic Lens and Route Probe.
 - Relationship pulse removes any previous pulse, clones existing shape geometry
   and installs at most one flow token, retaining overlay placement and animation
   end/cancel removal. Embed, hidden, paused Motion and reduced motion prevent new
@@ -882,8 +873,7 @@ Suppression finishes node entrance without exhausting connection flow. The
 ambient state describes current eligibility rather than immutable history.
 
 The Governor manages these Viewer signals, not every animation on the page.
-Camera retains its transactions and CSS transitions; Export retains its separate
-WebM canvas timeline. Canonical export cleanup removes flow overlays and preserves
+Camera retains its transactions and CSS transitions. Canonical export cleanup removes flow overlays and preserves
 authored geometry/IDs and line styles.
 
 ## Export cleanup contract
@@ -906,7 +896,7 @@ Viewer capability or changes the live DOM. No new `Archify` interface is exposed
 | Previous Route/Reach share decoration | Remove before applying the current export's explicit snapshot. |
 
 Original content, node/edge identity, geometry and authored animation metadata
-remain. Animation handling for share variants and recordings stays in Export.
+remain. Animation handling for share variants stays in Export.
 Cleanup preserves the existing operation order, including overlay removal before
 descendant cleanup. Missing optional decorations are harmless; repeated cleanup
 is idempotent. The function assumes an SVG clone supplied by Export, not null or
@@ -919,17 +909,9 @@ that knowledge from serialization, but does not eliminate producer/cleanup
 coordination. Do not broaden rules or rejection behavior during a pure extraction.
 
 Route/Reach validation, finite-dimension checks, receipts, errors, menu behavior,
-rasterization, clipboard and recording remain owned by Export. Its existing
+rasterization and clipboard remain owned by Export. Its existing
 callers use the same paths and return fields. Tests exercise final browser exports;
 isolated clone tests supplement them for restoration and idempotence.
-
-## WebM 录制失败与资源生命周期
-
-`Archify.motion.recordWebm()` 的每次调用独立拥有背景 URL、捕获流、编码器、动画帧和停止定时器。背景加载、画布或流创建、编码器启动、绘制、编码事件以及停止失败时，返回的 Promise 拒绝，资源在同一次终态清理中释放；晚到的事件不会恢复成功状态。正常停止后只有非空 WebM 才能成功返回，`requestData()` 失败仍允许通过 `stop()` 完成最佳努力的最终片段收集。
-
-菜单沿用原有错误提示、失败回执与 WebM 禁用规则；接口调用之间互不清理对方资源。SVG 序列化发生在录制 Promise 之前，其同步异常契约保持不变。修复后的行为仅存在于重新生成的 HTML 中。
-
-回归入口：在仓库根目录设置 `ARCHIFY_CHROME` 后运行 `node --test test/export-browser.test.mjs`。该套件覆盖真实编码、故障边界、晚到事件、同页重试及并行调用；`node test/webm-artifact.smoke.mjs` 另行验证视频解码与实际帧变化。
 
 For required browser, output and package evidence, follow
 [Contributing](../CONTRIBUTING.md#local-setup-and-verification).

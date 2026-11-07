@@ -73,26 +73,6 @@ test('class: hierarchy bus motion follows from-to while retaining aligned visual
   assert.equal(result.lens, true);
   assert.equal(result.original, result.visual);
   assert.equal(result.marker, 'url(#cl-triangle-start)');
-  const recording = await run(`(async () => {
-    Archify.routeProbe.clear();
-    const original = SVGGeometryElement.prototype.getPointAtLength;
-    const samples = [];
-    SVGGeometryElement.prototype.getPointAtLength = function (distance) {
-      const point = original.call(this, distance);
-      if (this.getAttribute('data-edge-id') === 'card_implements') samples.push({ d: this.getAttribute('d'), x: point.x, y: point.y });
-      return point;
-    };
-    try {
-      const blob = await Archify.motion.recordWebm({ duration: 250, fps: 10 });
-      return { type: blob.type, size: blob.size, samples };
-    } finally { SVGGeometryElement.prototype.getPointAtLength = original; }
-  })()`);
-  assert.match(recording.type, /^video\/webm/);
-  assert.ok(recording.size > 0);
-  assert.ok(recording.samples.length > 1);
-  assert.ok(recording.samples.every((sample) => sample.d === result.semantic));
-  assert.deepEqual([recording.samples[0].x, recording.samples[0].y], result.semanticEnds[0]);
-  assert.deepEqual([recording.samples.at(-1).x, recording.samples.at(-1).y], result.semanticEnds[1]);
 });
 
 test('class: mixed hierarchy fallback keeps dependency notation in focus and SVG export', {
