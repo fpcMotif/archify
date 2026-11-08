@@ -47,7 +47,7 @@ const RAW_RECIPES = [
   },
   {
     id: 'agent-tool-call', type: 'workflow', proof: 'agent-tool-call',
-    presentation: { preset: 'signal-flow', motion: 'trace' },
+    presentation: { preset: 'classic', motion: 'trace' },
     start: {
       en: { descriptionPrompt: 'Use Archify workflow mode to turn this description into a diagram: [paste the actors, main steps, decisions, approvals, and exception paths]. Use lanes for distinct owners, keep one unmistakable happy path, and mark missing ownership or unresolved branches instead of inventing them.' },
       zh: { descriptionPrompt: '用 Archify 工作流模式把下面的描述画成图：[粘贴参与者、主要步骤、决策、审批和异常路径]。不同负责方使用独立泳道，保留一条明确的成功主路径，缺失的负责人或未定分支要标明而不是编造。' },
@@ -93,7 +93,7 @@ const RAW_RECIPES = [
   },
   {
     id: 'incident-runbook', type: 'workflow', proof: 'incident-runbook',
-    presentation: { preset: 'signal-flow', motion: 'trace' },
+    presentation: { preset: 'classic', motion: 'trace' },
     signals: [['incident response', 15], ['runbook', 12], ['outage', 9], ['triage', 8], ['mitigation', 8], ['escalation', 7], ['事故处置', 15], ['故障', 9], ['应急预案', 12], ['排障', 9], ['缓解', 7], ['升级响应', 8]],
     en: {
       title: 'Incident runbook', question: 'How do responders detect, triage, mitigate, verify, and escalate?',
@@ -139,7 +139,7 @@ const RAW_RECIPES = [
   },
   {
     id: 'async-roundtrip', type: 'sequence', proof: 'async-roundtrip',
-    presentation: { preset: 'signal-flow', motion: 'trace' },
+    presentation: { preset: 'classic', motion: 'trace' },
     signals: [['async roundtrip', 14], ['webhook', 10], ['callback', 10], ['acknowledgement', 8], ['timeout', 7], ['retry message', 8], ['异步回调', 14], ['回调', 10], ['确认消息', 8], ['超时', 7], ['消息重试', 9], ['webhook', 10]],
     en: {
       title: 'Async roundtrip', question: 'What happens after the initial request returns?',
@@ -181,7 +181,7 @@ const RAW_RECIPES = [
   },
   {
     id: 'event-stream', type: 'dataflow', proof: 'event-stream',
-    presentation: { preset: 'signal-flow', motion: 'trace' },
+    presentation: { preset: 'classic', motion: 'trace' },
     start: {
       en: { descriptionPrompt: 'Use Archify dataflow mode to map this data journey: [paste the sources, data assets, transforms, stores, boundaries, and consumers]. Label every flow, distinguish streaming from batch where relevant, and mark unknown classifications or ownership instead of inventing them.' },
       zh: { descriptionPrompt: '用 Archify 数据流模式梳理下面的数据路径：[粘贴来源、数据资产、转换、存储、边界和消费者]。为每条数据流标注名称，在有意义时区分流式与批处理，未知的分类或归属要标明而不是编造。' },
@@ -231,7 +231,7 @@ const RAW_RECIPES = [
   },
   {
     id: 'deployment-lifecycle', type: 'lifecycle', proof: 'deployment-lifecycle',
-    presentation: { preset: 'signal-flow', motion: 'trace' },
+    presentation: { preset: 'classic', motion: 'trace' },
     signals: [['deployment lifecycle', 15], ['release state', 10], ['promotion state', 9], ['approval status', 8], ['rollback state', 10], ['部署生命周期', 15], ['发布状态', 10], ['晋级', 7], ['审批状态', 8], ['回滚状态', 10]],
     en: {
       title: 'Deployment lifecycle', question: 'What state is a release in, and what can happen next?',

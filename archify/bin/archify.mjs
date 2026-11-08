@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 
 import childProcess from 'node:child_process';
-import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -866,7 +865,7 @@ function createOwnedEmptyStagingDirectory(prefix) {
 
 function createStagingRetirementQuarantine(parent) {
   for (let attempt = 0; attempt < 8; attempt += 1) {
-    const directory = path.join(parent, `.archify-staging-remove-${randomUUID()}`);
+    const directory = path.join(parent, `.archify-staging-remove-${crypto.randomUUID()}`);
     try {
       fs.mkdirSync(directory, { mode: 0o700 });
       return directory;
@@ -979,7 +978,7 @@ function releaseOwnedStagingBindings(registry, fileBindingRuntime) {
 }
 
 function artifactIdentity(artifact) {
-  return { sha256: createHash('sha256').update(artifact).digest('hex'), bytes: artifact.byteLength };
+  return { sha256: new Bun.CryptoHasher('sha256').update(artifact).digest('hex'), bytes: artifact.byteLength };
 }
 
 function beginDeliveryAttempt({ ownership, input, pathsAlias, fileBindingRuntime }) {
@@ -1877,7 +1876,7 @@ async function specificationLocaleDiagnostics(type, specification) {
     return [];
   }
   if (!meta?.locale) return [];
-  const { localeDiagnostics } = await import('../renderers/shared/i18n.mjs');
+  const { localeDiagnostics } = await import('../renderers/shared/i18n.ts');
   return localeDiagnostics(type, meta);
 }
 
@@ -2134,7 +2133,7 @@ function inspectDeliveryProvenance(artifactPath, artifact, {
       { recordedOutput: receipt.output, pathIdentity: outputIdentity.reason },
     );
   }
-  const actualSha256 = createHash('sha256').update(artifact).digest('hex');
+  const actualSha256 = new Bun.CryptoHasher('sha256').update(artifact).digest('hex');
   if (receipt.status === 'failed') {
     const message = 'The artifact is stale because the latest delivery attempt failed.';
     return {
@@ -2191,6 +2190,7 @@ const COMMAND_USAGE = {
   patch: 'explainer <artifact.html> <panel-id> <replacement-file> <output.html> [--json] [--quality standard|showcase] [--repo-root path]',
   autofix: '<type> <input.json> <output.html> [--json] [--browser-check] [--quality standard|showcase] [--repo-root path]',
   chart: '<input.mmd|text> [output.svg]',
+  import: 'mermaid <input.mmd> [output.json] [--title text] [--json]',
   finalize: '<type> <input.json> <output.html> [--json] [--browser-check] [--receipt path] [--out-dir <dir>] [--quality standard|showcase] [--repo-root path] [--candidate-sha256 hex]',
   preview: '<diagram-type (excludes explainer)> <input.json> [output.html] [--no-open] [--quality standard|showcase] [--repo-root path]',
   validate: '<type> <input.json> [--json] [--layout-json] [--quality standard|showcase] [--repo-root path]',
@@ -4089,12 +4089,12 @@ async function commandCompare(args) {
       captureCompareStagingFile,
     );
 
-    const semanticHash = (diagram) => createHash('sha256').update(canonicalArchitectureJson(diagram)).digest('hex');
+    const semanticHash = (diagram) => new Bun.CryptoHasher('sha256').update(canonicalArchitectureJson(diagram)).digest('hex');
     let compareIr;
     try {
       compareIr = compareArchitecture(base, head, {
-        baseRawSha256: createHash('sha256').update(baseBuffer).digest('hex'),
-        headRawSha256: createHash('sha256').update(headBuffer).digest('hex'),
+        baseRawSha256: new Bun.CryptoHasher('sha256').update(baseBuffer).digest('hex'),
+        headRawSha256: new Bun.CryptoHasher('sha256').update(headBuffer).digest('hex'),
         baseSemanticSha256: semanticHash(base),
         headSemanticSha256: semanticHash(head),
         baseBytes: baseBuffer.byteLength,
@@ -4233,7 +4233,7 @@ async function commandCompare(args) {
   }
 }
 
-function commandRender(args) {
+async function commandRender(args) {
   const qualityArgs = extractQualityArgs(args);
   const repoArgs = extractRepoRootArgs(qualityArgs.rest);
   // render takes no options of its own once --quality and --repo-root are
@@ -4245,10 +4245,14 @@ function commandRender(args) {
   if (unknown.length) fail(`Unknown render option "${unknown[0]}".`);
   const [type, input, output] = repoArgs.rest;
   if (!type || !input || repoArgs.rest.length > 3) fail(usage());
-  const result = runNode([rendererPath(type), input, ...(output ? [output] : [])], {
-    env: rendererEnv(qualityArgs.quality, repoArgs.repoRoot),
-  });
-  if (result.status !== 0) exitFrom(result);
+  const renderer = rendererPath(type);
+  Object.assign(process.env, rendererEnv(qualityArgs.quality, repoArgs.repoRoot));
+  process.argv = [process.execPath, renderer, input, ...(output ? [output] : [])];
+  try {
+    await import(pathToFileURL(renderer).href);
+  } catch (error) {
+    process.nextTick(() => { throw error; });
+  }
 }
 
 function reportArtifactFailure({ command, json, stage, type, input, output, error, diagnostics = [], status = 1, checker, receiptId, provenance }) {
@@ -4272,7 +4276,7 @@ function reportArtifactFailure({ command, json, stage, type, input, output, erro
 }
 
 function writeDeliveryFailureReceipt(options) {
-  const receiptId = options.receiptId || randomUUID();
+  const receiptId = options.receiptId || crypto.randomUUID();
   const recorded = recordDeliveryFailure({ ...options, receiptId });
   const ownershipOrLockError = recorded.ownershipError || recorded.lockError;
   if (ownershipOrLockError) {
@@ -4404,7 +4408,7 @@ async function commandDeliver(args) {
     verifyRegularFileBinding,
     releaseRegularFileBinding,
   };
-  const receiptId = randomUUID();
+  const receiptId = crypto.randomUUID();
   let deliveryOwnership;
   let recoveryRequired = false;
   let stagingDirectory;
@@ -4927,11 +4931,11 @@ async function commandDeliver(args) {
       output: outputPath,
       ...(explainerBundle ? { explainer: { preparedSha256: explainerBundle.digest, dependencies: explainerBundle.dependencies.map(({contentBase64, ...entry}) => entry) } } : {}),
       specification: {
-        sha256: createHash('sha256').update(specification).digest('hex'),
+        sha256: new Bun.CryptoHasher('sha256').update(specification).digest('hex'),
         bytes: specification.byteLength,
       },
       artifact: {
-        sha256: createHash('sha256').update(artifact).digest('hex'),
+        sha256: new Bun.CryptoHasher('sha256').update(artifact).digest('hex'),
         bytes: artifact.byteLength,
       },
       validation: {
@@ -5886,7 +5890,7 @@ async function commandAutofix(rawArgs) {
     subject: { type: 'explainer' },
     supportedFixes: ['run archify finalize explainer and apply its diagnostics by hand'],
   });
-  const { applyRepairs } = await import('../renderers/shared/fixes.mjs');
+  const { applyRepairs } = await import('../renderers/shared/fixes.ts');
   const passes = [];
   let attempt;
   for (let pass = 1; pass <= AUTOFIX_MAX_PASSES; pass += 1) {
@@ -5926,6 +5930,69 @@ async function commandChart(rawArgs) {
   } else {
     console.log(result.svg);
   }
+}
+
+async function commandImport(rawArgs) {
+  const rest = [];
+  let json = false;
+  let title;
+  for (let index = 0; index < rawArgs.length; index += 1) {
+    const arg = rawArgs[index];
+    if (arg === '--json') {
+      json = true;
+      continue;
+    }
+    if (arg === '--title') {
+      title = rawArgs[index + 1];
+      if (!title || title.startsWith('--')) fail('--title requires a value.');
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith('--')) fail(`Unknown import option "${arg}".`);
+    rest.push(arg);
+  }
+  const [format, inputPath, outputPath] = rest;
+  if (format !== 'mermaid' || !inputPath || rest.length > 3) fail(`Usage: archify import ${COMMAND_USAGE.import}`);
+  let text;
+  try {
+    text = fs.readFileSync(inputPath, 'utf8');
+  } catch (error) {
+    fail(`Mermaid input could not be read: ${error.message}`, 1);
+  }
+  const { loadMermaidImporter } = await import(pathToFileURL(path.join(skillRoot, 'mermaid/load.ts')).href);
+  const { importMermaid, MermaidImportError } = await loadMermaidImporter();
+  const htmlName = outputPath ? `${path.basename(outputPath).replace(/\.json$/i, '')}.html` : undefined;
+  let result;
+  try {
+    result = importMermaid(text, { title, output: htmlName });
+  } catch (error) {
+    if (!(error instanceof MermaidImportError)) throw error;
+    if (json) console.log(JSON.stringify({ schemaVersion: 1, ok: false, command: 'import', code: error.code, error: error.message }, null, 2));
+    else console.error(`Mermaid import failed: ${error.message}`);
+    process.exit(1);
+  }
+  const serialized = `${JSON.stringify(result.diagram, null, 2)}\n`;
+  if (outputPath) fs.writeFileSync(outputPath, serialized);
+  if (json) {
+    console.log(JSON.stringify({
+      schemaVersion: 1,
+      ok: true,
+      command: 'import',
+      type: result.type,
+      output: outputPath ?? null,
+      notes: result.notes,
+      ...(outputPath ? {} : { diagram: result.diagram }),
+    }, null, 2));
+    return;
+  }
+  if (!outputPath) {
+    process.stdout.write(serialized);
+    for (const note of result.notes) console.error(`note: ${note}`);
+    return;
+  }
+  console.log(`Imported Mermaid as ${result.type}: ${outputPath}`);
+  for (const note of result.notes) console.log(`  note: ${note}`);
+  console.log(`Next: archify finalize ${result.type} ${outputPath} ${outputPath.replace(/\.json$/i, '')}.html`);
 }
 
 function commandExamples(args) {
@@ -6296,14 +6363,14 @@ function migrationReport({
     source: {
       path: sourcePath,
       ...(sourceBytes ? {
-        sha256: createHash('sha256').update(sourceBytes).digest('hex'),
+        sha256: new Bun.CryptoHasher('sha256').update(sourceBytes).digest('hex'),
         bytes: sourceBytes.length,
       } : {}),
     },
     destination: {
       path: destinationPath,
       ...(destinationBytes ? {
-        sha256: createHash('sha256').update(destinationBytes).digest('hex'),
+        sha256: new Bun.CryptoHasher('sha256').update(destinationBytes).digest('hex'),
         bytes: destinationBytes.length,
       } : {}),
     },
@@ -7108,7 +7175,7 @@ try {
       console.log(usage());
       break;
     case 'render':
-      commandRender(args);
+      await commandRender(args);
       break;
     case 'compare':
       await commandCompare(args);
@@ -7124,6 +7191,9 @@ try {
       break;
     case 'autofix':
       await commandAutofix(args);
+      break;
+    case 'import':
+      await commandImport(args);
       break;
     case 'chart':
       await commandChart(args);

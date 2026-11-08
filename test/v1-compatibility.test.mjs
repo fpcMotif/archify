@@ -17,7 +17,7 @@ function render(mode, doc) {
   renderDoc.meta = { ...renderDoc.meta, output: `${mode}-v1-compatibility.html` };
   fs.writeFileSync(input, JSON.stringify(renderDoc));
   try {
-    execFileSync('node', [
+    execFileSync(process.execPath, [
       path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
       input,
       output,
@@ -34,7 +34,7 @@ function validate(mode, doc) {
   cliDoc.meta = { ...cliDoc.meta, output: `${mode}-v1-validation.html` };
   fs.writeFileSync(input, JSON.stringify(cliDoc));
   try {
-    execFileSync('node', [
+    execFileSync(process.execPath, [
       path.join(skillRoot, 'bin/archify.mjs'),
       'validate',
       mode,
@@ -48,7 +48,7 @@ function validate(mode, doc) {
 }
 
 function check(output) {
-  const stdout = execFileSync('node', [
+  const stdout = execFileSync(process.execPath, [
     path.join(skillRoot, 'scripts/check-render-output.mjs'),
     output,
   ], { encoding: 'utf8' });

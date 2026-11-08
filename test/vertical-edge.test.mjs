@@ -35,7 +35,7 @@ function render(d) {
   const inPath = path.join(tmp, 'in.dataflow.json');
   const outPath = path.join(tmp, 'out.html');
   fs.writeFileSync(inPath, JSON.stringify(d));
-  execFileSync('node', [bin, 'render', 'dataflow', inPath, outPath, '--quality', 'showcase'], { encoding: 'utf8' });
+  execFileSync(process.execPath, [bin, 'render', 'dataflow', inPath, outPath, '--quality', 'showcase'], { encoding: 'utf8' });
   return fs.readFileSync(outPath, 'utf8');
 }
 

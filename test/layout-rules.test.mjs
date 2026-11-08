@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { minimumReadableSourceTextPx } from '../archify/renderers/shared/desktop-readability.mjs';
+import { minimumReadableSourceTextPx } from '../archify/renderers/shared/desktop-readability.ts';
 import { segmentRectClearanceWithin, segmentIntersectsRect } from '../archify/renderers/shared/geometry.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -44,7 +44,7 @@ function render(mode, doc) {
   renderDoc.meta = { ...renderDoc.meta, output: `${mode}-layout-rules.html` };
   fs.writeFileSync(input, JSON.stringify(renderDoc));
   try {
-    execFileSync('node', [
+    execFileSync(process.execPath, [
       path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
       input,
       outPath,
@@ -61,7 +61,7 @@ function validateCli(mode, doc, quality = 'showcase') {
   cliDoc.meta = { ...cliDoc.meta, output: `${mode}-validation.html` };
   fs.writeFileSync(input, JSON.stringify(cliDoc));
   try {
-    const stdout = execFileSync('node', [
+    const stdout = execFileSync(process.execPath, [
       path.join(skillRoot, 'bin', 'archify.mjs'),
       'validate',
       mode,
@@ -86,7 +86,7 @@ function deliverCli(mode, doc, quality = 'showcase') {
   cliDoc.meta = { ...cliDoc.meta, output: `${mode}-delivery.html` };
   fs.writeFileSync(input, JSON.stringify(cliDoc));
   try {
-    const stdout = execFileSync('node', [
+    const stdout = execFileSync(process.execPath, [
       path.join(skillRoot, 'bin', 'archify.mjs'),
       'deliver',
       mode,
@@ -1796,7 +1796,7 @@ test('architecture: unavoidable automatic crossing renders as a verified crossov
   assert.equal((svg.match(/data-edge-from=/g) || []).length, 2);
   assert.doesNotMatch(svg, /automatic-crossover-underlay"[^>]*data-edge-/);
 
-  const receipt = JSON.parse(execFileSync('node', [
+  const receipt = JSON.parse(execFileSync(process.execPath, [
     path.join(skillRoot, 'scripts', 'check-render-output.mjs'),
     outPath,
   ], { encoding: 'utf8' }));
@@ -1933,7 +1933,7 @@ test('architecture: automatic reciprocal adjacent routes keep the showcase inter
   fs.writeFileSync(input, JSON.stringify({ ...doc, meta: { ...doc.meta, output: 'reciprocal.html' } }));
   let report;
   try {
-    execFileSync('node', [path.join(skillRoot, 'bin/archify.mjs'), 'validate', 'architecture', input, '--layout-json'], { encoding: 'utf8' });
+    execFileSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'validate', 'architecture', input, '--layout-json'], { encoding: 'utf8' });
     assert.fail('crowded labels must be rejected');
   } catch (error) {
     assert.equal(error.status, 1);

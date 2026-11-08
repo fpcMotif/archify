@@ -2,8 +2,8 @@
 
 import fs from 'node:fs';
 import { isExplainerHtml, checkExplainerHtml } from '../explainer/check.mjs';
-import { analyzeSvgPath } from '../renderers/shared/svg-path-analysis.mjs';
-import { textUnits } from '../renderers/shared/utils.mjs';
+import { analyzeSvgPath } from '../renderers/shared/svg-path-analysis.ts';
+import { textUnits } from '../renderers/shared/utils.ts';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { collectAmbiguousCorridors, collectArrowheadCollisions, collectBorderRuns, collectLabelCanvasOverflow, collectLabelRouteClearance, collectRouteRhythmIssues, describeLabelCanvasOverflow, formatRect, forwardCollinearAnalysisSegments, minimumLabelRouteClearance, normalizeRoutePoints, routeBudgetMetrics } from '../renderers/shared/geometry.ts';
@@ -16,7 +16,7 @@ import {
   describeFixedWidthOverflow,
   predictedFixedWidthOverflow,
   projectedNodeTextPx,
-} from '../renderers/shared/desktop-readability.mjs';
+} from '../renderers/shared/desktop-readability.ts';
 
 const NON_FINITE_TOKEN = /\b(?:NaN|undefined|Infinity)\b/;
 // Consume comments/CDATA as whole tokens, including any tag-like prose.
@@ -1165,7 +1165,7 @@ function collectLegendCollisions(arrows, boxes) {
 }
 
 // The footprint a legend entry reserves is the renderer's own: textUnits() at
-// TEXT_ADVANCE_EM (renderers/shared/legend.mjs). The default estimate below stays
+// TEXT_ADVANCE_EM (renderers/shared/legend.ts). The default estimate below stays
 // as it is for the readability projection, which is deliberately conservative.
 function legendTextWidth(text, fontSize) {
   const TEXT_ADVANCE_EM = 0.62;

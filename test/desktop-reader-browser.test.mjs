@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ChromeVisualBrowser, findChrome, runVisualCheck } from '../archify/bin/visual-check.mjs';
-import { DESKTOP_READABILITY_VIEWPORT, MIN_PROJECTED_NODE_TEXT_PX } from '../archify/renderers/shared/desktop-readability.mjs';
+import { DESKTOP_READABILITY_VIEWPORT, MIN_PROJECTED_NODE_TEXT_PX } from '../archify/renderers/shared/desktop-readability.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'archify');

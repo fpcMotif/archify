@@ -1,5 +1,5 @@
 import * as validators from './generated-validators.mjs';
-import { throwDiagnosticError } from './diagnostics.mjs';
+import { throwDiagnosticError } from './diagnostics.ts';
 
 // "/nodes/3/label" reads much better as "/nodes/3 (id: "router") /label" for the
 // LLM fixing the JSON; resolve the nearest enclosing element's id or label.

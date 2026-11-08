@@ -5,9 +5,9 @@ import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { validateSchema } from '../renderers/shared/validator.mjs';
-import { textUnits, SEMANTIC_SIGIL_FOOTPRINT } from '../renderers/shared/utils.mjs';
-import { minimumNodeTextWidth } from '../renderers/shared/text-fit.mjs';
-import { throwDiagnosticError } from '../renderers/shared/diagnostics.mjs';
+import { textUnits, SEMANTIC_SIGIL_FOOTPRINT } from '../renderers/shared/utils.ts';
+import { minimumNodeTextWidth } from '../renderers/shared/text-fit.ts';
+import { throwDiagnosticError } from '../renderers/shared/diagnostics.ts';
 import { createOwnedTempDirectory } from '../renderers/shared/owned-temp-directory.mjs';
 import { checkArtifact } from '../scripts/check-render-output.mjs';
 

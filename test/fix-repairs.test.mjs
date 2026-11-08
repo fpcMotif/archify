@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { applyRepair } from '../archify/renderers/shared/fixes.mjs';
+import { applyRepair } from '../archify/renderers/shared/fixes.ts';
 
 const skillRoot = fileURLToPath(new URL('../archify/', import.meta.url));
 const cli = path.join(skillRoot, 'bin/archify.mjs');

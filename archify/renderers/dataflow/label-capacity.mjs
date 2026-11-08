@@ -1,4 +1,4 @@
-import { textUnits } from '../shared/utils.mjs';
+import { textUnits } from '../shared/utils.ts';
 import { rectsOverlap, segmentRectClearanceWithin } from '../shared/geometry.ts';
 
 export const FLOW_LABEL_HEIGHT = 16;

@@ -1,5 +1,5 @@
-import { throwDiagnosticError } from './diagnostics.mjs';
-import { adviseFix, fixFields } from './fixes.mjs';
+import { throwDiagnosticError } from './diagnostics.ts';
+import { adviseFix, fixFields } from './fixes.ts';
 
 const DEPLOYMENT_PROFILE = 'deployment-ownership';
 const DEPLOYMENT_BOUNDARY_KINDS = new Set(['region', 'security-group']);

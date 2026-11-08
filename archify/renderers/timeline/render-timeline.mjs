@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { esc, renderDefinitions, textUnits } from '../shared/utils.mjs';
+import { esc, renderDefinitions, textUnits } from '../shared/utils.ts';
 import {
   animateAttr,
   focusNodeAttrs,
@@ -10,10 +10,10 @@ import {
   svgRootAttrs,
   writeDiagram,
 } from '../shared/cli.mjs';
-import { throwDiagnosticProblems } from '../shared/diagnostics.mjs';
-import { legendFootprint, resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.mjs';
-import { nodeTextFit } from '../shared/text-fit.mjs';
-import { translateMessage as i18nText } from '../shared/i18n.mjs';
+import { throwDiagnosticProblems } from '../shared/diagnostics.ts';
+import { legendFootprint, resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.ts';
+import { nodeTextFit } from '../shared/text-fit.ts';
+import { translateMessage as i18nText } from '../shared/i18n.ts';
 import { asArray } from '../shared/geometry.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -77,12 +77,14 @@ const timezone = tl.meta.timezone || 'UTC';
     problems.push(message);
     details.push({ code, severity: 'error', message, subject: { diagramType: 'timeline', ...subject }, evidence, supportedFixes });
   };
+  let clockFormat = null;
   try {
-    new Intl.DateTimeFormat('en-US', { timeZone: timezone });
+    clockFormat = new Intl.DateTimeFormat('en-US', { timeZone: timezone, hourCycle: 'h23', hour: '2-digit', minute: '2-digit', second: '2-digit' });
   } catch {
     fail('timeline/invalid-timezone', `meta.timezone "${timezone}" is not a recognised IANA time zone.`,
       { path: '/meta/timezone' }, { timezone }, ['Use an IANA zone such as "UTC", "Europe/Berlin", or "Asia/Shanghai".']);
   }
+  const atZoneMidnight = (ms) => clockFormat.format(new Date(ms)) === '00:00:00' && new Date(ms).getUTCMilliseconds() === 0;
   const laneIds = new Set();
   for (const [index, lane] of asArray(tl.lanes).entries()) {
     if (laneIds.has(lane.id)) fail('timeline/duplicate-lane-id', `Lane id "${lane.id}" is declared twice.`,
@@ -96,6 +98,10 @@ const timezone = tl.meta.timezone || 'UTC';
     if (!validCalendarDate(event.at) || !Number.isFinite(Date.parse(event.at))) {
       fail('timeline/invalid-timestamp', `Event "${event.id}" timestamp "${event.at}" is not a valid date and time.`,
         { path: `/events/${index}/at`, nodeId: event.id }, { at: event.at }, ['Use ISO 8601 with an explicit offset, e.g. "2026-10-01T10:05:00+08:00".']);
+    } else if (tl.layout?.scale === 'date' && clockFormat && !atZoneMidnight(Date.parse(event.at))) {
+      fail('timeline/date-scale-clock-time', `Event "${event.id}" at "${event.at}" is not midnight in ${timezone}, but layout.scale "date" shows dates only.`,
+        { path: `/events/${index}/at`, nodeId: event.id }, { at: event.at, timezone },
+        [`Set event "${event.id}" to midnight in ${timezone}.`, 'Remove layout.scale "date" to show clock times.']);
     }
     if (laneIds.size && !laneIds.has(event.lane)) {
       fail('timeline/unknown-lane', event.lane === undefined
@@ -144,6 +150,20 @@ const multiDay = (() => {
   const b = wall(last);
   return a.y !== b.y || a.mo !== b.mo || a.d !== b.d;
 })();
+// layout.scale "date" ticks on the calendar and drops the clock from every
+// label, so validation requires each event to sit on display-zone midnight.
+const dateScale = tl.layout?.scale === 'date';
+const multiYear = wall(first).y !== wall(last).y;
+function fullDate(ms) {
+  const w = wall(ms);
+  return `${w.y}-${w.mo}-${w.d}`;
+}
+function dateLabel(ms, unit = 'day') {
+  const w = wall(ms);
+  if (unit === 'year') return w.y;
+  if (unit === 'month') return `${w.y}-${w.mo}`;
+  return multiYear ? fullDate(ms) : `${w.mo}-${w.d}`;
+}
 function clockLabel(ms, { seconds = showSeconds, date = multiDay } = {}) {
   const w = wall(ms);
   const fraction = new Date(ms).getUTCMilliseconds();
@@ -271,6 +291,32 @@ function wallClockTicks(start, end, interval) {
   return [...candidates].sort((left, right) => left - right);
 }
 
+const CALENDAR_TICKS = [[1, 'day'], [7, 'day'], [1, 'month'], [3, 'month'], [6, 'month'],
+  [1, 'year'], [2, 'year'], [5, 'year'], [10, 'year'], [25, 'year'], [50, 'year'], [100, 'year']];
+const CALENDAR_UNIT_MS = { day: DAY, month: 30.44 * DAY, year: 365.25 * DAY };
+
+function wallMidnight(year, monthIndex, day) {
+  const guess = new Date(0);
+  guess.setUTCFullYear(year, monthIndex, day);
+  const utc = guess.getTime();
+  return utc - zoneOffset(utc - zoneOffset(utc));
+}
+
+function calendarTicks(start, end, step, unit) {
+  const w = wall(start);
+  const result = [];
+  for (let index = 0; ; index += 1) {
+    let t;
+    if (unit === 'year') t = wallMidnight(Math.floor(+w.y / step) * step + index * step, 0, 1);
+    else if (unit === 'month') {
+      const month = Math.floor((+w.y * 12 + +w.mo - 1) / step) * step + index * step;
+      t = wallMidnight(Math.floor(month / 12), month % 12, 1);
+    } else t = wallMidnight(+w.y, +w.mo - 1, +w.d + index * step);
+    if (t > end) return result;
+    if (t >= start) result.push(t);
+  }
+}
+
 const ticks = [];
 for (const segment of segments) {
   const length = segment.end - segment.start;
@@ -278,8 +324,14 @@ for (const segment of segments) {
     ticks.push({ t: segment.start, x: segment.x0 });
     continue;
   }
-  const interval = TICKS.find((candidate) => candidate * scale >= layout.minTickPx) ?? TICKS.at(-1);
   const before = ticks.length;
+  if (dateScale) {
+    const [step, unit] = CALENDAR_TICKS.find(([count, name]) => count * CALENDAR_UNIT_MS[name] * scale >= layout.minTickPx) ?? CALENDAR_TICKS.at(-1);
+    for (const t of calendarTicks(segment.start, segment.end, step, unit)) ticks.push({ t, x: xOf(t), interval: step * CALENDAR_UNIT_MS[unit], unit });
+    if (ticks.length === before) ticks.push({ t: segment.start, x: segment.x0, interval: DAY, unit: 'day' });
+    continue;
+  }
+  const interval = TICKS.find((candidate) => candidate * scale >= layout.minTickPx) ?? TICKS.at(-1);
   for (const t of wallClockTicks(segment.start, segment.end, interval)) ticks.push({ t, x: xOf(t), interval });
   // A segment too short for a regular tick still states where it starts.
   if (ticks.length === before) ticks.push({ t: segment.start, x: segment.x0, interval });
@@ -311,7 +363,7 @@ function wrapTitle(text, maxWidth) {
 }
 
 const cards = events.map((event) => {
-  const time = clockLabel(event.t);
+  const time = dateScale ? dateLabel(event.t) : clockLabel(event.t);
   const padLeft = layout.cardAccent + 2;
   const natural = Math.max(textUnits(event.title) * layout.titleFont * ADVANCE * 1.05, textUnits(time) * layout.timeFont * ADVANCE);
   const width = Math.ceil(Math.min(layout.cardMaxW, natural + padLeft + layout.cardPadX));
@@ -400,7 +452,9 @@ function renderAxis() {
   const shown = ticks.flatMap((tick) => {
     const w = wall(tick.t);
     const date = `${w.mo}-${w.d}`;
-    const label = clockLabel(tick.t, { seconds: tickSeconds, date: multiDay && date !== lastDate });
+    const label = dateScale
+      ? dateLabel(tick.t, tick.unit)
+      : clockLabel(tick.t, { seconds: tickSeconds, date: multiDay && date !== lastDate });
     const half = textUnits(label) * 10.5 * ADVANCE / 2 + 5;
     const box = [tick.x - half, tick.x + half];
     if (taken.some(([a, b]) => box[0] < b && a < box[1])) return [];
@@ -458,7 +512,8 @@ function renderEvent(card, order) {
   const tone = KIND_TONE[kindOf(card)];
   const lane = laneLayout.find((entry) => entry.id === laneOf(card));
   // The Node index groups by the context before " › ", so the lane leads.
-  const context = [lane?.label, `${clockLabel(card.t, { seconds: true, date: true })} ${offsetLabel(card.t)}`].filter(Boolean).join(' \u203a ');
+  const instant = dateScale ? fullDate(card.t) : clockLabel(card.t, { seconds: true, date: true });
+  const context = [lane?.label, `${instant} ${offsetLabel(card.t)}`].filter(Boolean).join(' \u203a ');
   const passport = { kind: tone, sublabel: card.detail, context };
   const textX = card.left + card.padLeft;
   let y = card.top + 9 + 10;

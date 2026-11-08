@@ -45,9 +45,10 @@ valid `translations` value → bundled catalog for `locale` → English. An
 unrecognized key or mismatched placeholders never replaces a valid
 lower-priority message and fails no render; `validate`/`render`/`deliver`
 report rejected entries and the final resolved coverage to stderr.
-`visual_preset` accepts `classic` (the stable default), `signal-flow` (luminous
-motion-forward presentation), `blueprint` (high-contrast engineering review),
-or `editorial` (warm publication-style design review and documentation).
+`visual_preset` accepts `classic` (the stable default), `blueprint` (squarer
+corners and dashed lane frames for engineering review), or `editorial` (serif
+headings for publication and documentation). The retired `signal-flow` value
+still validates and renders as `classic`, so existing files keep working.
 Presets change only viewer styling; they do not alter semantic IDs or geometry.
 Sequence `meta` additionally accepts `column_fit`. The default `spread` applies whether or not `meta.viewBox` is supplied.
 Explicit `fixed` keeps the historical 108px column gap and 86px participant
@@ -195,11 +196,13 @@ that need the same cross-platform acceptance boundary should use that wrapper.
 
 ## Runtime validation
 
-At development time, `scripts/generate-validators.mjs` compiles all five
-schemas with ajv's draft 2020-12 standalone generator using `strict: true` and
-`allErrors: true`. The generated `renderers/shared/generated-validators.mjs`
-is committed and shipped with the skill, so runtime validation has no npm or
-network dependency. `renderers/shared/validator.mjs` applies the matching
+At development time, `scripts/generate-validators.mjs` compiles every diagram
+schema with ajv's draft 2020-12 standalone generator using `strict: true` and
+`allErrors: true`. It writes one validator per diagram type to
+`renderers/shared/generated-validators/<type>.js`, and
+`renderers/shared/generated-validators.mjs` loads only the one a render needs.
+Both are committed and shipped with the skill, so runtime validation has no npm
+or network dependency. `renderers/shared/validator.mjs` applies the matching
 standalone validator before the renderer's own layout checks.
 The shared loader then checks cross-collection facts that JSON Schema cannot
 express cleanly here: duplicate view IDs, duplicate focus IDs, focus IDs that do

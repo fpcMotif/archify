@@ -5,7 +5,6 @@
     "title": "Five-stage public workflow",
     "subtitle": "Synthetic example: a small publishing pipeline",
     "output": "five-stage-stack.html",
-    "visual_preset": "signal-flow",
     "legend": {
       "mode": "hidden"
     }

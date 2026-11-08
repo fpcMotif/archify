@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   adviseFix, applyRepair, applyRepairs, chooseFix, describeFix, setFix, fixFields,
-} from '../archify/renderers/shared/fixes.mjs';
+} from '../archify/renderers/shared/fixes.ts';
 
 test('fixes: describe keeps the text agents already read', () => {
   assert.deepEqual(describeFix(setFix('/messages/2/y', 182)), ['set /messages/2/y to 182']);

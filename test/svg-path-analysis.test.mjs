@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { analyzeSvgPath } from '../archify/renderers/shared/svg-path-analysis.mjs';
+import { analyzeSvgPath } from '../archify/renderers/shared/svg-path-analysis.ts';
 
 function parsed(source) {
   const result = analyzeSvgPath(source);

@@ -57,6 +57,54 @@ test('timeline: subsecond events retain their time in cards and accessible conte
   }
 });
 
+function renderedLabels(diagram) {
+  const result = run(diagram);
+  assert.equal(result.status, 0, result.stderr);
+  const html = fs.readFileSync(result.output, 'utf8');
+  const textOf = (className) => [...html.matchAll(new RegExp(`<text [^>]*class="[^"]*\\b${className}\\b[^"]*"[^>]*>([^<]*)</text>`, 'g'))].map(([, label]) => label);
+  return { html, ticks: textOf('tl-tick'), times: textOf('tl-time') };
+}
+
+function datedDiagram(timezone, stamps, scale = 'date') {
+  const diagram = clone(small);
+  diagram.meta.timezone = timezone;
+  diagram.layout = { ...diagram.layout, scale };
+  delete diagram.lanes;
+  diagram.events = stamps.map((at, index) => ({ id: `e${index}`, title: `Event ${index}`, at }));
+  return diagram;
+}
+
+test('timeline: layout.scale "date" gives a calendar axis and date labels', () => {
+  const diagram = datedDiagram('UTC', ['2025-01-01T00:00Z', '2025-07-01T00:00Z', '2026-01-01T00:00Z', '2026-05-14T00:00Z']);
+  const { html, ticks, times } = renderedLabels(diagram);
+  assert.deepEqual(times, ['2025-01-01', '2025-07-01', '2026-01-01', '2026-05-14']);
+  assert.ok(ticks.length >= 3, ticks.join(', '));
+  for (const tick of ticks) assert.match(tick, /^\d{4}(-\d{2}){0,2}$/, ticks.join(', '));
+  assert.ok(ticks.includes('2025-07') || ticks.includes('2026'), ticks.join(', '));
+  assert.ok(html.includes('2026-05-14 UTC+00:00'), 'accessible context names the full date');
+});
+
+test('timeline: the date scale requires midnight in the display zone, not in UTC', () => {
+  const stamps = ['2026-01-01T00:00+05:30', '2026-02-01T00:00+05:30', '2026-03-01T00:00+05:30'];
+  assert.deepEqual(renderedLabels(datedDiagram('Asia/Kolkata', stamps)).times, ['01-01', '02-01', '03-01']);
+  const inUtc = run(datedDiagram('UTC', stamps));
+  assert.notEqual(inUtc.status, 0);
+  assert.match(inUtc.stderr, /timeline\/date-scale-clock-time/);
+  assert.match(inUtc.stderr, /Event "e0" at "2026-01-01T00:00\+05:30" is not midnight in UTC/);
+});
+
+test('timeline: midnight events keep clock labels unless the date scale is chosen', () => {
+  const { ticks, times } = renderedLabels(datedDiagram('UTC', ['2026-01-01T00:00Z', '2026-01-03T00:00Z', '2026-01-04T00:00Z'], 'time'));
+  assert.deepEqual(times, ['01-01 00:00', '01-03 00:00', '01-04 00:00']);
+  assert.ok(ticks.some((tick) => tick.includes(':')), ticks.join(', '));
+});
+
+test('timeline: decades of dates tick on years', () => {
+  const { ticks } = renderedLabels(datedDiagram('UTC', ['1990-01-01T00:00Z', '2005-06-01T00:00Z', '2024-01-01T00:00Z']));
+  assert.ok(ticks.length >= 3, ticks.join(', '));
+  for (const tick of ticks) assert.match(tick, /^\d{4}$/, ticks.join(', '));
+});
+
 test('timeline: both examples render and pass the showcase artifact checks', () => {
   for (const diagram of [small, large]) {
     const result = run(diagram);

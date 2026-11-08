@@ -3,7 +3,7 @@
   "diagram.description.architecture": "Un diagramme d'architecture généré par Archify.",
   "legend.title": "Légende",
   "node.focus": "Focus {label}",
-  "node.context.architecture": "Composant d'architecture",
+  "viewer.passport.relations": "Relations",
   "viewer.kind.frontend": "Frontend",
   "viewer.kind.backend": "Backend",
   "viewer.export.button": "Exporter",

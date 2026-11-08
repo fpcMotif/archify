@@ -1,9 +1,9 @@
 import { proposeWorkflowPlacement } from './workflow-placement-repair.mjs';
-import { chooseFix, fixFields, setFix } from '../shared/fixes.mjs';
-import { createSpatialGrid } from '../shared/spatial-grid.mjs';
-import { shortestOrthogonalGridRoute } from '../shared/route-quality.mjs';
-import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../shared/utils.mjs';
-import { NODE_CARD_ATTR, nodeCardStyle } from '../shared/node-card-style.mjs';
+import { chooseFix, fixFields, setFix } from '../shared/fixes.ts';
+import { createSpatialGrid } from '../shared/spatial-grid.ts';
+import { shortestOrthogonalGridRoute } from '../shared/route-quality.ts';
+import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../shared/utils.ts';
+import { NODE_CARD_ATTR, nodeCardStyle } from '../shared/node-card-style.ts';
 import {
   animateAttr,
   focusEdgeAttrs,
@@ -17,7 +17,7 @@ import {
   throwDiagnosticError,
   throwDiagnosticProblems,
   withDiagnosticRecordingSuppressed,
-} from '../shared/diagnostics.mjs';
+} from '../shared/diagnostics.ts';
 import { validateSchema } from '../shared/validator.mjs';
 import {
   legendFootprint,
@@ -25,11 +25,11 @@ import {
   relationshipLegendObstacles,
   resolveLegend,
   renderLegend as renderResolvedLegend,
-} from '../shared/legend.mjs';
-import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth, nodeLabelLayout } from '../shared/text-fit.mjs';
+} from '../shared/legend.ts';
+import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth, nodeLabelLayout } from '../shared/text-fit.ts';
 import { brandLabelFitWidth, brandMarkFor, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../shared/brand-marks.mjs';
-import { translateMessage as i18nText } from '../shared/i18n.mjs';
-import { DESKTOP_READER_DIAGRAM_WIDTH, MIN_PROJECTED_NODE_TEXT_PX, minimumReadableSourceTextPx, predictedFixedWidthOverflow } from '../shared/desktop-readability.mjs';
+import { translateMessage as i18nText } from '../shared/i18n.ts';
+import { DESKTOP_READER_DIAGRAM_WIDTH, MIN_PROJECTED_NODE_TEXT_PX, minimumReadableSourceTextPx, predictedFixedWidthOverflow } from '../shared/desktop-readability.ts';
 import {
   createMappedWorkflowCandidate,
   intrinsicWorkflow,
@@ -930,8 +930,7 @@ function createWorkflowLaneGeometry(workflow, layout, legendExtraHeight, minimum
     const phase = asArray(workflow.phases).find((candidate) => (
       node.col >= candidate.fromCol && node.col <= candidate.toCol
     ));
-    return [laneLabels.get(node.lane), group?.label, phase?.label].filter(Boolean).join(' › ')
-      || i18nText(workflow.meta.locale, 'node.context.workflow');
+    return [laneLabels.get(node.lane), group?.label, phase?.label].filter(Boolean).join(' › ');
   }
 
   function laneHeight(idOrIndex) {

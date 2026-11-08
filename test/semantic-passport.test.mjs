@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
 
-import { translateMessage } from '../archify/renderers/shared/i18n.mjs';
+import { translateMessage } from '../archify/renderers/shared/i18n.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'archify');
@@ -85,7 +85,6 @@ test('all typed renderers emit details-on-demand metadata and native SVG titles'
     const diagram = svg(html);
     assert.match(diagram, /data-node-kind="[^"]+"/, mode);
     assert.match(diagram, /data-node-sublabel="[^"]+"/, mode);
-    assert.match(diagram, /data-node-context="[^"]+"/, mode);
     assert.match(diagram, /<g id="node-[^"]+"[\s\S]*?<title>[^<]+ · [^<]+<\/title>/, mode);
   }
 });
@@ -99,19 +98,19 @@ test('renderer-owned structure supplies truthful Semantic Passport context', () 
 
   assert.match(architecture, /data-node-id="api"[^>]+data-node-kind="backend"[^>]+data-node-context="AWS Region: us-west-2 › sg-api :443\/:8000"/);
   assert.match(workflow, /data-node-id="approval"[^>]+data-node-kind="security"[^>]+data-node-context="Policy &amp; Recovery › Human or policy stop › Plan \+ route"/);
-  assert.match(sequence, /data-node-id="redis"[^>]+data-node-kind="database"[^>]+data-node-context="Sequence participant"/);
   assert.match(dataflow, /data-node-id="warehouse"[^>]+data-node-kind="database"[^>]+data-node-context="04 \/ Store"/);
-  assert.match(lifecycle, /data-node-id="executing"[^>]+data-node-kind="active"[^>]+data-node-context="Lifecycle state"/);
+  assert.doesNotMatch(svg(sequence), /data-node-context=/, 'a sequence participant has no structure beyond its diagram type');
+  assert.doesNotMatch(svg(lifecycle), /data-node-context=/, 'a lifecycle state has no structure beyond its diagram type');
 });
 
 test('Relationship Lens renders one Semantic Passport and copyable stable focus link', () => {
   const html = render('workflow', CASES.workflow);
-  assert.match(html, /<span class="relationship-lens-eyebrow">Semantic passport<\/span>/);
+  assert.doesNotMatch(html, /relationship-lens-eyebrow|semantic-passport-reach-label|relationship-lens-direction/);
   assert.match(html, /id="focus-detail" hidden/);
   assert.match(html, /id="focus-kind" data-passport="kind"/);
   assert.match(html, /id="focus-context" data-passport="context" hidden/);
   assert.match(html, /id="focus-tag" data-passport="tag" hidden/);
-  assert.match(html, /id="focus-id" data-passport="id"/);
+  assert.doesNotMatch(html, /id="focus-id"/);
   assert.match(html, /id="btn-focus-clear"[^>]+aria-label="Close semantic passport"[^>]+title="Close">&#215;<\/button>/);
   assert.match(html, /id="btn-focus-copy"[^>]+aria-label="Copy link to focused node"/);
   assert.match(html, /id="btn-focus-relations"[^>]+aria-expanded="false"[^>]+aria-controls="relationship-lens-list"/);

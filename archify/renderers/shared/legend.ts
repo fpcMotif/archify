@@ -1,7 +1,8 @@
-import { throwDiagnosticError } from './diagnostics.mjs';
+import { throwDiagnosticError } from './diagnostics.ts';
 import { rectsOverlap, segmentIntersectsRect } from './geometry.ts';
-import { esc, textUnits } from './utils.mjs';
-import { translateMessage } from './i18n.mjs';
+import type { Point, Rect } from './geometry.ts';
+import { esc, textUnits } from './utils.ts';
+import { translateMessage } from './i18n.ts';
 
 const DEFAULT_FONT_SIZE = 8;
 const DEFAULT_ITEM_GAP = 14;
@@ -10,11 +11,111 @@ const DEFAULT_SWATCH_GAP = 8;
 const TEXT_ADVANCE_EM = 0.62;
 const INTERACTIVE_BADGE_ALLOWANCE = 21;
 
-export function relationshipLegendObstacles(relations, { pointsFor, labelRectFor } = {}) {
-  const obstacles = [];
-  for (const [index, relation] of (Array.isArray(relations) ? relations : []).entries()) {
+export interface LegendSegmentObstacle {
+  kind?: string;
+  start: Point;
+  end: Point;
+}
+
+export interface LegendRectObstacle extends Rect {
+  kind?: string;
+  start?: undefined;
+  end?: undefined;
+}
+
+export type LegendObstacle = LegendSegmentObstacle | LegendRectObstacle;
+
+export interface RelationshipLegendObstacleOptions<R> {
+  pointsFor?: (relation: R, index: number) => unknown;
+  labelRectFor?: (relation: R, index: number) => Rect | null | undefined;
+}
+
+export interface LegendEntry {
+  kind: string;
+  label: string;
+  interactive?: boolean;
+  present?: boolean;
+  swatchWidth?: number;
+  swatchGap?: number;
+  trailingWidth?: number;
+  [key: string]: unknown;
+}
+
+export interface ResolvedLegendEntry extends LegendEntry {
+  present: boolean;
+  interactive: boolean;
+}
+
+export interface LegendEntryOverride {
+  visible?: boolean;
+  label?: string;
+}
+
+export interface LegendConfig {
+  mode?: string;
+  entries?: Record<string, LegendEntryOverride>;
+}
+
+export interface MeasuredLegendEntry extends LegendEntry {
+  width: number;
+}
+
+export interface PositionedLegendEntry extends MeasuredLegendEntry {
+  x: number;
+  baseline: number;
+  row: number;
+}
+
+export interface LegendFootprintOptions {
+  width: number;
+  fontSize?: number;
+  itemGap?: number;
+  lineGap?: number;
+  swatchGap?: number;
+}
+
+export interface LegendFootprint {
+  measured: MeasuredLegendEntry[];
+  rows: MeasuredLegendEntry[][];
+  rowCount: number;
+  minWidth: number;
+  extraHeight: number;
+}
+
+export interface LegendLayoutOptions extends LegendFootprintOptions {
+  x: number;
+  baselineY: number;
+  minTitleY?: number;
+  obstacles?: LegendObstacle[];
+  unfit?: 'error' | 'hide';
+  diagramType?: string;
+}
+
+export interface MeasuredLegend {
+  entries: PositionedLegendEntry[];
+  rowCount: number;
+  titleY: number | null;
+  fontSize?: number;
+}
+
+export interface RenderLegendOptions {
+  entries: LegendEntry[];
+  layout: LegendLayoutOptions;
+  renderSwatch: (entry: PositionedLegendEntry) => string;
+  locale?: string;
+  labelClass?: string;
+  labelWeight?: number;
+}
+
+interface LegendRect extends Rect {
+  kind: string;
+}
+
+export function relationshipLegendObstacles<R>(relations: readonly R[] | null | undefined, { pointsFor, labelRectFor }: RelationshipLegendObstacleOptions<R> = {}): LegendObstacle[] {
+  const obstacles: LegendObstacle[] = [];
+  for (const [index, relation] of (Array.isArray(relations) ? relations as readonly R[] : []).entries()) {
     const points = typeof pointsFor === 'function' ? pointsFor(relation, index) : [];
-    const finitePoints = (Array.isArray(points) ? points : []).filter((point) => (
+    const finitePoints = (Array.isArray(points) ? points : []).filter((point: unknown): point is Point => (
       Array.isArray(point) && point.length === 2 && point.every(Number.isFinite)
     ));
     for (let pointIndex = 0; pointIndex < finitePoints.length - 1; pointIndex += 1) {
@@ -32,14 +133,14 @@ export function relationshipLegendObstacles(relations, { pointsFor, labelRectFor
   return obstacles;
 }
 
-export function resolveLegend(config, catalog, presentKinds) {
+export function resolveLegend(config: LegendConfig | null | undefined, catalog: LegendEntry[], presentKinds: Iterable<string> | null | undefined): ResolvedLegendEntry[] {
   const mode = config?.mode || 'auto';
   if (mode === 'hidden') return [];
   const present = presentKinds instanceof Set ? presentKinds : new Set(presentKinds || []);
   const overrides = config?.entries || {};
 
   return catalog.flatMap((catalogEntry) => {
-    const override = overrides[catalogEntry.kind] || {};
+    const override: LegendEntryOverride = overrides[catalogEntry.kind] || {};
     const selectedByMode = mode === 'all' || present.has(catalogEntry.kind);
     const visible = override.visible === true || (selectedByMode && override.visible !== false);
     if (!visible) return [];
@@ -54,11 +155,11 @@ export function resolveLegend(config, catalog, presentKinds) {
 
 // Labels render slightly larger than the layout font size; measure the
 // rendered size so a long label cannot run into the next entry.
-function renderedLegendFontSize(fontSize) {
+function renderedLegendFontSize(fontSize: number): number {
   return fontSize < 8 ? fontSize + 0.5 : fontSize + 2;
 }
 
-function measuredEntryWidth(entry, fontSize, swatchGap) {
+function measuredEntryWidth(entry: LegendEntry, fontSize: number, swatchGap: number): number {
   const swatchWidth = entry.swatchWidth ?? 14;
   return Math.ceil(
     swatchWidth
@@ -72,24 +173,24 @@ function measuredEntryWidth(entry, fontSize, swatchGap) {
 // One pure footprint calculation owns both auto-viewBox sizing and final SVG
 // placement. Callers must not maintain a second approximation of legend width
 // or row count; that would make generated geometry disagree with validation.
-export function legendFootprint(entries, {
+export function legendFootprint(entries: LegendEntry[], {
   width,
   fontSize = DEFAULT_FONT_SIZE,
   itemGap = DEFAULT_ITEM_GAP,
   lineGap = DEFAULT_LINE_GAP,
   swatchGap = DEFAULT_SWATCH_GAP,
-} = {}) {
+}: LegendFootprintOptions = {} as LegendFootprintOptions): LegendFootprint {
   if (!entries.length) {
     return { measured: [], rows: [], rowCount: 0, minWidth: 0, extraHeight: 0 };
   }
-  const measured = entries.map((entry) => ({
+  const measured: MeasuredLegendEntry[] = entries.map((entry) => ({
     ...entry,
     width: measuredEntryWidth(entry, fontSize, entry.swatchGap ?? swatchGap),
   }));
-  const rows = [[]];
+  const rows: MeasuredLegendEntry[][] = [[]];
   let cursor = 0;
   for (const entry of measured) {
-    const row = rows.at(-1);
+    const row = rows.at(-1) as MeasuredLegendEntry[];
     const required = (row.length ? itemGap : 0) + entry.width;
     if (row.length && cursor + required > width) {
       rows.push([entry]);
@@ -108,7 +209,7 @@ export function legendFootprint(entries, {
   };
 }
 
-export function measureLegend(entries, {
+export function measureLegend(entries: LegendEntry[], {
   x,
   baselineY,
   width,
@@ -120,7 +221,7 @@ export function measureLegend(entries, {
   obstacles = [],
   unfit = 'error',
   diagramType = 'diagram',
-} = {}) {
+}: LegendLayoutOptions = {} as LegendLayoutOptions): MeasuredLegend | null {
   if (!entries.length) return { entries: [], rowCount: 0, titleY: null };
   const footprint = legendFootprint(entries, { width, fontSize, itemGap, lineGap, swatchGap });
   const tooWide = footprint.measured.find((entry) => entry.width > width);
@@ -152,7 +253,7 @@ export function measureLegend(entries, {
     }]);
   }
 
-  const positioned = [];
+  const positioned: PositionedLegendEntry[] = [];
   footprint.rows.forEach((row, rowIndex) => {
     let entryX = x;
     const baseline = baselineY - (footprint.rowCount - rowIndex - 1) * lineGap;
@@ -162,7 +263,7 @@ export function measureLegend(entries, {
     }
   });
 
-  const legendRects = [
+  const legendRects: LegendRect[] = [
     { kind: 'title', x, y: legendTopY, width: 48, height: 14 },
     ...positioned.map((entry) => ({
       kind: entry.kind,
@@ -175,7 +276,7 @@ export function measureLegend(entries, {
   const collision = legendRects.find((legendRect) => obstacles.some((obstacle) => (
     Array.isArray(obstacle.start) && Array.isArray(obstacle.end)
       ? segmentIntersectsRect({ start: obstacle.start, end: obstacle.end }, legendRect)
-      : rectsOverlap(obstacle, legendRect)
+      : rectsOverlap(obstacle as Rect, legendRect)
   )));
   if (collision) {
     if (unfit === 'hide') return null;
@@ -201,12 +302,12 @@ export function measureLegend(entries, {
 // `labelClass`/`labelWeight` let a renderer state that its legend labels are
 // the same ink and weight as the value they describe; both default to the
 // shared presentation, so callers that pass nothing keep their exact bytes.
-export function renderLegend({ entries, layout, renderSwatch, locale, labelClass = 't-muted', labelWeight = 500 }) {
+export function renderLegend({ entries, layout, renderSwatch, locale, labelClass = 't-muted', labelWeight = 500 }: RenderLegendOptions): string {
   if (!entries.length) return '';
   const measured = measureLegend(entries, layout);
   if (!measured) return '';
   const hasInteractiveEntries = measured.entries.some((entry) => entry.interactive);
-  const renderedFontSize = renderedLegendFontSize(measured.fontSize);
+  const renderedFontSize = renderedLegendFontSize(measured.fontSize as number);
   const rootAttributes = hasInteractiveEntries ? ' data-legend="" data-legend-bridge=""' : ' data-legend=""';
   const parts = [
     `        <g${rootAttributes}>`,

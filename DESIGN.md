@@ -124,7 +124,7 @@ The palette is a midnight console with seven semantic signals; color identifies 
 
 **The Semantic Color Rule.** Every saturated color maps to a node or relationship meaning; never add an accent merely to make a surface lively.
 
-**The Theme Parity Rule.** Light, dark, Signal Flow, and Blueprint may change material and contrast, but must preserve category identity and information priority.
+**The Theme Parity Rule.** Light, dark, Blueprint, and Editorial may change material and contrast, but must preserve category identity and information priority.
 
 ## Typography
 
@@ -149,13 +149,12 @@ The palette is a midnight console with seven semantic signals; color identifies 
 
 ## Elevation
 
-Archify is flat and tonal by default. Borders and surface contrast establish structure; shadows appear only on floating controls, temporary panels, active focus, or the Signal Flow atmosphere. Blueprint removes glow and squares materials to keep the review surface exact.
+Archify is flat and tonal by default. Borders and surface contrast establish structure; shadows appear only on floating controls and temporary panels. Nothing glows. Blueprint squares materials to keep the review surface exact.
 
 ### Shadow Vocabulary
 
-- **Canvas Lift** (`0 28px 80px rgba(0,0,0,0.34)`): Signal Flow diagram surface only.
 - **Floating Panel** (`0 18px 48px rgba(0,0,0,0.30)`): temporary discovery panels and the Semantic Passport.
-- **Action Feedback** (`0 0 7px var(--frontend-stroke)`): active SVG focus only, never an idle decoration.
+- **Action Feedback** (`drop-shadow(0 0 1.5px <state stroke>)`): a tight ring on the selected, origin, or route-end node only, never an idle decoration.
 
 ### Named Rules
 
@@ -181,7 +180,7 @@ Archify is flat and tonal by default. Borders and surface contrast establish str
 
 - **Corner Style:** composed panel corners (`1rem`), reduced to `0.35rem` in Blueprint.
 - **Background:** tonal panel over the canvas, with a one-pixel border.
-- **Shadow Strategy:** flat by default; floating or Signal Flow surfaces use the elevation vocabulary.
+- **Shadow Strategy:** flat by default; floating surfaces use the elevation vocabulary.
 - **Internal Padding:** `1.25rem`–`1.5rem` for panels; compact proof blocks may use `0.5rem`–`0.75rem`.
 
 ### Inputs / Fields

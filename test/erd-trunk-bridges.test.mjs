@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { analyzeSvgPath } from '../archify/renderers/shared/svg-path-analysis.mjs';
+import { analyzeSvgPath } from '../archify/renderers/shared/svg-path-analysis.ts';
 
 const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
 const epsilon = 0.0001;

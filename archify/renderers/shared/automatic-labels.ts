@@ -1,26 +1,71 @@
 import { normalizeRoutePoints, rectsOverlap, segmentRectClearanceWithin } from './geometry.ts';
-import { createSpatialGrid } from './spatial-grid.mjs';
+import type { Point, Rect, Relation, Segment } from './geometry.ts';
+import { createSpatialGrid } from './spatial-grid.ts';
+
+export interface LabelBox extends Rect {
+  lx: number;
+  ly: number;
+  relation: Relation;
+}
+
+export interface AutomaticLabel extends LabelBox {
+  relationIndex: number;
+}
+
+export interface AutomaticLabelRoute {
+  relationIndex: number;
+  points?: Point[] | null;
+}
+
+interface LabelSegment extends Segment {
+  relationIndex: number;
+}
+
+type RouteOwnedRect = Rect & { relationIndex: number };
+
+export interface PlaceAutomaticLabelsOptions<L extends AutomaticLabel> {
+  labels: L[];
+  routes: AutomaticLabelRoute[];
+  components: Rect[];
+  titles: Rect[];
+  viewBox: [number, number];
+  placementBottom?: number;
+  fallbackRing?: boolean;
+  keepFallbackNearRoute?: boolean;
+  gridSweep?: boolean;
+  maxOwnRouteDistance?: number;
+}
+
+export interface ReservedLabelRectOptions {
+  label: LabelBox;
+  points?: Point[] | null;
+  routes?: AutomaticLabelRoute[];
+  labels?: LabelBox[];
+  components: Rect[];
+  viewBox?: [number, number];
+  placementBottom?: number;
+}
 
 // A bounded fallback for an unpinned label whose usual position collides.
 // It never routes an edge, moves a node, expands the canvas, or rewrites input.
-export function placeAutomaticLabels({
+export function placeAutomaticLabels<L extends AutomaticLabel>({
   labels, routes, components, titles, viewBox, placementBottom = viewBox[1], fallbackRing = true, keepFallbackNearRoute = false,
   gridSweep = false, maxOwnRouteDistance = Infinity,
-}) {
+}: PlaceAutomaticLabelsOptions<L>): L[] {
   const placed = [...labels];
   const obstacles = [...components, ...titles];
-  const segments = routes.flatMap(({ relationIndex, points }) => {
+  const segments: LabelSegment[] = routes.flatMap(({ relationIndex, points }) => {
     const normalized = normalizeRoutePoints(points);
     return normalized.slice(1).map((end, index) => ({ relationIndex, start: normalized[index], end }));
   });
-  const inside = rect => (
+  const inside = (rect: Rect): boolean => (
     rect.x >= 0 && rect.y >= 0
     && rect.x + rect.width <= viewBox[0] && rect.y + rect.height <= viewBox[1]
   );
   // The mask test asked every segment about every candidate position. Segments
   // go into a uniform grid once, and a candidate only asks the cells it covers.
   const SEGMENT_CELL = 120;
-  const segmentGrid = createSpatialGrid(SEGMENT_CELL);
+  const segmentGrid = createSpatialGrid<LabelSegment>(SEGMENT_CELL);
   for (const segment of segments) {
     const [sx, sy] = segment.start;
     const [ex, ey] = segment.end;
@@ -29,36 +74,36 @@ export function placeAutomaticLabels({
       minY: Math.min(sy, ey), maxY: Math.max(sy, ey),
     }, segment);
   }
-  const segmentsNear = (rect, margin) => segmentGrid.query({
+  const segmentsNear = (rect: Rect, margin: number): LabelSegment[] => segmentGrid.query({
     minX: rect.x - margin, maxX: rect.x + rect.width + margin,
     minY: rect.y - margin, maxY: rect.y + rect.height + margin,
   });
-  const masksRoute = rect => {
+  const masksRoute = (rect: RouteOwnedRect): boolean => {
     for (const segment of segmentsNear(rect, 4)) {
       if (segment.relationIndex === rect.relationIndex) continue;
-      if (segmentRectClearanceWithin(segment, rect, 4) + 0.0001 < 4) return true;
+      if (segmentRectClearanceWithin(segment, rect, 4)! + 0.0001 < 4) return true;
     }
     return false;
   };
-  const overlapsLabel = (rect, index, gap = 0) => placed.some((other, otherIndex) => (
+  const overlapsLabel = (rect: Rect, index: number, gap = 0): boolean => placed.some((other, otherIndex) => (
     otherIndex !== index && rectsOverlap(rect, other, gap)
   ));
-  const clear = (rect, index) => (
+  const clear = (rect: RouteOwnedRect, index: number): boolean => (
     inside(rect) && rect.y + rect.height <= placementBottom
     && !obstacles.some(obstacle => rectsOverlap(rect, obstacle, 2))
     && !overlapsLabel(rect, index, 2) && !masksRoute(rect)
     && (!Number.isFinite(maxOwnRouteDistance) || segments.some(segment =>
       segment.relationIndex === rect.relationIndex
-      && segmentRectClearanceWithin(segment, rect, maxOwnRouteDistance) <= maxOwnRouteDistance))
+      && segmentRectClearanceWithin(segment, rect, maxOwnRouteDistance)! <= maxOwnRouteDistance))
   );
-  const rectAt = (label, lx, ly) => ({
+  const rectAt = (label: L, lx: number, ly: number): L => ({
     ...label, lx, ly, x: lx - label.width / 2, y: ly - 10,
   });
   // Fixed fractions can miss a narrow free slot. Try the ends of the free
   // intervals beside an orthogonal segment, using obstacle edges rather
   // than a finer sampling grid. The ordinary clearance test still decides
   // whether a candidate is usable; this search never changes geometry.
-  const slidingCandidates = (label, index, { start: a, end: b }) => {
+  const slidingCandidates = (label: L, index: number, { start: a, end: b }: Segment): L[] => {
     const horizontal = Math.abs(a[1] - b[1]) < 0.0001;
     if (!horizontal && Math.abs(a[0] - b[0]) >= 0.0001) return [];
     const axis = horizontal ? 'x' : 'y';
@@ -101,16 +146,16 @@ export function placeAutomaticLabels({
   // every position along all of the label's own segments: beside the line
   // first, then centred on its own line (the plate interrupts only that
   // line), then stepping outward past neighbouring parallels.
-  const gridCandidates = (label) => {
+  const gridCandidates = (label: L): number[][] => {
     const fractions = [0.5, 0.25, 0.75, 0.375, 0.625, 0.125, 0.875];
-    const ranked = [];
+    const ranked: number[][] = [];
     // A close parallel of another relationship on one side (a reciprocal
     // pair) makes a label on that side read as the neighbour's: prefer the
     // far side.
-    const parallelOnLowSide = (a, b, axis) => {
+    const parallelOnLowSide = (a: Point, b: Point, axis: number): boolean => {
       const across = 1 - axis;
       const [low, high] = [Math.min(a[axis], b[axis]), Math.max(a[axis], b[axis])];
-      let nearest = null;
+      let nearest: number | null = null;
       for (const other of segments) {
         if (other.relationIndex === label.relationIndex) continue;
         if (Math.abs(other.start[across] - other.end[across]) > 0.0001) continue;
@@ -151,13 +196,13 @@ export function placeAutomaticLabels({
       .map(([, lx, ly]) => [lx, ly]);
   };
 
-  const pinned = label => ['labelAt', 'labelDx', 'labelDy', 'labelSegment']
+  const pinned = (label: L): boolean => (['labelAt', 'labelDx', 'labelDy', 'labelSegment'] as const)
     .some(key => label.relation[key] !== undefined);
-  const needsPlacement = (label, index) => !inside(label)
+  const needsPlacement = (label: L, index: number): boolean => !inside(label)
     || components.some(component => rectsOverlap(label, component, -2))
     || titles.some(title => rectsOverlap(label, title))
     || overlapsLabel(label, index) || masksRoute(label);
-  const placeLabel = (index, rerank) => {
+  const placeLabel = (index: number, rerank: boolean): void => {
     const label = placed[index];
     // Match actual defect thresholds before searching; a valid placement is
     // not a reason to restyle the diagram. New placements leave extra space.
@@ -176,7 +221,7 @@ export function placeAutomaticLabels({
     }
     for (const segment of segments.filter(segment => segment.relationIndex === label.relationIndex)) {
       const [a, b] = [segment.start, segment.end];
-      let candidates = [];
+      let candidates: number[][] = [];
       // These candidates sit beside the line. They need the same 2px node
       // clearance checked by clear(), not 8px reserved at each endpoint.
       // Extra endpoint padding can hide a valid outer slot for a reciprocal
@@ -248,7 +293,7 @@ export function placeAutomaticLabels({
     const fallback = baseAnchors.flatMap(([baseX, baseY]) => (
       ringOffsets.map(([dx, dy]) => rectAt(label, baseX + dx, baseY + dy))
     )).find(rect => clear(rect, index) && (!keepFallbackNearRoute || ownSegments.some(segment => (
-      segmentRectClearanceWithin(segment, rect, label.height * 2) <= label.height * 2
+      segmentRectClearanceWithin(segment, rect, label.height * 2)! <= label.height * 2
     ))));
     if (fallback) placed[index] = fallback;
   };
@@ -276,7 +321,7 @@ export function placeAutomaticLabels({
 // would already need the fallback ring is left to the final placement pass.
 export function reservedLabelRect({
   label, points, routes = [], labels = [], components, viewBox = [Infinity, Infinity], placementBottom = Infinity,
-}) {
+}: ReservedLabelRectOptions): AutomaticLabel | null {
   const [rect] = placeAutomaticLabels({
     labels: [{ ...label, relationIndex: -1 }, ...labels.map(other => ({ ...other, relationIndex: -2 }))],
     routes: [{ relationIndex: -1, points }, ...routes],

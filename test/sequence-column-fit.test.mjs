@@ -5,8 +5,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { textUnits } from '../archify/renderers/shared/utils.mjs';
-import { minimumNodeTextWidth } from '../archify/renderers/shared/text-fit.mjs';
+import { textUnits } from '../archify/renderers/shared/utils.ts';
+import { minimumNodeTextWidth } from '../archify/renderers/shared/text-fit.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'archify');
@@ -19,7 +19,7 @@ function renderOutcome(doc, publicCli = false) {
   renderDoc.meta = { ...renderDoc.meta, output: 'sequence-column-fit.html' };
   fs.writeFileSync(input, JSON.stringify(renderDoc));
   try {
-    execFileSync('node', publicCli
+    execFileSync(process.execPath, publicCli
       ? [path.join(skillRoot, 'bin/archify.mjs'), 'render', 'sequence', input, output]
       : [path.join(skillRoot, 'renderers/sequence/render-sequence.mjs'), input, output], { stdio: ['ignore', 'ignore', 'pipe'] });
     return { code: 0, stderr: '', html: fs.readFileSync(output, 'utf8') };

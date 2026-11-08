@@ -9,8 +9,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { nodeLabelLayout } from '../archify/renderers/shared/text-fit.mjs';
-import { SOURCE_BADGE_FOOTPRINT } from '../archify/renderers/shared/utils.mjs';
+import { nodeLabelLayout } from '../archify/renderers/shared/text-fit.ts';
+import { SOURCE_BADGE_FOOTPRINT } from '../archify/renderers/shared/utils.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'archify');
@@ -24,12 +24,12 @@ function render(doc) {
   const output = path.join(tmp, `case-${counter}.html`);
   fs.writeFileSync(input, JSON.stringify({ ...doc, meta: { ...doc.meta, output: `case-${counter}.html` } }));
   try {
-    execFileSync('node', [path.join(skillRoot, 'renderers/lifecycle/render-lifecycle.mjs'), input, output], { stdio: ['ignore', 'ignore', 'pipe'] });
+    execFileSync(process.execPath, [path.join(skillRoot, 'renderers/lifecycle/render-lifecycle.mjs'), input, output], { stdio: ['ignore', 'ignore', 'pipe'] });
   } catch (error) {
     return { code: error.status ?? 1, stderr: String(error.stderr || '') };
   }
   const html = fs.readFileSync(output, 'utf8');
-  const check = JSON.parse(execFileSync('node', [path.join(skillRoot, 'scripts/check-render-output.mjs'), output], { encoding: 'utf8' }));
+  const check = JSON.parse(execFileSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.mjs'), output], { encoding: 'utf8' }));
   return { code: 0, html, svg: html.match(/<svg\b[\s\S]*?<\/svg>/)[0], check };
 }
 
@@ -357,7 +357,7 @@ test('the artifact checker flags identical overlapping lifecycle routes', () => 
     .replace(/data-composition-points="[^"]*"/, `data-composition-points="${routePoints}"`);
   const file = path.join(tmp, 'overlapping-routes.html');
   fs.writeFileSync(file, result.html.replace(groups[1][0], duplicated));
-  const checked = spawnSync('node', [path.join(skillRoot, 'scripts/check-render-output.mjs'), file], { encoding: 'utf8' });
+  const checked = spawnSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.mjs'), file], { encoding: 'utf8' });
   const receipt = JSON.parse(checked.stdout);
   assert.ok(receipt.composition.issues.some((issue) => issue.code === 'composition/ambiguous-corridor'),
     JSON.stringify(receipt.composition.issues));

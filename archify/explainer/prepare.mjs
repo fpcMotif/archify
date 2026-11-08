@@ -6,7 +6,7 @@ import { validateExplainer } from './validate.mjs';
 import { resolveExplainerSources } from './sources.mjs';
 import { parseInline } from './inline.mjs';
 import { prepareExplainerDiagrams, validateExplainerDiagramTarget } from './diagrams.mjs';
-import { throwDiagnosticError } from '../renderers/shared/diagnostics.mjs';
+import { throwDiagnosticError } from '../renderers/shared/diagnostics.ts';
 
 const MAX_BUNDLE_BYTES = 64 * 1024 * 1024;
 const MAX_SOURCE_BYTES = 16 * 1024 * 1024;

@@ -1,7 +1,7 @@
 import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { throwDiagnosticError, withDiagnosticRecordingSuppressed } from './diagnostics.mjs';
+import { throwDiagnosticError, withDiagnosticRecordingSuppressed } from './diagnostics.ts';
 import { sameEntry } from './path-semantics.mjs';
 import { parseRepositoryRemote, redactRepositoryRemote, repositorySourceHref, repositoryTreeHref } from './repository-location.mjs';
 

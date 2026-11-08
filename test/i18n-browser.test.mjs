@@ -120,11 +120,6 @@ const BROWSER_LOCALES = {
     exportLabel: '导出图表',
     exportMenuLabel: '导出',
     exportMenuText: /复制图表/,
-    presetBadges: {
-      'signal-flow': { header: '信号流', plate: 'none' },
-      blueprint: { header: '蓝图 / 修订 01', plate: '' },
-      editorial: { header: '编辑风格 / 现场笔记', plate: 'ARCHIFY / 图版 04' },
-    },
     shareCardFailure: '无法为分享卡片创建二维画布上下文',
   },
   es: {
@@ -135,11 +130,6 @@ const BROWSER_LOCALES = {
     exportLabel: 'Exportar diagrama',
     exportMenuLabel: 'Exportar',
     exportMenuText: /Copiar diagrama/,
-    presetBadges: {
-      'signal-flow': { header: 'FLUJO DE SEÑAL', plate: 'none' },
-      blueprint: { header: 'PLANO / REV 01', plate: '' },
-      editorial: { header: 'EDITORIAL / NOTA DE CAMPO', plate: 'ARCHIFY / LÁMINA 04' },
-    },
     shareCardFailure: 'Contexto de lienzo 2D no disponible para Tarjeta para compartir',
   },
   ko: {
@@ -150,11 +140,6 @@ const BROWSER_LOCALES = {
     exportLabel: '다이어그램 내보내기',
     exportMenuLabel: '내보내기',
     exportMenuText: /다이어그램 복사/,
-    presetBadges: {
-      'signal-flow': { header: '시그널 플로우', plate: 'none' },
-      blueprint: { header: '블루프린트 / 개정 01', plate: '' },
-      editorial: { header: '에디토리얼 / 현장 노트', plate: 'ARCHIFY / 도판 04' },
-    },
     shareCardFailure: '공유 카드에 2D 캔버스 컨텍스트를 만들 수 없습니다',
   },
   ar: {
@@ -165,11 +150,6 @@ const BROWSER_LOCALES = {
     exportLabel: 'تصدير المخطّط',
     exportMenuLabel: 'تصدير',
     exportMenuText: /انسخ المخطّط/,
-    presetBadges: {
-      'signal-flow': { header: 'تدفّق الإشارة', plate: 'none' },
-      blueprint: { header: 'مخطّط هندسي / إصدار ٠١', plate: '' },
-      editorial: { header: 'تحريري / ملاحظة ميدانية', plate: 'ARCHIFY / لوحة ٠٤' },
-    },
     shareCardFailure: 'سياقُ لوحة الرسم ثنائيِّ الأبعاد غير متاح لـبطاقة مشاركة',
   },
 
@@ -205,18 +185,6 @@ async function assertLocalizedViewer(browser, locale, expected) {
       routeButton.click();
       exportButton.click();
       var exportMenu = document.getElementById('export-menu');
-      function pseudoContent(selector) {
-        var content = getComputedStyle(document.querySelector(selector), '::after').content || '';
-        return content.replace(/^["']|["']$/g, '');
-      }
-      var presetBadges = {};
-      ['signal-flow', 'blueprint', 'editorial'].forEach(function (preset) {
-        document.documentElement.setAttribute('data-preset', preset);
-        presetBadges[preset] = {
-          header: pseudoContent('.header-row'),
-          plate: pseudoContent('.diagram-container')
-        };
-      });
       return {
         htmlLang: document.documentElement.lang,
         svgLang: document.querySelector('.diagram-container svg').getAttribute('lang'),
@@ -227,8 +195,7 @@ async function assertLocalizedViewer(browser, locale, expected) {
         exportMenuOpen: exportMenu.classList.contains('open'),
         exportLabel: exportButton.getAttribute('aria-label'),
         exportMenuLabel: exportMenu.getAttribute('aria-label'),
-        exportMenuText: exportMenu.textContent,
-        presetBadges: presetBadges
+        exportMenuText: exportMenu.textContent
       };
     })()`);
 
@@ -243,7 +210,6 @@ async function assertLocalizedViewer(browser, locale, expected) {
     assert.equal(state.exportLabel, expected.exportLabel, `${locale}/${type}`);
     assert.equal(state.exportMenuLabel, expected.exportMenuLabel, `${locale}/${type}`);
     assert.match(state.exportMenuText, expected.exportMenuText, `${locale}/${type}`);
-    assert.deepEqual(state.presetBadges, expected.presetBadges, `${locale}/${type}`);
 
     const shareCardFailure = await evaluate(browser, sessionId, `(async function () {
       var originalGetContext = HTMLCanvasElement.prototype.getContext;

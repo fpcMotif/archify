@@ -16,7 +16,49 @@
 // `minimum` font sizes are not, because renderers set node text at different
 // sizes (architecture sublabels are 9px, the rest are 7px).
 
-import { textUnits, SEMANTIC_SIGIL_INSET, SEMANTIC_SIGIL_SIZE, SEMANTIC_SIGIL_FOOTPRINT, SOURCE_BADGE_FOOTPRINT } from './utils.mjs';
+import { textUnits, SEMANTIC_SIGIL_INSET, SEMANTIC_SIGIL_SIZE, SEMANTIC_SIGIL_FOOTPRINT, SOURCE_BADGE_FOOTPRINT } from './utils.ts';
+
+export interface InlineTitleLine {
+  text?: string;
+  fontSize: number;
+}
+
+export interface InlineTitleSigilInput {
+  x: number;
+  width: number;
+  lines: InlineTitleLine[];
+  baselineY: number;
+}
+
+export interface InlineTitleSigilLayout {
+  sigilX: number;
+  sigilY: number;
+  sigilSize: number;
+  textX: number;
+}
+
+export interface NodeLabelRow {
+  y: number;
+  text: string;
+  font: number;
+}
+
+export interface NodeLabelLayoutInput {
+  width: number;
+  height: number;
+  rows: NodeLabelRow[];
+  side?: 'left' | 'right';
+  brand?: boolean;
+  source?: boolean;
+  step?: string;
+}
+
+export interface NodeLabelLayout {
+  x: number;
+  ys: number[];
+  sigilY: number;
+  sigilSize: number;
+}
 
 // widthFactor: px of advance width per text unit, per px of font size.
 // horizontalPadding: total px reserved inside the box so text never touches
@@ -29,7 +71,7 @@ export const nodeTextFit = {
 // Largest font size at or below `preferred` that fits `text` inside `width`,
 // floored at `minimum` — below that the text is no longer legible and the
 // caller should be reporting a problem instead.
-export function fittedNodeFontSize(text, width, preferred, minimum) {
+export function fittedNodeFontSize(text: string, width: number, preferred: number, minimum: number): number {
   const units = Math.max(1, textUnits(text));
   const available = Math.max(1, width - nodeTextFit.horizontalPadding);
   const fitted = Math.min(preferred, available / (units * nodeTextFit.widthFactor));
@@ -39,12 +81,12 @@ export function fittedNodeFontSize(text, width, preferred, minimum) {
 // Width `text` occupies at its legible minimum. Compare against
 // `width - nodeTextFit.horizontalPadding` to decide whether shrink-to-fit can
 // rescue it.
-export function minimumNodeTextWidth(text, minimum) {
+export function minimumNodeTextWidth(text: string, minimum: number): number {
   return textUnits(text) * minimum * nodeTextFit.widthFactor;
 }
 
 // Available text width inside a box of `width`.
-export function availableNodeTextWidth(width) {
+export function availableNodeTextWidth(width: number): number {
   return width - nodeTextFit.horizontalPadding;
 }
 
@@ -54,7 +96,7 @@ export function availableNodeTextWidth(width) {
 const INLINE_SIGIL_GAP = 6;
 const INLINE_CARD_INSET = 12;
 const INLINE_SIGIL_SIZE = 16;
-export function inlineTitleSigilLayout({ x, width, lines, baselineY }) {
+export function inlineTitleSigilLayout({ x, width, lines, baselineY }: InlineTitleSigilInput): InlineTitleSigilLayout | null {
   const textX = x + INLINE_CARD_INSET + INLINE_SIGIL_SIZE + INLINE_SIGIL_GAP;
   const room = x + width - INLINE_CARD_INSET - textX;
   if (lines.some(({ text, fontSize }) => text && minimumNodeTextWidth(text, fontSize) > room)) return null;
@@ -66,15 +108,15 @@ export function inlineTitleSigilLayout({ x, width, lines, baselineY }) {
     textX: round1(textX),
   };
 }
-function round1(value) {
+function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
 // Adapted from Souptik Chakraborty's #220: shift only labels which reach a
 // corner icon. Unlike the original hard gate, a narrow valid node uses a
 // separate text row; its authored bounds and acceptance remain unchanged.
-export function nodeLabelLayout({ width, height, rows, side = 'left', brand = false, source = false, step = '' }) {
-  const result = { x: width / 2, ys: rows.map(row => row.y), sigilY: SEMANTIC_SIGIL_INSET, sigilSize: SEMANTIC_SIGIL_SIZE };
+export function nodeLabelLayout({ width, height, rows, side = 'left', brand = false, source = false, step = '' }: NodeLabelLayoutInput): NodeLabelLayout {
+  const result: NodeLabelLayout = { x: width / 2, ys: rows.map(row => row.y), sigilY: SEMANTIC_SIGIL_INSET, sigilSize: SEMANTIC_SIGIL_SIZE };
   const labelWidth = minimumNodeTextWidth(rows[0].text, rows[0].font);
   const stepEnd = step ? (side === 'left' ? 23 : 10) + minimumNodeTextWidth(step, 8) + 3 : 0;
   const left = Math.max(side === 'left' ? SEMANTIC_SIGIL_FOOTPRINT + 2 : 4, stepEnd);

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../shared/utils.mjs';
+import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../shared/utils.ts';
 import {
   animateAttr,
   focusEdgeAttrs,
@@ -11,16 +11,16 @@ import {
   svgRootAttrs,
   writeDiagram,
 } from '../shared/cli.mjs';
-import { throwDiagnosticProblems } from '../shared/diagnostics.mjs';
+import { throwDiagnosticProblems } from '../shared/diagnostics.ts';
 import {
   legendFootprint,
   measureLegend,
   relationshipLegendObstacles,
   resolveLegend,
   renderLegend as renderResolvedLegend,
-} from '../shared/legend.mjs';
-import { nodeTextFit, fittedNodeFontSize } from '../shared/text-fit.mjs';
-import { translateMessage as i18nText } from '../shared/i18n.mjs';
+} from '../shared/legend.ts';
+import { nodeTextFit, fittedNodeFontSize } from '../shared/text-fit.ts';
+import { translateMessage as i18nText } from '../shared/i18n.ts';
 import {
   DEFAULT_ER_GRID,
   bandedLayout,
@@ -51,8 +51,8 @@ import {
   variantAccent,
 } from '../shared/geometry.ts';
 import { createRouter } from '../architecture/routing.mjs';
-import { placeAutomaticLabels } from '../shared/automatic-labels.mjs';
-import { entityBox, connectionPath as relationshipPath } from '../shared/layout-report.mjs';
+import { placeAutomaticLabels } from '../shared/automatic-labels.ts';
+import { entityBox, connectionPath as relationshipPath } from '../shared/layout-report.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const layoutJsonMode = process.argv.includes('--layout-json');
@@ -1406,7 +1406,6 @@ function renderEntity(entity) {
     kind: 'database',
     sublabel: entity.sublabel,
     tag: entity.tag,
-    context: i18nText(er.meta.locale, 'node.context.erd'),
   };
   const rows = renderEntityColumnRows(entity);
   const r = 8;

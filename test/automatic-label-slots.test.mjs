@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { placeAutomaticLabels } from '../archify/renderers/shared/automatic-labels.mjs';
+import { placeAutomaticLabels } from '../archify/renderers/shared/automatic-labels.ts';
 import { rectsOverlap, segmentRectClearanceWithin } from '../archify/renderers/shared/geometry.ts';
 
 function narrowSlot(vertical = false) {

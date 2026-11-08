@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
-import { installRendererDiagnosticBoundary, throwDiagnosticError } from '../shared/diagnostics.mjs';
+import { installRendererDiagnosticBoundary, throwDiagnosticError } from '../shared/diagnostics.ts';
 import { resolveOutputPath } from '../shared/output-path.mjs';
 import { captureAtomicOutput, captureRegularFileBinding, publishRegularFileBinding, releaseRegularFileBinding, removeOwnedRegularFile } from '../shared/atomic-output.mjs';
 import { prepareExplainer, readPreparedBundle, assertPreparedDependencies } from '../../explainer/prepare.mjs';

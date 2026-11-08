@@ -6,6 +6,8 @@ Follow [CONTRIBUTING.md](CONTRIBUTING.md) for repository changes and [REVIEWING.
 
 Before adding, converting or reporting on a script or module, read [ADR 0001](docs/adr/0001-bun-typescript-runtime.md): new code is Bun TypeScript, and the `.mjs` ratchet tracks what is left.
 
+Packages are deep modules. Before adding or importing one, read [packages/README.md](packages/README.md).
+
 ## PR preparation
 
 Before requesting final review, follow the scoped [PR improvement check](CONTRIBUTING.md#pr-improvement-check) using the project Skills when applicable.

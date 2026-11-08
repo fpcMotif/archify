@@ -1,16 +1,39 @@
 /** Uniform spatial grid for "which items can this box reach" queries (#8). */
 
+export interface GridBox {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
+interface CellRange {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+}
+
+export interface SpatialGridOptions {
+  maxCells?: number;
+}
+
+export interface SpatialGrid<T> {
+  insert(box: GridBox, item: T): void;
+  query(box: GridBox): T[];
+}
+
 // A cell box wider than this is not worth walking: the query returns every
 // inserted item instead, which stays a superset of what the box reaches.
 const DEFAULT_MAX_CELLS = 4096;
 
-export function createSpatialGrid(cellSize, { maxCells = DEFAULT_MAX_CELLS } = {}) {
-  const buckets = new Map();
-  const items = [];
+export function createSpatialGrid<T>(cellSize: number, { maxCells = DEFAULT_MAX_CELLS }: SpatialGridOptions = {}): SpatialGrid<T> {
+  const buckets: Map<string, T[]> = new Map();
+  const items: T[] = [];
   // Items whose own box cannot be walked are candidates for every query.
-  const overflow = [];
-  const keyOf = (x, y) => x + ':' + y;
-  const rangeOf = (box) => ({
+  const overflow: T[] = [];
+  const keyOf = (x: number, y: number): string => x + ':' + y;
+  const rangeOf = (box: GridBox): CellRange => ({
     x0: Math.floor(box.minX / cellSize), x1: Math.floor(box.maxX / cellSize),
     y0: Math.floor(box.minY / cellSize), y1: Math.floor(box.maxY / cellSize),
   });
@@ -18,12 +41,12 @@ export function createSpatialGrid(cellSize, { maxCells = DEFAULT_MAX_CELLS } = {
   // incrementing an index no longer advances it; and a legal coordinate can
   // name more cells than the grid is worth. Both cases stay out of the buckets
   // and are answered by the item list, so they never hang or allocate.
-  const walkable = (range) => Number.isSafeInteger(range.x0) && Number.isSafeInteger(range.x1)
+  const walkable = (range: CellRange): boolean => Number.isSafeInteger(range.x0) && Number.isSafeInteger(range.x1)
     && Number.isSafeInteger(range.y0) && Number.isSafeInteger(range.y1)
     && (range.x1 - range.x0 + 1) * (range.y1 - range.y0 + 1) <= maxCells;
 
   return {
-    insert(box, item) {
+    insert(box: GridBox, item: T): void {
       items.push(item);
       const range = rangeOf(box);
       if (!walkable(range)) {
@@ -39,11 +62,11 @@ export function createSpatialGrid(cellSize, { maxCells = DEFAULT_MAX_CELLS } = {
         }
       }
     },
-    query(box) {
+    query(box: GridBox): T[] {
       const range = rangeOf(box);
       if (!walkable(range)) return items.slice();
-      const seen = new Set();
-      const found = [];
+      const seen: Set<T> = new Set();
+      const found: T[] = [];
       for (let x = range.x0; x <= range.x1; x += 1) {
         for (let y = range.y0; y <= range.y1; y += 1) {
           const bucket = buckets.get(keyOf(x, y));

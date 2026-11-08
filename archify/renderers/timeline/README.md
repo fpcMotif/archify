@@ -57,6 +57,13 @@ Inside each segment the scale is the same constant, so distances there remain
 exact. `layout.breaks: "none"` draws one proportional axis. `layout.width`
 (default 960) is the axis width.
 
+`layout.scale: "time"` (default) ticks on the display zone's wall clock.
+`layout.scale: "date"` ticks on the calendar instead (1 or 7 days, 1, 3 or 6
+months, or 1 to 100 years, the smallest step that keeps ticks apart). Ticks read
+`2025`, `2025-03` or `03-14`, cards read `03-14`, and both read `2025-03-14`
+when the span crosses a year. Every event must sit on midnight of the display
+zone; another time fails with `timeline/date-scale-clock-time`.
+
 ## Cards
 
 Each event is a dot on its lane line plus a card with its exact time and title.

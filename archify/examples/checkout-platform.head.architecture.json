@@ -3,8 +3,7 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "Checkout Platform — Fraud Gate",
-    "output": "checkout-platform.head.html",
-    "visual_preset": "signal-flow"
+    "output": "checkout-platform.head.html"
   },
   "components": [
     { "id": "buyers", "type": "external", "label": "Buyers", "sublabel": "Web + mobile", "pos": [40, 250], "size": [120, 60] },

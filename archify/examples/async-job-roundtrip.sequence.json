@@ -6,7 +6,6 @@
     "output": "examples/async-job-roundtrip.html",
     "viewBox": [820, 920],
     "animation": "trace",
-    "visual_preset": "signal-flow",
     "quality_profile": "showcase"
   },
   "participants": [

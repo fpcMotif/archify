@@ -4,7 +4,6 @@
   "meta": {
     "title": "Agent Tool Call Workflow",
     "animation": "trace",
-    "visual_preset": "signal-flow",
     "quality_profile": "showcase",
     "output": "examples/workflow-agent-tool-call-rendered.html"
   },

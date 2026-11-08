@@ -36,7 +36,7 @@ function render(mode, example, animation = 'trace', visualPreset) {
   const input = path.join(tmp, `${mode}-${suffix}.json`);
   const output = path.join(tmp, `${mode}-${suffix}.html`);
   fs.writeFileSync(input, JSON.stringify(doc));
-  execFileSync('node', [path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`), input, output], {
+  execFileSync(process.execPath, [path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`), input, output], {
     stdio: ['ignore', 'ignore', 'pipe'],
   });
   return fs.readFileSync(output, 'utf8');
@@ -65,12 +65,11 @@ test('classic preset remains the default for existing diagrams', () => {
   assert.match(svgBlock(html), /data-preset="classic"/);
 });
 
-test('signal-flow preset reaches the page, SVG, and export surface', () => {
+test('a retired signal-flow source renders as Classic with the full viewer and export surface', () => {
   const html = render('workflow', CASES.workflow, 'trace', 'signal-flow');
-  assert.match(html, /<html lang="en" data-theme="dark" data-preset="signal-flow">/);
-  assert.match(svgBlock(html), /data-preset="signal-flow"/);
-  assert.match(html, /content: attr\(data-preset-badge-signal-flow\)/);
-  assert.match(html, /data-preset-badge-signal-flow="SIGNAL FLOW"/);
+  assert.match(html, /<html lang="en" data-theme="dark" data-preset="classic">/);
+  assert.match(svgBlock(html), /data-preset="classic"/);
+  assert.doesNotMatch(html, /data-preset-badge|signal-flow/);
   assert.doesNotMatch(html, /data-last-motion-bytes|Archify\.motion = /);
   assert.match(html, /aria-label="Diagram view controls"/);
   assert.match(html, /Archify\.focus = \(function \(\)/);
@@ -88,11 +87,8 @@ test('blueprint preset reaches every visual surface without changing the default
   const html = render('architecture', CASES.architecture, null, 'blueprint');
   assert.match(html, /<html lang="en" data-theme="dark" data-preset="blueprint">/);
   assert.match(svgBlock(html), /data-preset="blueprint"/);
-  assert.match(html, /content: attr\(data-preset-badge-blueprint\)/);
-  assert.match(html, /data-preset-badge-blueprint="BLUEPRINT \/ REV 01"/);
-  assert.match(html, /\[data-preset="blueprint"\]\[data-theme="dark"\]/);
-  assert.match(html, /svg\[data-preset="blueprint"\] \.c-grid/);
-  assert.match(html, /html\[data-preset="blueprint"\] \.card/);
+  assert.doesNotMatch(html, /data-preset-badge|\[data-preset="blueprint"\]\[data-theme/);
+  assert.match(html, /html\[data-preset="blueprint"\] \.overview-map \{ border-radius: 0\.28rem; \}/);
 });
 
 test('blueprint preset is accepted by all five typed renderers', () => {
@@ -108,12 +104,8 @@ test('editorial preset reaches every visual surface and all five typed renderers
     const html = render(mode, example, null, 'editorial');
     assert.match(html, /<html lang="en" data-theme="dark" data-preset="editorial">/, mode);
     assert.match(svgBlock(html), /data-preset="editorial"/, mode);
-    assert.match(html, /content: attr\(data-preset-badge-editorial\)/, mode);
-    assert.match(html, /data-preset-badge-editorial="EDITORIAL \/ FIELD NOTE"/, mode);
-    assert.match(html, /content: attr\(data-preset-badge-editorial-plate\)/, mode);
-    assert.match(html, /data-preset-badge-editorial-plate="ARCHIFY \/ PLATE 04"/, mode);
-    assert.match(html, /\[data-preset="editorial"\]\[data-theme="dark"\]/, mode);
-    assert.match(html, /html\[data-preset="editorial"\] \.diagram-container/, mode);
+    assert.doesNotMatch(html, /data-preset-badge|\[data-preset="editorial"\]\[data-theme/, mode);
+    assert.match(html, /html\[data-preset="editorial"\] h1,\s*html\[data-preset="editorial"\] \.card h3 \{/, mode);
   }
 });
 

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { esc, renderDefinitions, textUnits } from '../shared/utils.mjs';
+import { esc, renderDefinitions, textUnits } from '../shared/utils.ts';
 import {
   animateAttr,
   focusEdgeAttrs,
@@ -11,9 +11,9 @@ import {
   svgRootAttrs,
   writeDiagram,
 } from '../shared/cli.mjs';
-import { throwDiagnosticProblems } from '../shared/diagnostics.mjs';
-import { nodeTextFit } from '../shared/text-fit.mjs';
-import { translateMessage as i18nText } from '../shared/i18n.mjs';
+import { throwDiagnosticProblems } from '../shared/diagnostics.ts';
+import { nodeTextFit } from '../shared/text-fit.ts';
+import { translateMessage as i18nText } from '../shared/i18n.ts';
 import { asArray, roundedPath, routePointsValue } from '../shared/geometry.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

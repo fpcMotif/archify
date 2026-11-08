@@ -19,7 +19,7 @@ test('guide: every recipe has complete English and Chinese decision copy', () =>
   for (const recipe of SCENARIO_RECIPES) {
     assert.match(recipe.id, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
     assert.ok(recipe.signals.length > 0, recipe.id);
-    assert.ok(['classic', 'signal-flow', 'blueprint', 'editorial'].includes(recipe.presentation.preset), recipe.id);
+    assert.ok(['classic', 'blueprint', 'editorial'].includes(recipe.presentation.preset), recipe.id);
     for (const lang of ['en', 'zh']) {
       const copy = recipe[lang];
       assert.ok(copy.title.trim(), `${recipe.id}.${lang}.title`);

@@ -11,7 +11,7 @@ import { pathToFileURL } from 'node:url';
 import {
   DESKTOP_READABILITY_VIEWPORT,
   MIN_PROJECTED_NODE_TEXT_PX,
-} from '../renderers/shared/desktop-readability.mjs';
+} from '../renderers/shared/desktop-readability.ts';
 import {
   backupPublicRegularFileBinding,
   captureAtomicOutput,

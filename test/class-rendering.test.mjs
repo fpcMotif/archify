@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { textUnits } from '../archify/renderers/shared/utils.mjs';
+import { textUnits } from '../archify/renderers/shared/utils.ts';
 import { bandedLayout, resolveEntityPos } from '../archify/renderers/erd/grid.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

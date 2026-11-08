@@ -366,8 +366,12 @@
         list.className = className + ' no-print';
         if (title) list.setAttribute('aria-label', title.textContent);
         var NS = 'http://www.w3.org/2000/svg';
+        var rendererScopes = Array.prototype.filter.call(svg.attributes, function (attribute) {
+          return /^data-[a-z]+-ui$/.test(attribute.name);
+        });
         entries.forEach(function (entry) {
-          var label = entry.querySelector(':scope > text');
+          var labels = entry.querySelectorAll(':scope > text');
+          var label = labels[labels.length - 1];
           if (!label) return;
           var divider = entry.querySelector(':scope > [data-legend-divider]');
           if (divider) {
@@ -386,8 +390,10 @@
           icon.setAttribute('viewBox', swatchLeft + ' ' + (baseline - 13) + ' ' + swatchWidth + ' 18');
           icon.style.width = (swatchWidth / 18 * 0.875) + 'rem';
           icon.setAttribute('aria-hidden', 'true');
+          rendererScopes.forEach(function (attribute) { icon.setAttribute(attribute.name, attribute.value); });
           Array.prototype.forEach.call(entry.children, function (child) {
-            if (child !== label && child !== divider) icon.appendChild(paintedClone(child));
+            if (child === label || child === divider || child.hasAttribute('tabindex')) return;
+            icon.appendChild(paintedClone(child));
           });
           var text = document.createElement('span');
           text.textContent = label.textContent;

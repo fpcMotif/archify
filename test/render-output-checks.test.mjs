@@ -37,7 +37,7 @@ function checkHtml(name, svgBody, profile = 'standard', viewBox = '0 0 240 154',
   const htmlPath = path.join(tmp, `${name}.html`);
   fs.writeFileSync(htmlPath, `<!doctype html><html><head>${head}</head><body><svg viewBox="${viewBox}" data-quality-profile="${profile}"${svgAttributes}>${svgBody}</svg></body></html>`);
   try {
-    const stdout = execFileSync('node', [checker, htmlPath], { encoding: 'utf8' });
+    const stdout = execFileSync(process.execPath, [checker, htmlPath], { encoding: 'utf8' });
     return { code: 0, result: JSON.parse(stdout) };
   } catch (err) {
     return { code: err.status ?? 1, result: JSON.parse(String(err.stdout || '{}')) };
@@ -944,7 +944,7 @@ for (const position of ['before', 'after']) {
     const html = '<div x="NaN" width="Infinity"><input width="NaN"><br></div>';
     const svg = '<svg viewBox="0 0 240 160"><rect x="10" y="10" width="20" height="20"/></svg>';
     fs.writeFileSync(htmlPath, `<!doctype html><html><body>${position === 'before' ? html + svg : svg + html}</body></html>`);
-    const result = JSON.parse(execFileSync('node', [checker, htmlPath], { encoding: 'utf8' }));
+    const result = JSON.parse(execFileSync(process.execPath, [checker, htmlPath], { encoding: 'utf8' }));
     const check = result.checks.find(item => item.name === 'finite_svg');
     assert.equal(check.ok, true);
     assert.deepEqual(check.details, []);

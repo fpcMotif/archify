@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSpatialGrid } from '../archify/renderers/shared/spatial-grid.mjs';
+import { createSpatialGrid } from '../archify/renderers/shared/spatial-grid.ts';
 
 test('a query returns the items its box reaches, once each', () => {
   const grid = createSpatialGrid(100);

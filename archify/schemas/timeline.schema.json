@@ -85,6 +85,13 @@
             "none"
           ],
           "description": "auto compresses long quiet periods into disclosed axis breaks."
+        },
+        "scale": {
+          "enum": [
+            "time",
+            "date"
+          ],
+          "description": "time (the default) labels clock times. date ticks on the calendar and labels dates only; every event must then sit on midnight of the display zone."
         }
       }
     },

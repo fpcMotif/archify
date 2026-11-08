@@ -5,7 +5,6 @@
     "title": "Incident Response Runbook",
     "output": "examples/incident-response.html",
     "animation": "trace",
-    "visual_preset": "signal-flow",
     "quality_profile": "showcase"
   },
   "lanes": [

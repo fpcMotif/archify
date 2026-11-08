@@ -309,11 +309,6 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <span class="preset-option-copy"><strong>{{i18n:viewer.preset.classic}}</strong><small>{{i18n:viewer.preset.classic.hint}}</small></span>
           <span class="preset-option-check" aria-hidden="true"></span>
         </button>
-        <button class="preset-option" data-preset-value="signal-flow" type="button" role="menuitemradio" aria-checked="false" tabindex="-1">
-          <span class="preset-option-swatch signal-flow" aria-hidden="true"></span>
-          <span class="preset-option-copy"><strong>{{i18n:viewer.preset.flow}}</strong><small>{{i18n:viewer.preset.flow.hint}}</small></span>
-          <span class="preset-option-check" aria-hidden="true"></span>
-        </button>
         <button class="preset-option" data-preset-value="blueprint" type="button" role="menuitemradio" aria-checked="false" tabindex="-1">
           <span class="preset-option-swatch blueprint" aria-hidden="true"></span>
           <span class="preset-option-copy"><strong>{{i18n:viewer.preset.blueprint}}</strong><small>{{i18n:viewer.preset.blueprint.hint}}</small></span>
@@ -379,10 +374,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
   <div class="container">
     <!-- Header -->
     <div class="header">
-      <div class="header-row"
-           data-preset-badge-signal-flow="{{i18n:viewer.preset.badge.signalFlow}}"
-           data-preset-badge-blueprint="{{i18n:viewer.preset.badge.blueprint}}"
-           data-preset-badge-editorial="{{i18n:viewer.preset.badge.editorial}}">
+      <div class="header-row">
         <div class="pulse-dot"></div>
         <h1>[PROJECT NAME] Architecture</h1>
       </div>
@@ -392,8 +384,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     <!-- ARCHIFY:SOURCE_EVIDENCE_DATA -->
     <!-- ARCHIFY:I18N_DATA -->
     <!-- Main Diagram -->
-    <div class="diagram-container" data-detail-level="read" data-scroll-hint="{{i18n:viewer.nav.scrollHint}}"
-         data-preset-badge-editorial-plate="{{i18n:viewer.preset.badge.editorialPlate}}">
+    <div class="diagram-container" data-detail-level="read" data-scroll-hint="{{i18n:viewer.nav.scrollHint}}">
       <!-- ARCHIFY:SVG_SLOT_START -->
       <svg viewBox="0 0 1000 680" role="img" aria-label="[PROJECT NAME] architecture diagram">
         <!-- Definitions -->
@@ -603,7 +594,6 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <div class="relationship-lens-head">
           <button class="relationship-lens-drag-handle" id="btn-focus-move" type="button" data-focus-drag-handle aria-label="{{i18n:viewer.passport.move}}" title="{{i18n:viewer.passport.move}}"></button>
           <div class="relationship-lens-copy">
-            <span class="relationship-lens-eyebrow">{{i18n:viewer.passport.eyebrow}}</span>
             <strong class="relationship-lens-title" id="relationship-lens-title"><span id="focus-label"></span></strong>
             <span class="semantic-passport-detail" id="focus-detail" hidden></span>
             <div class="semantic-passport-meta" id="focus-passport-meta" aria-label="{{i18n:viewer.passport.metadata}}">
@@ -611,7 +601,6 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
               <span id="focus-context" data-passport="context" hidden></span>
               <span id="focus-tag" data-passport="tag" hidden></span>
               <span id="focus-brand" data-passport="brand" hidden></span>
-              <code id="focus-id" data-passport="id"></code>
             </div>
             <div class="semantic-passport-evidence" id="focus-evidence" hidden aria-label="{{i18n:viewer.passport.evidence}}">
               <div class="semantic-passport-evidence-head">
@@ -622,7 +611,6 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
             </div>
             <span class="relationship-lens-summary" id="focus-summary" aria-live="polite"></span>
             <div class="semantic-passport-reach" id="focus-reach" hidden>
-              <span class="semantic-passport-reach-label">{{i18n:viewer.passport.reach}}</span>
               <div class="semantic-passport-reach-actions" role="group" aria-label="{{i18n:viewer.passport.reach.trace}}">
                 <button id="btn-reach-upstream" type="button" aria-label="{{i18n:viewer.passport.upstream.trace}}" aria-pressed="false">
                   <span>{{i18n:viewer.passport.upstream}}</span><strong id="focus-reach-upstream-count">0</strong>
@@ -861,16 +849,15 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     }
 
     /* ============================================================
-       Visual style try-on — one topology, four bundled presets.
+       Visual style try-on — one topology, three bundled presets.
        The reader's choice is intentionally session-only: it updates the
        live page and canonical SVG together, but never rewrites the source,
        URL, or a later diagram's authored default.
        ============================================================ */
     Archify.preset = (function () {
-      var PRESETS = ['classic', 'signal-flow', 'blueprint', 'editorial'];
+      var PRESETS = ['classic', 'blueprint', 'editorial'];
       var LABELS = {
         classic: viewerText('viewer.preset.classic.short'),
-        'signal-flow': viewerText('viewer.preset.flow.short'),
         blueprint: viewerText('viewer.preset.blueprint'),
         editorial: viewerText('viewer.preset.editorial')
       };

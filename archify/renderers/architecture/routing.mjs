@@ -21,7 +21,7 @@ import {
   collectRouteRhythmIssues,
   frameBorderSegments,
 } from '../shared/geometry.ts';
-import { shortestOrthogonalGridRoute } from '../shared/route-quality.mjs';
+import { shortestOrthogonalGridRoute } from '../shared/route-quality.ts';
 
 /**
  * Router bound to one set of measured component boxes.

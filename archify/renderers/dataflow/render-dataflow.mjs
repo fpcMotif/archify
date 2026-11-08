@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadDiagramWithBrandMarks, writeDiagram } from '../shared/cli.mjs';
-import { recordDiagnostic } from '../shared/diagnostics.mjs';
+import { recordDiagnostic } from '../shared/diagnostics.ts';
 import { compileDataflow } from './dataflow-compiler.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

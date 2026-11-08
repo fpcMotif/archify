@@ -4,14 +4,37 @@ import {
   resolveLocale,
   translateMessage,
   viewerCatalog,
-} from './i18n.mjs';
+} from './i18n.ts';
 
 export { esc };
+
+export interface SemanticSigilOptions {
+  x?: number;
+  y?: number;
+  size?: number;
+  icon?: string;
+}
+
+export interface InfoCard {
+  dot?: unknown;
+  title?: unknown;
+  items: readonly unknown[];
+}
+
+export interface TemplateFields {
+  title?: unknown;
+  subtitle?: unknown;
+  svg: string;
+  cards: string;
+  locale?: unknown;
+  visualPreset?: unknown;
+  sourceEvidence?: unknown;
+}
 
 // `extra` appends type-owned definitions (the entity renderer's cardinality
 // markers) inside the same <defs>. Callers that pass nothing keep the exact
 // bytes the five longer-standing renderers already emit.
-export function renderDefinitions(extra = '') {
+export function renderDefinitions(extra: string = ''): string {
   return `        <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -32,7 +55,7 @@ export function renderDefinitions(extra = '') {
         </defs>`;
 }
 
-const SIGIL_TONE = {
+const SIGIL_TONE: Record<string, string> = {
   frontend: 'frontend',
   start: 'frontend',
   backend: 'backend',
@@ -49,7 +72,7 @@ const SIGIL_TONE = {
   neutral: 'external',
 };
 
-const SIGIL_SHAPE = {
+const SIGIL_SHAPE: Record<string, string> = {
   calendar: `<rect x="2" y="3.5" width="12" height="10.5" rx="2"/><path d="M5 2v3M11 2v3M2 7h12M5 10h2M9 10h2"/>`,
   clock: `<circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/>`,
   person: `<circle cx="8" cy="4.5" r="2.5"/><path d="M3 14v-2a5 5 0 0 1 10 0v2"/>`,
@@ -100,7 +123,7 @@ export const SEMANTIC_SIGIL_FOOTPRINT = SEMANTIC_SIGIL_INSET + SEMANTIC_SIGIL_SI
 // so labels never sit under the badge.
 export const SOURCE_BADGE_FOOTPRINT = 38;
 
-export function renderSemanticSigil(kind, { x, y, size = SEMANTIC_SIGIL_SIZE, icon } = {}) {
+export function renderSemanticSigil(kind: string, { x, y, size = SEMANTIC_SIGIL_SIZE, icon }: SemanticSigilOptions = {}): string {
   if (icon === 'none') return '';
   const selected = icon ?? kind;
   const normalized = Object.hasOwn(SIGIL_SHAPE, selected) ? selected : 'neutral';
@@ -111,8 +134,8 @@ export function renderSemanticSigil(kind, { x, y, size = SEMANTIC_SIGIL_SIZE, ic
           </g>`;
 }
 
-export function renderCards(cards) {
-  const list = Array.isArray(cards) ? cards : [];
+export function renderCards(cards: unknown): string {
+  const list: readonly InfoCard[] = Array.isArray(cards) ? cards : [];
   return `    <!-- Info Cards -->
     <div class="cards">
 ${list.map((card) => `      <div class="card">
@@ -133,7 +156,7 @@ const SUBTITLE_SLOT_RE = /^([ \t]*)<p class="subtitle">\[Subtitle description\]<
 const SOURCE_EVIDENCE_PLACEHOLDER = '    <!-- ARCHIFY:SOURCE_EVIDENCE_DATA -->';
 const I18N_PLACEHOLDER = '    <!-- ARCHIFY:I18N_DATA -->';
 
-function serializeScriptJson(value) {
+function serializeScriptJson(value: unknown): string {
   return JSON.stringify(value)
     .replaceAll('<', '\\u003c')
     .replaceAll('>', '\\u003e')
@@ -147,7 +170,7 @@ const TEMPLATE_PLACEHOLDERS = [
   I18N_PLACEHOLDER,
 ];
 
-export function applyTemplate(template, {
+export function applyTemplate(template: string, {
   title,
   subtitle,
   svg,
@@ -155,7 +178,7 @@ export function applyTemplate(template, {
   locale,
   visualPreset = 'classic',
   sourceEvidence = null,
-}) {
+}: TemplateFields): string {
   if (!SVG_SLOT_RE.test(template)) {
     throw new Error('applyTemplate: template missing ARCHIFY:SVG_SLOT sentinel');
   }
@@ -190,7 +213,7 @@ export function applyTemplate(template, {
     .replace(TEMPLATE_PLACEHOLDERS[0], () => `<html lang="${esc(resolvedLocale)}" data-theme="dark" data-preset="${esc(visualPreset)}">`)
     .replace(TEMPLATE_PLACEHOLDERS[1], () => `<title>${esc(translateMessage(resolvedLocale, 'page.title', { title }))}</title>`)
     .replace(TEMPLATE_PLACEHOLDERS[2], () => `<h1>${esc(title)}</h1>`)
-    .replace(SUBTITLE_SLOT_RE, (_match, indent, newline = '') => renderedSubtitle
+    .replace(SUBTITLE_SLOT_RE, (_match: string, indent: string, newline: string = '') => renderedSubtitle
       ? `${indent}${renderedSubtitle}${newline}`
       : '')
     .replace(SVG_SLOT_RE, () => svg)
@@ -232,18 +255,18 @@ const VARIATION_SELECTOR_EMOJI = 0xfe0f;
 
 // Width measurement is pure and the same labels are measured many times per
 // compile, so the unit count is memoized by its input string.
-const TEXT_UNITS_CACHE = new Map();
+const TEXT_UNITS_CACHE = new Map<string, number>();
 const MAX_TEXT_UNITS_CACHE_ENTRIES = 4096;
 const MAX_CACHED_TEXT_LENGTH = 1024;
 
-export function textUnits(text) {
+export function textUnits(text: unknown): number {
   const cacheKey = String(text ?? '');
   const cachedUnits = TEXT_UNITS_CACHE.get(cacheKey);
   if (cachedUnits !== undefined) return cachedUnits;
   const chars = Array.from(cacheKey);
   let units = 0;
   for (let i = 0; i < chars.length; i += 1) {
-    const codePoint = chars[i].codePointAt(0);
+    const codePoint = chars[i].codePointAt(0)!;
     if (codePoint >= VARIATION_SELECTOR_FIRST && codePoint <= VARIATION_SELECTOR_LAST) continue;
     const next = i + 1 < chars.length ? chars[i + 1].codePointAt(0) : -1;
     if (next === VARIATION_SELECTOR_EMOJI) units += 2;
@@ -252,7 +275,7 @@ export function textUnits(text) {
   // Keep repeated in-process compiles bounded, including unusually long labels.
   if (cacheKey.length <= MAX_CACHED_TEXT_LENGTH) {
     if (TEXT_UNITS_CACHE.size >= MAX_TEXT_UNITS_CACHE_ENTRIES) {
-      TEXT_UNITS_CACHE.delete(TEXT_UNITS_CACHE.keys().next().value);
+      TEXT_UNITS_CACHE.delete(TEXT_UNITS_CACHE.keys().next().value!);
     }
     TEXT_UNITS_CACHE.set(cacheKey, units);
   }

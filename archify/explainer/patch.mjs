@@ -6,7 +6,7 @@ import { resolveExplainerSources } from './sources.mjs';
 import { prepareExplainerDiagrams } from './diagrams.mjs';
 import { computeExplainerRevision } from './revision.mjs';
 import { unpackPageBundle } from './page-bundle.mjs';
-import { throwDiagnosticError } from '../renderers/shared/diagnostics.mjs';
+import { throwDiagnosticError } from '../renderers/shared/diagnostics.ts';
 
 function fail(reason, message, input, panelId, example) {
   throwDiagnosticError(message, [{code:`explainer/patch-${reason}`,severity:'error',message,

@@ -88,7 +88,6 @@ test('reachability stays explicit, deep-linkable, keyboard reachable, and export
   assert.match(template, /clone\.removeAttribute\('data-reach-active'\)/);
   assert.match(template, /clone\.querySelectorAll\('\[data-reach-match\], \[data-reach-origin\], \[data-reach-depth\]'/);
   assert.match(template, /!clone\.hasAttribute\('data-reach-active'\)/);
-  assert.match(template, /svg\[data-preset="blueprint"\]\[data-reach-active\]/);
   assert.match(template, /\.diagram-container svg\[data-reach-active\] \[data-node-id\]/);
 });
 

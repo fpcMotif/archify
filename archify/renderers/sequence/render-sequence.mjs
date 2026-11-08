@@ -1,15 +1,15 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { esc, renderDefinitions, renderSemanticSigil, textUnits, SEMANTIC_SIGIL_SIZE } from '../shared/utils.mjs';
+import { esc, renderDefinitions, renderSemanticSigil, textUnits, SEMANTIC_SIGIL_SIZE } from '../shared/utils.ts';
 import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, loadDiagramWithBrandMarks, writeDiagram, svgAccessibleText, svgRootAttrs } from '../shared/cli.mjs';
-import { throwDiagnosticProblems } from '../shared/diagnostics.mjs';
-import { chooseFix, fixFields, setFix } from '../shared/fixes.mjs';
-import { legendFootprint, measureLegend, resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.mjs';
+import { throwDiagnosticProblems } from '../shared/diagnostics.ts';
+import { chooseFix, fixFields, setFix } from '../shared/fixes.ts';
+import { legendFootprint, measureLegend, resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.ts';
 import { componentFill, arrowClassMap, rectsOverlap, cleanFlowProblems, cleanCrossingProblems, cleanAmbiguousCorridorProblems, cleanBorderRunProblems, cleanRouteRhythmProblems, cleanLabelRouteClearanceProblems, cleanLabelCanvasContainmentProblems, routePointsValue, asArray, isFinitePoint, edgeLabelAccent } from '../shared/geometry.ts';
-import { availableNodeTextWidth, fittedNodeFontSize, inlineTitleSigilLayout, minimumNodeTextWidth } from '../shared/text-fit.mjs';
+import { availableNodeTextWidth, fittedNodeFontSize, inlineTitleSigilLayout, minimumNodeTextWidth } from '../shared/text-fit.ts';
 import { brandLabelFitWidth, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../shared/brand-marks.mjs';
-import { translateMessage as i18nText } from '../shared/i18n.mjs';
-import { DESKTOP_READER_DIAGRAM_WIDTH, MIN_PROJECTED_NODE_TEXT_PX, minimumReadableSourceTextPx } from '../shared/desktop-readability.mjs';
+import { translateMessage as i18nText } from '../shared/i18n.ts';
+import { DESKTOP_READER_DIAGRAM_WIDTH, MIN_PROJECTED_NODE_TEXT_PX, minimumReadableSourceTextPx } from '../shared/desktop-readability.ts';
 
 const participantTextFit = {
   sublabelPreferred: 7,
@@ -984,7 +984,6 @@ function renderParticipant(participant) {
   const passport = {
     kind: participant.type,
     sublabel: participant.sublabel,
-    context: i18nText(sequence.meta.locale, 'node.context.sequence'),
     ...brandMetadataFor(participant),
   };
   return `        <g ${focusNodeAttrs(participant.id, participant.label, passport, sequence.meta.locale)}>

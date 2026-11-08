@@ -70,6 +70,13 @@ distributed under the MIT License. The subset and its license text are in
 `explainer/vendor/pele/` in the packaged Skill. Charts are rendered to static
 SVG when a page is built; delivered pages contain no Pele code.
 
+`archify import mermaid` parses flowchart, sequence, state, ER, class,
+timeline, mindmap and architecture diagrams with an unmodified subset of
+[Pele 1.13.0](https://github.com/obsidianmd/pele), copyright (c) 2026 kepano,
+distributed under the MIT License. The subset and its license text are in
+`mermaid/vendor/pele/` in the packaged Skill. Only Pele's parsers run, during
+import; delivered pages contain no Pele code.
+
 ## No additional rights granted
 
 Brand names, logos, and trademarks remain the property of their respective

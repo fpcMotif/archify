@@ -1,4 +1,5 @@
 import { softwareNoticesHtml } from '../renderers/shared/software-notices.mjs';
+import { visualPreset } from '../renderers/shared/cli.mjs';
 import { parseRepositoryRemote } from '../renderers/shared/repository-location.mjs';
 
 const COMPARATOR_VERSION = 1;
@@ -345,7 +346,7 @@ export function compareArchitecture(base, head, evidence = {}) {
       connections: 'connections[].id (required)',
       boundaries: 'boundaries[].kind + boundaries[].label (derived)',
     },
-    view: { visualPreset: head.meta?.visual_preset || 'classic' },
+    view: { visualPreset: visualPreset(head.meta) },
     limitations: [
       'Authored Architecture IR only; no runtime impact, causality, risk, or mergeability is inferred.',
       'Boundary identity is conservatively derived from kind + label.',
@@ -1222,7 +1223,7 @@ html[data-theme="dark"] body{background:#071019!important;background-image:none!
   });
 
   document.querySelector('#theme').addEventListener('click', () => { document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; });
-  const presets = ['classic', 'signal-flow', 'blueprint'];
+  const presets = ['classic', 'blueprint', 'editorial'];
   document.querySelector('#preset').addEventListener('click', () => { const now = document.documentElement.dataset.preset; document.documentElement.dataset.preset = presets[(presets.indexOf(now) + 1) % presets.length]; });
   document.querySelector('#export-svg').addEventListener('click', exportCanonicalSvg);
   document.querySelector('#share-card').addEventListener('click', () => { downloadShareCard().catch((error) => window.alert(error.message)); });

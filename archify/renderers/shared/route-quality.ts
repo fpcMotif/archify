@@ -1,4 +1,4 @@
-import { recordDiagnostic } from './diagnostics.mjs';
+import { recordDiagnostic } from './diagnostics.ts';
 import {
   asArray,
   isFinitePoint,
@@ -6,8 +6,111 @@ import {
   properSegmentIntersection,
   segmentIntersectsRect,
 } from './geometry.ts';
+import type { IdSet, IdentifiedRect, PathFor, Point, Rect, Relation, Segment } from './geometry.ts';
 
-const DEFAULTS = Object.freeze({
+export interface RouteDetourThresholds {
+  clearance: number;
+  minimumDetourRatio: number;
+  minimumExcessLengthPx: number;
+  minimumEmptyExcursionPx: number;
+  maximumObstacleCount: number;
+  sharedCorridorMinimumPx: number;
+}
+
+export interface ContentBounds {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+  width: number;
+  height: number;
+}
+
+interface Excursion {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+  maximum: number;
+}
+
+interface ControlPointClearance {
+  maximum: number;
+  point: Point;
+}
+
+interface HeapEntry {
+  key: string;
+  distance: number;
+}
+
+type GraphEdge = [string, number, string];
+
+export interface GridRouteMetrics {
+  status?: string;
+  maximumGridNodes?: number;
+  obstacleCount?: number;
+  avoidedSegmentCount?: number;
+  coordinateCount?: number;
+  candidateNodeCount?: number;
+  usableNodeCount?: number;
+  graphEdgeCount?: number;
+  visitedNodeCount?: number;
+  attemptCount?: number;
+}
+
+export interface GridRouteOptions {
+  start: Point;
+  end: Point;
+  points: Point[];
+  obstacles: Iterable<IdentifiedRect>;
+  fromSide: string;
+  toSide: string;
+  clearance: number;
+  maximumObstacleCount: number;
+  endpointStubPx?: number;
+  maximumGridNodes?: number;
+  avoidedSegments?: Iterable<Segment>;
+  allowAvoidedCrossings?: boolean;
+  minimumAvoidedOverlapPx?: number;
+  routeSeparationPx?: number;
+  minimumSegmentPx?: number;
+  borderSegments?: Iterable<Segment>;
+  bendPenaltyPx?: number;
+  accept?: (points: Point[]) => boolean;
+  metrics?: GridRouteMetrics | null;
+}
+
+export interface GridRoute {
+  points: Point[];
+  length: number | null;
+  obstacleCount: number;
+}
+
+interface SharedCorridorOptions {
+  relation: Relation;
+  relations: (Relation | null | undefined)[] | null | undefined;
+  pathFor: PathFor;
+  points: Point[];
+  contentBounds: ContentBounds | null;
+  minimumOverlap: number;
+}
+
+export interface RouteDetourOptions {
+  relations: (Relation | null | undefined)[] | null | undefined;
+  obstacles: Iterable<IdentifiedRect>;
+  contentRects?: Iterable<Rect>;
+  endpointIds?: IdSet | null;
+  pathFor: PathFor;
+  fromSideFor?: (relation: Relation) => string | null | undefined;
+  toSideFor?: (relation: Relation) => string | null | undefined;
+  diagramType: string;
+  relationCollection: string;
+  profile?: string;
+  thresholds?: Partial<RouteDetourThresholds>;
+}
+
+const DEFAULTS: Readonly<RouteDetourThresholds> = Object.freeze({
   clearance: 2,
   minimumDetourRatio: 2.5,
   minimumExcessLengthPx: 200,
@@ -16,27 +119,29 @@ const DEFAULTS = Object.freeze({
   sharedCorridorMinimumPx: 32,
 });
 
-const OUTWARD = Object.freeze({
+const OUTWARD: Readonly<Record<string, Point>> = Object.freeze({
   left: [-1, 0],
   right: [1, 0],
   top: [0, -1],
   bottom: [0, 1],
 });
 
-function rounded(value) {
+function rounded(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-function pointKey(point) {
+function pointKey(point: Point): string {
   return `${point[0]}\u0000${point[1]}`;
 }
 
 class MinHeap {
+  entries: HeapEntry[];
+
   constructor() {
     this.entries = [];
   }
 
-  push(key, distance) {
+  push(key: string, distance: number): void {
     const entry = { key, distance };
     this.entries.push(entry);
     let index = this.entries.length - 1;
@@ -49,10 +154,10 @@ class MinHeap {
     this.entries[index] = entry;
   }
 
-  pop() {
+  pop(): HeapEntry | null {
     if (!this.entries.length) return null;
     const first = this.entries[0];
-    const last = this.entries.pop();
+    const last = this.entries.pop()!;
     if (!this.entries.length) return first;
     let index = 0;
     while (true) {
@@ -70,7 +175,7 @@ class MinHeap {
   }
 }
 
-function orthogonalLength(points) {
+function orthogonalLength(points: Point[]): number | null {
   let total = 0;
   for (let index = 0; index < points.length - 1; index += 1) {
     const [x1, y1] = points[index];
@@ -81,10 +186,10 @@ function orthogonalLength(points) {
   return total;
 }
 
-function inferredSide(points, endpoint) {
+function inferredSide(points: Point[], endpoint: 'source' | 'target'): string | null {
   if (points.length < 2) return null;
-  const start = endpoint === 'source' ? points[0] : points.at(-2);
-  const end = endpoint === 'source' ? points[1] : points.at(-1);
+  const start = endpoint === 'source' ? points[0] : points.at(-2)!;
+  const end = endpoint === 'source' ? points[1] : points.at(-1)!;
   const dx = end[0] - start[0];
   const dy = end[1] - start[1];
   if (endpoint === 'source') {
@@ -101,12 +206,12 @@ function inferredSide(points, endpoint) {
   return null;
 }
 
-function moveOutward(point, side, distance) {
+function moveOutward(point: Point, side: string, distance: number): Point {
   const [dx, dy] = OUTWARD[side] || [0, 0];
   return [point[0] + dx * distance, point[1] + dy * distance];
 }
 
-function expandedRect(rect, clearance) {
+function expandedRect(rect: IdentifiedRect, clearance: number): IdentifiedRect {
   return {
     id: rect.id,
     x: rect.x - clearance,
@@ -116,7 +221,7 @@ function expandedRect(rect, clearance) {
   };
 }
 
-function boundsForRects(rects) {
+function boundsForRects(rects: Iterable<Rect>): ContentBounds | null {
   const usable = [...rects].filter((rect) => (
     rect && isFinitePoint(rect.x, rect.y, rect.width, rect.height)
       && rect.width >= 0 && rect.height >= 0
@@ -129,7 +234,7 @@ function boundsForRects(rects) {
   return { left, top, right, bottom, width: right - left, height: bottom - top };
 }
 
-function boundsForPoints(points) {
+function boundsForPoints(points: Point[]): ContentBounds | null {
   if (!points.length) return null;
   const xs = points.map(([x]) => x);
   const ys = points.map(([, y]) => y);
@@ -140,7 +245,7 @@ function boundsForPoints(points) {
   return { left, top, right, bottom, width: right - left, height: bottom - top };
 }
 
-function outsideExcursion(routeBounds, contentBounds) {
+function outsideExcursion(routeBounds: ContentBounds | null, contentBounds: ContentBounds | null): Excursion | null {
   if (!routeBounds || !contentBounds) return null;
   const sides = {
     left: Math.max(0, contentBounds.left - routeBounds.left),
@@ -151,13 +256,13 @@ function outsideExcursion(routeBounds, contentBounds) {
   return { ...sides, maximum: Math.max(...Object.values(sides)) };
 }
 
-function pointDistanceFromRect(point, rect) {
+function pointDistanceFromRect(point: Point, rect: Rect): number {
   const dx = Math.max(rect.x - point[0], 0, point[0] - (rect.x + rect.width));
   const dy = Math.max(rect.y - point[1], 0, point[1] - (rect.y + rect.height));
   return dx + dy;
 }
 
-function emptyControlPointClearance(points, contentRects) {
+function emptyControlPointClearance(points: Point[], contentRects: Iterable<Rect>): ControlPointClearance | null {
   const controls = points.slice(1, -1);
   const rects = [...contentRects].filter((rect) => (
     rect && isFinitePoint(rect.x, rect.y, rect.width, rect.height)
@@ -171,7 +276,7 @@ function emptyControlPointClearance(points, contentRects) {
   return { maximum, point: controls[distances.indexOf(maximum)] };
 }
 
-function pointBlocked(point, obstacles) {
+function pointBlocked(point: Point, obstacles: Rect[]): boolean {
   return obstacles.some((rect) => (
     point[0] >= rect.x && point[0] <= rect.x + rect.width
       && point[1] >= rect.y && point[1] <= rect.y + rect.height
@@ -181,7 +286,7 @@ function pointBlocked(point, obstacles) {
 // Prune only against the candidate segment, never the route's initial bounds:
 // a later detour can still encounter any obstacle in the complete inventory.
 // Keep epsilon-near bounds for the existing exact predicates to decide.
-function segmentBlocked(start, end, obstacles) {
+function segmentBlocked(start: Point, end: Point, obstacles: Rect[]): boolean {
   const minX = Math.min(start[0], end[0]);
   const maxX = Math.max(start[0], end[0]);
   const minY = Math.min(start[1], end[1]);
@@ -195,7 +300,7 @@ function segmentBlocked(start, end, obstacles) {
   });
 }
 
-function segmentConflictsWithAvoided(start, end, avoidedSegments, minimumOverlapPx, allowCrossings) {
+function segmentConflictsWithAvoided(start: Point, end: Point, avoidedSegments: Segment[], minimumOverlapPx: number, allowCrossings: boolean): boolean {
   const minX = Math.min(start[0], end[0]);
   const maxX = Math.max(start[0], end[0]);
   const minY = Math.min(start[1], end[1]);
@@ -212,7 +317,7 @@ function segmentConflictsWithAvoided(start, end, avoidedSegments, minimumOverlap
   });
 }
 
-function orthogonalTouchOnAvoidedInterior(start, end, avoidedStart, avoidedEnd) {
+function orthogonalTouchOnAvoidedInterior(start: Point, end: Point, avoidedStart: Point, avoidedEnd: Point): boolean {
   const epsilon = 0.0001;
   const candidateHorizontal = Math.abs(start[1] - end[1]) <= epsilon;
   const candidateVertical = Math.abs(start[0] - end[0]) <= epsilon;
@@ -237,7 +342,7 @@ function orthogonalTouchOnAvoidedInterior(start, end, avoidedStart, avoidedEnd) 
   return false;
 }
 
-function pointOnSegmentInterior(point, start, end) {
+function pointOnSegmentInterior(point: Point, start: Point, end: Point): boolean {
   const epsilon = 0.0001;
   const cross = (end[0] - start[0]) * (point[1] - start[1])
     - (end[1] - start[1]) * (point[0] - start[0]);
@@ -247,13 +352,13 @@ function pointOnSegmentInterior(point, start, end) {
   return dot < -epsilon;
 }
 
-function pointOnAvoidedInterior(point, avoidedSegments) {
+function pointOnAvoidedInterior(point: Point, avoidedSegments: Segment[]): boolean {
   return avoidedSegments.some((segment) => (
     pointOnSegmentInterior(point, segment.start, segment.end)
   ));
 }
 
-function writeGridMetrics(metrics, patch) {
+function writeGridMetrics(metrics: GridRouteMetrics | null | undefined, patch: GridRouteMetrics): void {
   if (!metrics || typeof metrics !== 'object') return;
   Object.assign(metrics, patch);
 }
@@ -278,7 +383,7 @@ export function shortestOrthogonalGridRoute({
   bendPenaltyPx = 0,
   accept = () => true,
   metrics,
-}) {
+}: GridRouteOptions): GridRoute | null {
   writeGridMetrics(metrics, {
     status: 'initializing',
     maximumGridNodes,
@@ -343,7 +448,7 @@ export function shortestOrthogonalGridRoute({
       ys.add(segmentStart[1] + routeSeparationPx);
     }
   }
-  function addBorderCoordinates(distance) {
+  function addBorderCoordinates(distance: number): void {
     for (const segment of relevantBorderSegments) {
       if (Math.abs(segment.start[0] - segment.end[0]) <= 0.0001) {
         xs.add(segment.start[0] - distance);
@@ -359,7 +464,7 @@ export function shortestOrthogonalGridRoute({
   // Grid lines closer than a readable segment would let the search emit a
   // micro jog between two obstacle edges; keep the endpoint stubs and coalesce
   // the rest so every turn the route can take is at least one segment long.
-  const coalesce = (values, keep, fillGaps) => {
+  const coalesce = (values: number[], keep: Set<number>, fillGaps: boolean): number[] => {
     const sorted = values.sort((a, b) => a - b);
     if (!fillGaps) return sorted.filter((value, index) => (
       index === 0 || keep.has(value) || value - sorted[index - 1] >= minimumSegmentPx
@@ -367,8 +472,8 @@ export function shortestOrthogonalGridRoute({
     // A dense chain of discarded coordinates can erase a usable corridor.
     // Compare with the last retained line while reserving readable spacing
     // around the endpoint lines that must be kept.
-    return sorted.reduce((retained, value) => {
-      if (keep.has(value) || ((!retained.length || value - retained.at(-1) >= minimumSegmentPx)
+    return sorted.reduce<number[]>((retained, value) => {
+      if (keep.has(value) || ((!retained.length || value - retained.at(-1)! >= minimumSegmentPx)
         && [...keep].every(endpoint => Math.abs(value - endpoint) >= minimumSegmentPx))) retained.push(value);
       return retained;
     }, []);
@@ -394,10 +499,10 @@ export function shortestOrthogonalGridRoute({
       return null;
     }
     remainingGridNodes -= candidateNodeCount;
-    const nodes = new Map();
+    const nodes: Map<string, Point> = new Map();
     for (const x of orderedX) {
       for (const y of orderedY) {
-        const point = [x, y];
+        const point: Point = [x, y];
         if (!pointBlocked(point, expanded)
             && (allowAvoidedCrossings || !pointOnAvoidedInterior(point, relevantAvoidedSegments))) {
           nodes.set(pointKey(point), point);
@@ -410,9 +515,9 @@ export function shortestOrthogonalGridRoute({
       return null;
     }
 
-    const adjacency = new Map([...nodes.keys()].map((key) => [key, []]));
+    const adjacency: Map<string, GraphEdge[]> = new Map([...nodes.keys()].map((key): [string, GraphEdge[]] => [key, []]));
     let graphEdgeCount = 0;
-    const connectLine = (line, axis) => {
+    const connectLine = (line: Point[], axis: string): void => {
       for (let index = 0; index < line.length - 1; index += 1) {
         const left = line[index];
         const right = line[index + 1];
@@ -430,16 +535,16 @@ export function shortestOrthogonalGridRoute({
         const distance = Math.abs(right[0] - left[0]) + Math.abs(right[1] - left[1]);
         const leftKey = pointKey(left);
         const rightKey = pointKey(right);
-        adjacency.get(leftKey).push([rightKey, distance, axis === 'h' ? 'R' : 'D']);
-        adjacency.get(rightKey).push([leftKey, distance, axis === 'h' ? 'L' : 'U']);
+        adjacency.get(leftKey)!.push([rightKey, distance, axis === 'h' ? 'R' : 'D']);
+        adjacency.get(rightKey)!.push([leftKey, distance, axis === 'h' ? 'L' : 'U']);
         graphEdgeCount += 1;
       }
     };
     for (const y of orderedY) {
-      connectLine(orderedX.map((x) => nodes.get(pointKey([x, y]))).filter(Boolean), 'h');
+      connectLine(orderedX.map((x) => nodes.get(pointKey([x, y]))).filter(Boolean) as Point[], 'h');
     }
     for (const x of orderedX) {
-      connectLine(orderedY.map((y) => nodes.get(pointKey([x, y]))).filter(Boolean), 'v');
+      connectLine(orderedY.map((y) => nodes.get(pointKey([x, y]))).filter(Boolean) as Point[], 'v');
     }
     writeGridMetrics(metrics, { graphEdgeCount: (metrics?.graphEdgeCount || 0) + graphEdgeCount });
 
@@ -448,22 +553,22 @@ export function shortestOrthogonalGridRoute({
     // corner with a staircase of short jogs, while a bend-penalised one takes
     // the same corridor in a few long strokes. The first stub already leaves
     // the endpoint along its side and the last one arrives along the end side.
-    const directionOf = ([dx, dy]) => (dx > 0 ? 'R' : dx < 0 ? 'L' : dy > 0 ? 'D' : 'U');
-    const opposite = { R: 'L', L: 'R', D: 'U', U: 'D' };
-    const stateKey = (key, direction) => `${key}|${direction}`;
+    const directionOf = ([dx, dy]: Point): string => (dx > 0 ? 'R' : dx < 0 ? 'L' : dy > 0 ? 'D' : 'U');
+    const opposite: Record<string, string> = { R: 'L', L: 'R', D: 'U', U: 'D' };
+    const stateKey = (key: string, direction: string): string => `${key}|${direction}`;
     const sourceAxis = directionOf(OUTWARD[fromSide]);
     const targetAxis = opposite[directionOf(OUTWARD[toSide])];
     const source = pointKey(startStub);
     const target = pointKey(endStub);
     const sourceState = stateKey(source, sourceAxis);
-    const distances = new Map([[sourceState, 0]]);
-    const previous = new Map();
+    const distances: Map<string, number> = new Map([[sourceState, 0]]);
+    const previous: Map<string, string> = new Map();
     const queue = new MinHeap();
     queue.push(sourceState, 0);
     let visitedNodeCount = 0;
-    let targetState = null;
+    let targetState: HeapEntry | null = null;
     while (queue.entries.length) {
-      const next = queue.pop();
+      const next = queue.pop()!;
       const current = next.key;
       const currentDistance = next.distance;
       if (currentDistance !== distances.get(current)) continue;
@@ -496,12 +601,12 @@ export function shortestOrthogonalGridRoute({
       writeGridMetrics(metrics, { status: 'no-route' });
       continue;
     }
-    const reversed = [];
-    for (let key = targetState.key; key; key = previous.get(key)) {
-      reversed.push(nodes.get(key.split('|')[0]));
+    const reversed: Point[] = [];
+    for (let key: string | undefined = targetState.key; key; key = previous.get(key)) {
+      reversed.push(nodes.get(key.split('|')[0])!);
       if (key === sourceState) break;
     }
-    if (pointKey(reversed.at(-1)) !== source) {
+    if (pointKey(reversed.at(-1)!) !== source) {
       writeGridMetrics(metrics, { status: 'broken-predecessor-chain' });
       return null;
     }
@@ -520,7 +625,7 @@ export function shortestOrthogonalGridRoute({
   return null;
 }
 
-function collinearOverlap(leftStart, leftEnd, rightStart, rightEnd) {
+function collinearOverlap(leftStart: Point, leftEnd: Point, rightStart: Point, rightEnd: Point): number {
   if (leftStart[0] === leftEnd[0] && rightStart[0] === rightEnd[0]
       && leftStart[0] === rightStart[0]) {
     return Math.max(0, Math.min(Math.max(leftStart[1], leftEnd[1]), Math.max(rightStart[1], rightEnd[1]))
@@ -534,14 +639,14 @@ function collinearOverlap(leftStart, leftEnd, rightStart, rightEnd) {
   return 0;
 }
 
-function segmentOutsideContent(start, end, contentBounds) {
+function segmentOutsideContent(start: Point, end: Point, contentBounds: ContentBounds | null): boolean {
   if (!contentBounds) return false;
   const midpoint = [(start[0] + end[0]) / 2, (start[1] + end[1]) / 2];
   return midpoint[0] < contentBounds.left || midpoint[0] > contentBounds.right
     || midpoint[1] < contentBounds.top || midpoint[1] > contentBounds.bottom;
 }
 
-function sharesOuterCorridor({ relation, relations, pathFor, points, contentBounds, minimumOverlap }) {
+function sharesOuterCorridor({ relation, relations, pathFor, points, contentBounds, minimumOverlap }: SharedCorridorOptions): boolean {
   for (const other of asArray(relations)) {
     if (!other || other === relation) continue;
     const related = relation.from === other.from || relation.from === other.to
@@ -560,7 +665,7 @@ function sharesOuterCorridor({ relation, relations, pathFor, points, contentBoun
   return false;
 }
 
-function relationshipSubject(diagramType, relationCollection, relationIndex, relation) {
+function relationshipSubject(diagramType: string, relationCollection: string, relationIndex: number, relation: Relation): object {
   return {
     diagramType,
     collection: relationCollection,
@@ -587,12 +692,12 @@ export function cleanRouteDetourProblems({
   relationCollection,
   profile,
   thresholds = {},
-}) {
+}: RouteDetourOptions): string[] {
   if (profile !== 'showcase') return [];
   const policy = { ...DEFAULTS, ...thresholds };
   const obstacleList = [...obstacles];
   const contentBounds = boundsForRects(contentRects);
-  const problems = [];
+  const problems: string[] = [];
   for (const [relationIndex, relation] of asArray(relations).entries()) {
     if (!relation || !endpointIds?.has(relation.from) || !endpointIds?.has(relation.to)) continue;
     if (!Array.isArray(relation.via) || relation.via.length === 0) continue;
@@ -601,10 +706,10 @@ export function cleanRouteDetourProblems({
     const actualLength = orthogonalLength(points);
     if (!Number.isFinite(actualLength)) continue;
     const start = points[0];
-    const end = points.at(-1);
+    const end = points.at(-1)!;
     const manhattan = Math.abs(end[0] - start[0]) + Math.abs(end[1] - start[1]);
-    if (actualLength < manhattan * policy.minimumDetourRatio
-        || actualLength - manhattan < policy.minimumExcessLengthPx) continue;
+    if (actualLength! < manhattan * policy.minimumDetourRatio
+        || actualLength! - manhattan < policy.minimumExcessLengthPx) continue;
     const routeBounds = boundsForPoints(points);
     const excursion = outsideExcursion(routeBounds, contentBounds);
     const emptyClearance = emptyControlPointClearance(points, obstacleList);
@@ -626,18 +731,18 @@ export function cleanRouteDetourProblems({
       end,
       points,
       obstacles: obstacleList,
-      fromSide,
-      toSide,
+      fromSide: fromSide as string,
+      toSide: toSide as string,
       clearance: policy.clearance,
       maximumObstacleCount: policy.maximumObstacleCount,
     });
-    if (!shortest || !Number.isFinite(shortest.length) || shortest.length <= 0) continue;
-    const detourRatio = actualLength / shortest.length;
-    const excessLength = actualLength - shortest.length;
+    if (!shortest || !Number.isFinite(shortest.length) || shortest.length! <= 0) continue;
+    const detourRatio = actualLength! / shortest.length!;
+    const excessLength = actualLength! - shortest.length!;
     if (detourRatio < policy.minimumDetourRatio || excessLength < policy.minimumExcessLengthPx) continue;
 
     const relationId = relation.id ? ` id "${relation.id}"` : '';
-    const message = `[composition/excessive-route-detour] ${diagramType} ${relationCollection}[${relationIndex}]${relationId} "${relation.from}" -> "${relation.to}" travels ${Math.round(actualLength)}px, ${rounded(detourRatio)}x the ${Math.round(shortest.length)}px shortest obstacle-clearing orthogonal route, and reaches ${Math.round(excursion.maximum)}px beyond the content bounds — remove the distant via corridor or move it close to the connected content.`;
+    const message = `[composition/excessive-route-detour] ${diagramType} ${relationCollection}[${relationIndex}]${relationId} "${relation.from}" -> "${relation.to}" travels ${Math.round(actualLength!)}px, ${rounded(detourRatio)}x the ${Math.round(shortest.length!)}px shortest obstacle-clearing orthogonal route, and reaches ${Math.round(excursion!.maximum)}px beyond the content bounds — remove the distant via corridor or move it close to the connected content.`;
     const supportedFix = 'remove the distant via points and retry automatic routing, or keep the endpoint sides and move the via corridor near the connected nodes while preserving labels and direction';
     recordDiagnostic({
       code: 'composition/excessive-route-detour',
@@ -646,9 +751,9 @@ export function cleanRouteDetourProblems({
       subject: relationshipSubject(diagramType, relationCollection, relationIndex, relation),
       evidence: {
         points,
-        actualLengthPx: rounded(actualLength),
+        actualLengthPx: rounded(actualLength!),
         shortestLegalPoints: shortest.points,
-        shortestLegalLengthPx: rounded(shortest.length),
+        shortestLegalLengthPx: rounded(shortest.length!),
         detourRatio: rounded(detourRatio),
         excessLengthPx: rounded(excessLength),
         routeBounds,

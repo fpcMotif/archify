@@ -1,11 +1,7 @@
-import { createHash } from 'node:crypto';
-import { lookup } from 'node:dns/promises';
-import http from 'node:http';
-import https from 'node:https';
 import net from 'node:net';
 import { BRAND_MARKS } from './generated-brand-marks.mjs';
-import { throwDiagnosticError } from './diagnostics.mjs';
-import { esc, textUnits } from './utils.mjs';
+import { throwDiagnosticError } from './diagnostics.ts';
+import { esc, textUnits } from './utils.ts';
 
 const COLLECTIONS = Object.freeze({
   architecture: 'components',
@@ -165,7 +161,7 @@ async function resolveRequestTarget(url, deadline) {
   const directFamily = net.isIP(host);
   const addresses = directFamily
     ? [{ address: host, family: directFamily }]
-    : await beforeDeadline(lookup(host, { all: true, verbatim: true }), deadline);
+    : await beforeDeadline((await import('node:dns/promises')).lookup(host, { all: true, verbatim: true }), deadline);
   if (!addresses.length || (!allowPrivate && addresses.some(({ address }) => isPrivateBrandAddress(address)))) {
     throw new Error('private brand links are not fetched');
   }
@@ -186,9 +182,9 @@ function captureTimeoutMilliseconds() {
   return Math.max(100, Math.min(30000, Math.round(configured)));
 }
 
-function requestPinned(url, accept, target, deadline) {
+async function requestPinned(url, accept, target, deadline) {
+  const { default: transport } = await import(url.protocol === 'https:' ? 'node:https' : 'node:http');
   return new Promise((resolve, reject) => {
-    const transport = url.protocol === 'https:' ? https : http;
     const request = transport.request(url, {
       method: 'GET',
       signal: timeoutSignal(Math.max(1, Math.min(4500, deadline - Date.now()))),
@@ -482,7 +478,7 @@ async function imageData(response) {
   if (!signatureMatches) throw new Error(`brand asset bytes do not match ${contentType}`);
   return {
     dataUrl: `data:${contentType};base64,${buffer.toString('base64')}`,
-    sha256: createHash('sha256').update(buffer).digest('hex'),
+    sha256: new Bun.CryptoHasher('sha256').update(buffer).digest('hex'),
     contentType,
   };
 }

@@ -9,7 +9,7 @@ import vm from 'node:vm';
 
 const skillRoot = fileURLToPath(new URL('../archify/', import.meta.url));
 const cli = path.join(skillRoot, 'bin/archify.mjs');
-const diagnosticModule = new URL('../archify/renderers/shared/diagnostics.mjs', import.meta.url).href;
+const diagnosticModule = new URL('../archify/renderers/shared/diagnostics.ts', import.meta.url).href;
 const installBoundary = `import { installRendererDiagnosticBoundary } from ${JSON.stringify(diagnosticModule)}; installRendererDiagnosticBoundary();`;
 const examples = {
   architecture: 'web-app.architecture.json',
@@ -243,7 +243,7 @@ test('unexpected renderer exceptions keep native debugging information and are n
 
 test('a recorded layout diagnostic cannot hide a later unclassified exception', t => {
   const cwd = workspace(t);
-  const helper = new URL('../archify/renderers/shared/diagnostics.mjs', import.meta.url).href;
+  const helper = new URL('../archify/renderers/shared/diagnostics.ts', import.meta.url).href;
   const setup = `import { installRendererDiagnosticBoundary, recordDiagnostic, throwDiagnosticError } from ${JSON.stringify(helper)};
     installRendererDiagnosticBoundary();
     recordDiagnostic({ code: 'layout/constraint', message: 'earlier layout problem' });`;
@@ -408,12 +408,13 @@ test('invalid output arguments keep their implementation error instead of a file
 test('renderer and standalone CLI format the same diagnostics consistently', () => {
   // Evaluate only the pure formatter: importing the CLI would run its command
   // dispatch, and sharing its renderer import would break incomplete-install doctor.
-  const formatters = [cli, path.join(skillRoot, 'renderers/shared/diagnostics.mjs')].map(file => {
+  const formatters = [cli, path.join(skillRoot, 'renderers/shared/diagnostics.ts')].map(file => {
     const source = fs.readFileSync(file, 'utf8');
     const start = source.indexOf('function formatDiagnostics(');
     assert.notEqual(start, -1);
     const end = source.indexOf('\n}', start) + 2;
-    return vm.runInNewContext(`(${source.slice(start, end)})`);
+    const formatter = new Bun.Transpiler({ loader: 'ts' }).transformSync(`export default ${source.slice(start, end)}`);
+    return vm.runInNewContext(`(${formatter.slice(formatter.indexOf('function formatDiagnostics('), formatter.lastIndexOf('}') + 1)})`);
   });
   for (const diagnostics of [[], [
     { code: 'layout/constraint', message: '标签过宽', supportedFixes: ['widen size', 'shorten label'] },

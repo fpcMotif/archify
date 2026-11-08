@@ -17,7 +17,7 @@ function render(mode, doc) {
   renderDoc.meta = { ...renderDoc.meta, output: `${mode}-automatic-port-spread.html` };
   fs.writeFileSync(input, JSON.stringify(renderDoc));
   try {
-    execFileSync('node', [
+    execFileSync(process.execPath, [
       path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
       input,
       output,

@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -282,7 +281,7 @@ function removeOwnedProbe(targetPath, expectedStat) {
     return probeInterference('filesystem probe identity changed before cleanup');
   }
 
-  const quarantineName = `.archify-path-semantics-cleanup-${process.pid}-${crypto.randomBytes(10).toString('hex')}`;
+  const quarantineName = `.archify-path-semantics-cleanup-${process.pid}-${Buffer.from(crypto.getRandomValues(new Uint8Array(10))).toString('hex')}`;
   const quarantinePath = path.join(path.dirname(targetPath), quarantineName);
   rememberProbeName(quarantineName);
   try {
@@ -603,7 +602,7 @@ function probeNameAlias(directoryPath, leftName, rightName) {
     return result('different', 'future-name-distinct', { method: 'semantic-envelope' });
   }
 
-  const prefix = `.archify-path-semantics-${process.pid}-${crypto.randomBytes(10).toString('hex')}-`;
+  const prefix = `.archify-path-semantics-${process.pid}-${Buffer.from(crypto.getRandomValues(new Uint8Array(10))).toString('hex')}-`;
   const probeName = `${prefix}${leftName}`;
   const lookupName = `${prefix}${rightName}`;
   const componentLength = (name) => process.platform === 'win32'

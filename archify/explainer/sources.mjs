@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { throwDiagnosticError } from '../renderers/shared/diagnostics.mjs';
+import { throwDiagnosticError } from '../renderers/shared/diagnostics.ts';
 import { verifyRepositoryEvidence } from '../renderers/shared/repository-evidence.mjs';
 import { parseRepositoryRemote } from '../renderers/shared/repository-location.mjs';
 import { chartFromData, compileExplainerChart } from './charts.mjs';

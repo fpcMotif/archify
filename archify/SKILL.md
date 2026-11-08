@@ -70,13 +70,24 @@ For an everyday subject, keep the same diagram modes and semantic types, then na
 
 ## Mermaid input
 
-Read Mermaid for topology and meaning, then author fresh Archify JSON; do not mechanically render Mermaid styling.
+Draft the candidate with the importer, read its notes, then refine the JSON for meaning before `finalize`:
 
-- `flowchart` / `graph` → `workflow`, or `architecture` for a component map.
-- `sequenceDiagram` → `sequence`; participants become semantic participants and arrows become messages.
-- `stateDiagram` → `lifecycle`; states and transitions retain meaning, not Mermaid style.
-- `erDiagram` → `erd`; entity and relationship names, keys, and cardinality retain meaning, not Mermaid style.
-- `classDiagram` → `class`; type kinds, selected members, and relationship kinds retain meaning, not Mermaid style.
+```bash
+bun bin/archify.mjs import mermaid <input.mmd> <candidate.json> --title "<title>" --json
+```
+
+The importer keeps topology and meaning, not Mermaid styling:
+
+- `flowchart` / `graph` → `workflow`; subgraphs become lanes and arrow ranks become columns. For a component map, author `architecture` JSON instead.
+- `sequenceDiagram` → `sequence`; participants become semantic participants, arrows become messages, and the outer loop/alt/opt block becomes a segment.
+- `stateDiagram` → `lifecycle`; composite states are flattened, and the main path prefers success over failure outcomes.
+- `erDiagram` → `erd`; entity and relationship names, keys, and cardinality carry over. An `FK` column names its target only when the column name matches an entity.
+- `classDiagram` → `class`; type kinds, members, and relationship kinds carry over.
+- `timeline` → `timeline`; each period needs a date (a year, `YYYY-MM`, `YYYY-MM-DD`, `Q1 2025`, `Mar 2025`, or a quarter or month inside a year section). Events start at the period's first day in UTC with `evidence: illustrative` and `layout.scale: "date"`.
+- `mindmap` → `tree`; the hierarchy carries over, while shapes and icons are dropped.
+- `architecture-beta` → `architecture`; groups become region boundaries, side hints (`a:R --> L:b`) place components on the grid, and icons suggest component types.
+
+A failed import prints a stable `code`. `mermaid/unsupported-type`, `mermaid/concurrent-state` (one lifecycle per region), `mermaid/workflow-too-wide` (more than six columns), and `mermaid/timeline-undated` mean the Mermaid has no faithful Archify form: split it, add dates, or author fresh Archify JSON.
 
 ## Delivery
 

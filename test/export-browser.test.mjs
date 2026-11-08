@@ -23,7 +23,7 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
   const file = path.join(scratch, 'motion.html');
   const source = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples/web-app.architecture.json'), 'utf8'));
   delete source.meta.animation;
-  source.meta.visual_preset = 'signal-flow';
+  source.meta.visual_preset = 'blueprint';
   fs.writeFileSync(input, JSON.stringify(source));
   execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'), input, file]);
   const browser = new ChromeVisualBrowser(chrome);

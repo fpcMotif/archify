@@ -4,7 +4,7 @@ import {
   properSegmentIntersection, rectsOverlap, routeHonorsEndpointSides,
   segmentIntersectsRect, segmentRectClearanceWithin,
 } from '../shared/geometry.ts';
-import { shortestOrthogonalGridRoute } from '../shared/route-quality.mjs';
+import { shortestOrthogonalGridRoute } from '../shared/route-quality.ts';
 
 const segments = points => points.slice(1).map((end, index) => ({ start: points[index], end }));
 const related = (a, b) => [a.from, a.to].some(id => id === b.from || id === b.to);

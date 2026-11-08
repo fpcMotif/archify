@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { applyTemplate } from '../archify/renderers/shared/utils.mjs';
+import { applyTemplate } from '../archify/renderers/shared/utils.ts';
 import { findChrome } from '../archify/bin/visual-check.mjs';
 import { desktopBrowser, desktopPointerCheck } from './helpers/desktop-browser.mjs';
 

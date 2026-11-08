@@ -87,7 +87,7 @@ bundled catalog.
 
 `meta.translations` is an optional per-key override: an object mapping the
 renderer's canonical message keys (`locales/en.json`, or `catalogKeys()` in
-`renderers/shared/i18n.mjs`) to translated strings whose `{placeholder}` tokens
+`renderers/shared/i18n.ts`) to translated strings whose `{placeholder}` tokens
 match the English source exactly. Each message resolves as: valid
 `meta.translations` value → the selected bundled catalog → English. For a
 bundled locale, supply only the keys whose wording the diagram needs to change;
@@ -127,8 +127,8 @@ domain wording, and keep that authored override in the primary language.
 Omit `meta.visual_preset` by default. The renderer then opens the diagram in
 `classic` for both light and dark color modes. Color mode and visual preset are
 independent viewer state: switching Light / Dark must preserve the current
-preset. Author `signal-flow`, `blueprint`, or `editorial` only when the user
-explicitly requests that visual style.
+preset. Author `blueprint` or `editorial` only when the user explicitly
+requests that visual style. Never author the retired `signal-flow`.
 
 ## Engineering profile default
 
@@ -488,6 +488,10 @@ colours the card; inventing values such as `milestone` fails schema validation. 
 simultaneous and close events stack. By default a quiet period longer than 8×
 the median gap and 10% of the span is drawn as a fixed-width break labelled
 with the omitted duration; `layout.breaks: "none"` keeps one proportional axis.
+For events known only to the day (releases, milestones, history), set
+`layout.scale: "date"`: the axis ticks on days, months, quarters, or years and
+every label drops the clock. Each event must then sit on midnight in
+`meta.timezone`, or validation fails with `timeline/date-scale-clock-time`.
 See [`../renderers/timeline/README.md`](../renderers/timeline/README.md).
 
 ### Waterfall

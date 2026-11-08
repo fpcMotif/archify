@@ -21,7 +21,7 @@ Measured on an Apple Silicon Mac on 2026-11-06 with hyperfine:
 
 In a sequence render under Bun, the layout code itself takes about 5 ms. Most of the rest is process start-up, a second renderer process, locale loading and string patching of the template.
 
-`scriptc coverage` reports that `renderers/shared/geometry` and `fixes.mjs` compile 100% to native code. `text-fit`, `utils`, `i18n` and `legend` each compile 99%; one `Map` typing blocks each. The generated Ajv validators (`generated-validators.mjs`) do not compile, because they read a `var` before its assignment.
+`scriptc coverage` reports that `renderers/shared/geometry` and `fixes` compile 100% to native code. `text-fit`, `utils`, `i18n` and `legend` each compile 99%; one `Map` typing blocks each. The generated Ajv validators (`generated-validators/<type>.js`) do not compile, because they read a `var` before its assignment.
 
 `bun test` runs the existing `node:test` files. All golden example renders are byte-identical under Bun. A few tests needed Bun equivalents: fault injection through Node's `--import` loader hooks moves to a `--preload` script with `Bun.plugin`.
 

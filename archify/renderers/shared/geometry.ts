@@ -2,9 +2,7 @@
 // pure; renderers own their layout tables and pass measured rects
 // ({x, y, width, height, cx, cy}) in.
 
-import { recordDiagnostic } from './diagnostics.mjs';
-
-declare const process: { env: Record<string, string | undefined> };
+import { recordDiagnostic } from './diagnostics.ts';
 
 export type Point = [number, number];
 

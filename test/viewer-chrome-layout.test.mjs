@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
-import { MIN_PROJECTED_NODE_TEXT_PX } from '../archify/renderers/shared/desktop-readability.mjs';
+import { MIN_PROJECTED_NODE_TEXT_PX } from '../archify/renderers/shared/desktop-readability.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'archify');
@@ -716,9 +716,9 @@ test('localized multiline Legends remain clear across required viewports, themes
   // Cover every supported viewport and every theme/preset pair without the
   // 32-state Cartesian product of shared collision code.
   const cases = [
-    [1440, 900, 'light', 'classic'], [1440, 900, 'dark', 'signal-flow'],
+    [1440, 900, 'light', 'classic'], [1440, 900, 'dark', 'blueprint'],
     [1600, 1000, 'light', 'blueprint'], [1600, 1000, 'dark', 'editorial'],
-    [1920, 1080, 'dark', 'classic'], [1920, 1080, 'light', 'signal-flow'],
+    [1920, 1080, 'dark', 'classic'], [1920, 1080, 'light', 'editorial'],
     [2048, 1320, 'dark', 'blueprint'], [2048, 1320, 'light', 'editorial'],
   ].map(([width, height, theme, preset]) => ({ width, height, theme, preset }));
   try {
@@ -1147,6 +1147,44 @@ test('theme switches repaint the page and diagram without dropping the desktop r
       assert.ok(result.frames.every((frame) => frame.rail === result.before.rail
         && frame.width === result.before.width && frame.height === result.before.height),
         'theme switching must not remove the rail or move the diagram');
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('phone and dock Legend copies keep ERD and class entries named and unpainted', {
+  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+}, async () => {
+  const browser = new ChromeVisualBrowser(chromePath);
+  try {
+    for (const [mode, example] of [['erd', 'orders.erd.json'], ['class', 'payment-processors.class.json']]) {
+      const sessionId = await load(browser, render(mode, example), { width: 1440, height: 900, query: '?theme=light' });
+      const copies = await evaluate(browser, sessionId, `(function () {
+        var names = Array.prototype.map.call(document.querySelectorAll('[data-legend] [data-legend-semantic-kind] [aria-label]'), function (hit) {
+          return hit.getAttribute('aria-label');
+        });
+        return Array.prototype.map.call(document.querySelectorAll('.phone-legend, .dock-legend'), function (list) {
+          var items = Array.prototype.filter.call(list.children, function (item) { return item.querySelector('svg'); });
+          return {
+            className: list.className,
+            names: names,
+            labels: items.map(function (item) { return item.querySelector(':scope > span').textContent; }),
+            focusable: list.querySelectorAll('[tabindex]').length,
+            blackRects: Array.prototype.filter.call(list.querySelectorAll('rect'), function (rect) {
+              return getComputedStyle(rect).fill === 'rgb(0, 0, 0)';
+            }).length
+          };
+        });
+      })()`);
+      assert.ok(copies.length > 0, `${mode}: the Viewer builds Legend copies`);
+      for (const copy of copies) {
+        const message = `${mode}: ${JSON.stringify(copy)}`;
+        assert.ok(copy.names.length > 0, message);
+        assert.deepEqual(copy.labels, copy.names, message);
+        assert.equal(copy.focusable, 0, message);
+        assert.equal(copy.blackRects, 0, message);
+      }
     }
   } finally {
     await browser.close();

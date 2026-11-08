@@ -1,14 +1,14 @@
-import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../shared/utils.mjs';
+import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../shared/utils.ts';
 import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, svgAccessibleText, svgRootAttrs } from '../shared/cli.mjs';
-import { throwDiagnosticProblems, withIsolatedDiagnosticRecording, rendererFailure } from '../shared/diagnostics.mjs';
-import { chooseFix, fixFields, setFix } from '../shared/fixes.mjs';
-import { resolveLegend, renderLegend as renderResolvedLegend, legendFootprint } from '../shared/legend.mjs';
-import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth, nodeLabelLayout } from '../shared/text-fit.mjs';
+import { throwDiagnosticProblems, withIsolatedDiagnosticRecording, rendererFailure } from '../shared/diagnostics.ts';
+import { chooseFix, fixFields, setFix } from '../shared/fixes.ts';
+import { resolveLegend, renderLegend as renderResolvedLegend, legendFootprint } from '../shared/legend.ts';
+import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth, nodeLabelLayout } from '../shared/text-fit.ts';
 import { brandLabelFitWidth, brandMarkFor, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../shared/brand-marks.mjs';
-import { translateMessage as i18nText } from '../shared/i18n.mjs';
-import { DECLARED_WIDE_READER_RATIO, minimumReadableSourceTextPx, predictedFixedWidthOverflow } from '../shared/desktop-readability.mjs';
-import { placeAutomaticLabels } from '../shared/automatic-labels.mjs';
-import { shortestOrthogonalGridRoute } from '../shared/route-quality.mjs';
+import { translateMessage as i18nText } from '../shared/i18n.ts';
+import { DECLARED_WIDE_READER_RATIO, minimumReadableSourceTextPx, predictedFixedWidthOverflow } from '../shared/desktop-readability.ts';
+import { placeAutomaticLabels } from '../shared/automatic-labels.ts';
+import { shortestOrthogonalGridRoute } from '../shared/route-quality.ts';
 import { repairLabelRoutes } from './joint-label-routing.mjs';
 import { FLOW_LABEL_HEIGHT, flowLabelSize, wrapBlockedFlowLabels } from './label-capacity.mjs';
 import {
@@ -1450,7 +1450,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       const stage = asArray(dataflow.stages)[node.stage];
       const context = stage
         ? `${String(node.stage + 1).padStart(2, '0')} / ${stage.label}`
-        : i18nText(dataflow.meta.locale, 'node.context.dataflow');
+        : undefined;
       const brand = renderBrandMark(node, { x: node.x + node.width - 22, y: node.y + 6 });
       const passport = { kind: node.type, sublabel: node.sublabel, tag: node.tag, context, ...brandMetadataFor(node) };
       return `        <g ${focusNodeAttrs(node.id, node.label, passport, dataflow.meta.locale)}>

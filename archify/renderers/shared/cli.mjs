@@ -1,11 +1,10 @@
 import { softwareNoticesHtml } from './software-notices.mjs';
-import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { applyTemplate, renderCards, esc } from './utils.mjs';
+import { applyTemplate, renderCards, esc } from './utils.ts';
 import { validateSchema } from './validator.mjs';
 import { verifyRepositoryEvidence } from './repository-evidence.mjs';
-import { installRendererDiagnosticBoundary, throwDiagnosticError, throwDiagnosticProblems, recordDiagnostic } from './diagnostics.mjs';
+import { installRendererDiagnosticBoundary, throwDiagnosticError, throwDiagnosticProblems, recordDiagnostic } from './diagnostics.ts';
 import { validateEngineeringProfile } from './engineering-profiles.mjs';
 import {
   resolveOutputPath,
@@ -19,7 +18,7 @@ import {
   removeOwnedRegularFile,
   verifyAtomicOutput,
 } from './atomic-output.mjs';
-import { resolveLocale, translateMessage, registerLocale, localeDiagnostics } from './i18n.mjs';
+import { resolveLocale, translateMessage, registerLocale, localeDiagnostics } from './i18n.ts';
 import { prepareDiagramBrandMarks } from './brand-marks.mjs';
 
 const outputPathGuards = new Map();
@@ -27,7 +26,7 @@ let renderCandidateSequence = 0;
 
 // meta.locale is renderer-owned Viewer UI, not authored content. Each message
 // resolves as: valid meta.translations value → bundled catalog enrolled in
-// locales/manifest.json → English (see i18n.mjs). Every fallback is disclosed
+// locales/manifest.json → English (see i18n.ts). Every fallback is disclosed
 // by human renderers on stderr. Diagnostic JSON mode records warnings without
 // mixing text into failure receipts; validate/deliver disclose them publicly.
 function applyLocaleTranslations(diagramType, diagram) {
@@ -240,7 +239,7 @@ export function writeDiagram({ outPath, template, diagramType, meta, svg, cards,
     svg,
     cards: renderCards(cards),
     locale: meta.locale,
-    visualPreset: meta.visual_preset || 'classic',
+    visualPreset: visualPreset(meta),
     sourceEvidence,
   });
   let candidatePath;
@@ -264,7 +263,7 @@ export function writeDiagram({ outPath, template, diagramType, meta, svg, cards,
     if (outputGuard) resolveOutputPath(outputGuard);
     const candidateCapture = captureRegularFileBinding(candidatePath, {
       subject: 'candidate',
-      expectedSha256: createHash('sha256').update(html).digest('hex'),
+      expectedSha256: new Bun.CryptoHasher('sha256').update(html).digest('hex'),
       expectedBytes: Buffer.byteLength(html),
       expectedIdentity: candidateIdentity,
       ...(outputCapture.mode === null ? {} : { expectedMode: outputCapture.mode }),
@@ -344,10 +343,17 @@ export function validateCrossCollectionContracts(diagramType, diagram) {
   validateRelationshipIds(diagramType, diagram);
 }
 
+// Signal Flow was retired once it rendered the same as Classic. The schema
+// still accepts it so existing diagram files keep rendering.
+export function visualPreset(meta) {
+  const preset = meta?.visual_preset || 'classic';
+  return preset === 'signal-flow' ? 'classic' : preset;
+}
+
 export function svgRootAttrs(meta, explicitQualityProfile) {
   // Motion is a Viewer capability for every diagram; Live/Still controls playback.
   const animation = ' data-animation="trace"';
-  const preset = ` data-preset="${esc(meta.visual_preset || 'classic')}"`;
+  const preset = ` data-preset="${esc(visualPreset(meta))}"`;
   const engineeringProfile = meta.engineering_profile
     ? ` data-engineering-profile="${esc(meta.engineering_profile)}"`
     : '';

@@ -1,4 +1,3 @@
-import { createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -154,7 +153,7 @@ function descriptorDigest(descriptor, expectedSize, subject, filePath, includeCo
     return relation('unknown', `${subject}-size-unavailable`, { filePath });
   }
   const expectedBytes = Number(expectedSize);
-  const digest = createHash('sha256');
+  const digest = new Bun.CryptoHasher('sha256');
   let capturedContent;
   let chunk;
   try {
@@ -495,7 +494,7 @@ function createRemovalQuarantine(parentPath) {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const directory = path.join(
       parentPath,
-      `.archify-remove-${randomBytes(16).toString('hex')}`,
+      `.archify-remove-${Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString('hex')}`,
     );
     try {
       fs.mkdirSync(directory, { mode: 0o700 });
@@ -701,7 +700,7 @@ function createPublicationRecoveryRecord(directory, snapshot, previous) {
   }
   const captured = captureRegularFileBinding(recordPath, {
     subject: 'publication-recovery-record',
-    expectedSha256: createHash('sha256').update(bytes).digest('hex'),
+    expectedSha256: new Bun.CryptoHasher('sha256').update(bytes).digest('hex'),
     expectedBytes: bytes.byteLength,
     // Windows reports a synthetic POSIX mode whose read bits cannot represent
     // the private ACL established by the exclusive create above.

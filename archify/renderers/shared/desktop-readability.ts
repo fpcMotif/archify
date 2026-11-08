@@ -9,7 +9,73 @@ export const DECLARED_WIDE_READER_MAX_WIDTH = 1920;
 export const DECLARED_WIDE_REFERENCE_BODY_HORIZONTAL_PX = 64;
 export const DECLARED_WIDE_REFERENCE_DIAGRAM_HORIZONTAL_PX = 30;
 
-export function projectedNodeTextPx(sourceFontPx, viewBoxWidth, diagramWidth = DESKTOP_READER_DIAGRAM_WIDTH) {
+export interface DeclaredWideReadabilityInput {
+  viewBoxWidth: number;
+  viewBoxHeight: number;
+  minimumSourceTextPx: number;
+  requestedMinimumTextPx: number;
+  viewportWidth?: number;
+  bodyHorizontalPx?: number;
+  diagramHorizontalPx?: number;
+  minimumReaderWidth?: number;
+  maximumReaderWidth?: number;
+}
+
+export interface DeclaredWideReadabilityBudget {
+  requestedTargetPx: number;
+  requestedScale: number;
+  desiredReaderWidth: number;
+  viewportCap: number;
+  maximumReaderWidth: number;
+  actualReaderWidth: number;
+  guaranteedSvgWidth: number;
+  projectedMinimumTextPx: number;
+  hardFloorPx: number;
+  hardFloorMet: boolean;
+  requestedTargetMet: boolean;
+  limit: 'viewport-cap' | 'reader-cap' | 'source-size';
+}
+
+export interface DesktopViewport {
+  width: number;
+  height: number;
+}
+
+export interface VerticalChrome {
+  body: number;
+  header: number;
+  diagram: number;
+}
+
+export interface FixedWidthOverflowInput {
+  viewBoxWidth: number;
+  viewBoxHeight: number;
+  readerFit?: string;
+  diagramType?: string;
+  viewport?: DesktopViewport;
+  bodyHorizontalPx?: number;
+  diagramHorizontalPx?: number;
+  chrome?: VerticalChrome;
+}
+
+export interface FixedWidthOverflow {
+  viewportWidth: number;
+  viewportHeight: number;
+  ratio: number;
+  wideRatio: number;
+  svgWidthPx: number;
+  svgHeightPx: number;
+  fixedChromePx: number;
+  pageHeightPx: number;
+  overflowPx: number;
+}
+
+export interface FixedWidthOverflowIssue extends FixedWidthOverflow {
+  viewBoxWidth: number;
+  viewBoxHeight: number;
+}
+
+export function projectedNodeTextPx(sourceFontPx: number, viewBoxWidth: number, diagramWidth: number = DESKTOP_READER_DIAGRAM_WIDTH): number {
   if (![sourceFontPx, viewBoxWidth, diagramWidth].every(Number.isFinite) || viewBoxWidth <= 0 || diagramWidth <= 0) {
     return Number.NaN;
   }
@@ -17,10 +83,10 @@ export function projectedNodeTextPx(sourceFontPx, viewBoxWidth, diagramWidth = D
 }
 
 export function minimumReadableSourceTextPx(
-  viewBoxWidth,
-  diagramWidth = DESKTOP_READER_DIAGRAM_WIDTH,
-  minimumProjectedPx = MIN_PROJECTED_NODE_TEXT_PX,
-) {
+  viewBoxWidth: number,
+  diagramWidth: number = DESKTOP_READER_DIAGRAM_WIDTH,
+  minimumProjectedPx: number = MIN_PROJECTED_NODE_TEXT_PX,
+): number {
   if (![viewBoxWidth, diagramWidth, minimumProjectedPx].every(Number.isFinite)
     || viewBoxWidth <= 0
     || diagramWidth <= 0
@@ -43,7 +109,7 @@ export function declaredWideReadabilityBudget({
   diagramHorizontalPx = DECLARED_WIDE_REFERENCE_DIAGRAM_HORIZONTAL_PX,
   minimumReaderWidth = DESKTOP_READER_MIN_WIDTH,
   maximumReaderWidth = DECLARED_WIDE_READER_MAX_WIDTH,
-} = {}) {
+}: DeclaredWideReadabilityInput = {} as DeclaredWideReadabilityInput): DeclaredWideReadabilityBudget | null {
   const values = [
     viewBoxWidth, viewBoxHeight, minimumSourceTextPx, requestedMinimumTextPx,
     viewportWidth, bodyHorizontalPx, diagramHorizontalPx, minimumReaderWidth, maximumReaderWidth,
@@ -101,7 +167,7 @@ export function predictedFixedWidthOverflow({
   bodyHorizontalPx = DECLARED_WIDE_REFERENCE_BODY_HORIZONTAL_PX,
   diagramHorizontalPx = DECLARED_WIDE_REFERENCE_DIAGRAM_HORIZONTAL_PX,
   chrome = DESKTOP_FIXED_VERTICAL_CHROME_PX,
-} = {}) {
+}: FixedWidthOverflowInput = {} as FixedWidthOverflowInput): FixedWidthOverflow | null {
   if (![viewBoxWidth, viewBoxHeight].every(Number.isFinite) || viewBoxWidth <= 0 || viewBoxHeight <= 0) return null;
   const ratio = viewBoxWidth / viewBoxHeight;
   if (readerFit === 'intrinsic-height' || readerFit === 'width-first'
@@ -125,7 +191,7 @@ export function predictedFixedWidthOverflow({
   };
 }
 
-export function describeFixedWidthOverflow(issue) {
+export function describeFixedWidthOverflow(issue: FixedWidthOverflowIssue): string {
   const maximumViewBoxHeight = Math.floor(issue.viewBoxWidth / issue.wideRatio);
   const wideViewBoxWidth = Math.ceil(issue.viewBoxHeight * issue.wideRatio);
   return `Preserve every node, relationship, and label. This ${issue.viewBoxWidth}x${issue.viewBoxHeight} canvas (ratio ${issue.ratio}) declares no intrinsic-height fit and is below the ${issue.wideRatio} wide ratio, so the desktop Reader can neither narrow it nor accept vertical scroll: it renders ${issue.svgHeightPx}px tall at the full ${issue.svgWidthPx}px width and the page reaches ${issue.pageHeightPx}px before cards against ${issue.viewportHeight}px, a certain visual-check failure. Either compact vertical spacing so meta.viewBox height is at most ${maximumViewBoxHeight} at this width, or spread content sideways so the width is at least ${wideViewBoxWidth} at this height; for architecture and readable-v2 workflow, omitting meta.viewBox lets the renderer size the canvas and declare the fit.`;

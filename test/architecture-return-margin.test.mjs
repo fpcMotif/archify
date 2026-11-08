@@ -3,7 +3,7 @@ import test from 'node:test';
 import { createRouter } from '../archify/renderers/architecture/routing.mjs';
 import { reservedLabelRect } from '../archify/renderers/architecture/labels.mjs';
 import { labelPoint, properSegmentIntersection, routeHonorsEndpointSides } from '../archify/renderers/shared/geometry.ts';
-import { textUnits } from '../archify/renderers/shared/utils.mjs';
+import { textUnits } from '../archify/renderers/shared/utils.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

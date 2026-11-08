@@ -136,14 +136,16 @@ test('validator freshness check accepts CRLF checkouts', () => {
       path.join(scratch, 'scripts', 'generate-validators.mjs'),
     );
 
-    const validator = fs.readFileSync(
-      path.join(skillRoot, 'renderers', 'shared', 'generated-validators.mjs'),
-      'utf8',
-    );
-    fs.writeFileSync(
-      path.join(scratch, 'renderers', 'shared', 'generated-validators.mjs'),
-      validator.replace(/\r\n?|\n/g, '\r\n'),
-    );
+    const generatedFiles = [
+      'generated-validators.mjs',
+      ...fs.readdirSync(path.join(skillRoot, 'renderers', 'shared', 'generated-validators'))
+        .map((name) => path.join('generated-validators', name)),
+    ];
+    fs.mkdirSync(path.join(scratch, 'renderers', 'shared', 'generated-validators'));
+    for (const file of generatedFiles) {
+      const validator = fs.readFileSync(path.join(skillRoot, 'renderers', 'shared', file), 'utf8');
+      fs.writeFileSync(path.join(scratch, 'renderers', 'shared', file), validator.replace(/\r\n?|\n/g, '\r\n'));
+    }
 
     const result = spawnSync(process.execPath, [
       path.join(scratch, 'scripts', 'generate-validators.mjs'),

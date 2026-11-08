@@ -1,19 +1,63 @@
 // 仅分析静态检查器需要的路径子集，不作为通用 SVG 渲染器。
+import type { Point, Segment } from './geometry.ts';
+
 const NUMBER = /[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y;
 const COMMANDS = /^[MLHVQZACSTmlhvqzacst]$/;
-const ARITY = { M: 2, L: 2, H: 1, V: 1, Q: 4 };
+const ARITY: Record<string, number> = { M: 2, L: 2, H: 1, V: 1, Q: 4 };
 
-function failure(tokenOffset, reason, command, unsupported = false) {
+export interface SvgPathError {
+  code: 'artifact/svg-path-unsupported' | 'artifact/svg-path-malformed';
+  tokenOffset: number;
+  reason: string;
+  command?: string;
+}
+
+export interface SvgPathFailure {
+  ok: false;
+  error: SvgPathError;
+}
+
+export interface SvgSubpath {
+  points: Point[];
+  segments: Segment[];
+  straightSegments: Segment[];
+  closed: boolean;
+}
+
+export interface SvgPathAnalysis {
+  ok: true;
+  subpaths: SvgSubpath[];
+}
+
+export type SvgPathResult = SvgPathAnalysis | SvgPathFailure;
+
+interface CommandToken {
+  kind: 'command';
+  value: string;
+  offset: number;
+}
+
+interface NumberToken {
+  kind: 'number';
+  value: number;
+  offset: number;
+}
+
+type PathToken = CommandToken | NumberToken;
+
+type TokenizeResult = { ok: true; tokens: PathToken[] } | SvgPathFailure;
+
+function failure(tokenOffset: number, reason: string, command?: string | null, unsupported = false): SvgPathFailure {
   return { ok: false, error: {
     code: unsupported ? 'artifact/svg-path-unsupported' : 'artifact/svg-path-malformed',
     tokenOffset, reason, ...(command ? { command } : {}),
   } };
 }
 
-function tokenize(source) {
-  const tokens = [];
+function tokenize(source: string): TokenizeResult {
+  const tokens: PathToken[] = [];
   let offset = 0;
-  let comma = null;
+  let comma: number | null = null;
   while (offset < source.length) {
     const character = source[offset];
     if (/[ \t\r\n]/.test(character)) { offset += 1; continue; }
@@ -40,34 +84,34 @@ function tokenize(source) {
 }
 
 /** 每步消费一个命令或完整参数组；失败不返回部分几何。偏移基于传入的 d 字符串。 */
-export function analyzeSvgPath(source) {
+export function analyzeSvgPath(source: unknown): SvgPathResult {
   if (typeof source !== 'string') return failure(0, 'path data must be a string');
   const lexed = tokenize(source);
   if (!lexed.ok) return lexed;
   const { tokens } = lexed;
-  const subpaths = [];
+  const subpaths: SvgSubpath[] = [];
   let index = 0;
-  let command = null;
+  let command: string | null = null;
   let commandOffset = 0;
-  let current = [0, 0];
-  let subpath;
+  let current: Point = [0, 0];
+  let subpath: SvgSubpath | undefined;
 
-  function move(point) {
+  function move(point: Point): void {
     current = point;
     subpath = { points: [point], segments: [], straightSegments: [], closed: false };
     subpaths.push(subpath);
   }
-  function line(point) {
-    const segment = { start: current, end: point };
-    subpath.segments.push(segment);
-    subpath.straightSegments.push(segment);
-    subpath.points.push(point);
+  function line(point: Point): void {
+    const segment: Segment = { start: current, end: point };
+    (subpath as SvgSubpath).segments.push(segment);
+    (subpath as SvgSubpath).straightSegments.push(segment);
+    (subpath as SvgSubpath).points.push(point);
     current = point;
   }
 
   while (index < tokens.length) {
     if (tokens[index].kind === 'command') {
-      command = tokens[index].value;
+      command = (tokens[index] as CommandToken).value;
       commandOffset = tokens[index++].offset;
     } else if (!command) {
       return failure(tokens[index].offset, 'a command is required after closepath');
@@ -78,12 +122,12 @@ export function analyzeSvgPath(source) {
       return failure(commandOffset, 'path command is not supported by artifact analysis', command, true);
     }
     if (upper === 'Z') {
-      line(subpath.points[0]);
-      subpath.closed = true;
+      line((subpath as SvgSubpath).points[0]);
+      (subpath as SvgSubpath).closed = true;
       command = null;
       continue;
     }
-    const parameters = [];
+    const parameters: number[] = [];
     const parameterOffset = tokens[index]?.offset ?? source.length;
     for (let count = 0; count < ARITY[upper]; count += 1) {
       const token = tokens[index];
@@ -93,10 +137,10 @@ export function analyzeSvgPath(source) {
       parameters.push(token.value);
       index += 1;
     }
-    const relative = command !== upper;
-    const point = (x, y) => relative ? [current[0] + x, current[1] + y] : [x, y];
-    let end;
-    let control;
+    const relative: boolean = command !== upper;
+    const point = (x: number, y: number): Point => relative ? [current[0] + x, current[1] + y] : [x, y];
+    let end: Point;
+    let control: Point | undefined;
     if (upper === 'H') end = [relative ? current[0] + parameters[0] : parameters[0], current[1]];
     else if (upper === 'V') end = [current[0], relative ? current[1] + parameters[0] : parameters[0]];
     else if (upper === 'Q') {
@@ -112,21 +156,21 @@ export function analyzeSvgPath(source) {
       command = relative ? 'l' : 'L';
       continue;
     }
-    if (subpath.closed) move(current);
+    if ((subpath as SvgSubpath).closed) move(current);
     if (upper !== 'Q') { line(end); continue; }
 
     const start = current;
-    const cross = (control[0] - start[0]) * (end[1] - start[1]) - (control[1] - start[1]) * (end[0] - start[0]);
-    if (Math.abs(cross) <= 1e-9) subpath.straightSegments.push({ start, end });
+    const cross = ((control as Point)[0] - start[0]) * (end[1] - start[1]) - ((control as Point)[1] - start[1]) * (end[0] - start[0]);
+    if (Math.abs(cross) <= 1e-9) (subpath as SvgSubpath).straightSegments.push({ start, end });
     // 保留既有八步 Q 采样；非共线曲线不冒充结构框的直线边界。
     for (let step = 1; step <= 8; step += 1) {
       const amount = step / 8;
       const remaining = 1 - amount;
       const next = [0, 1].map(axis => remaining * remaining * start[axis]
-        + 2 * remaining * amount * control[axis] + amount * amount * end[axis]);
+        + 2 * remaining * amount * (control as Point)[axis] + amount * amount * end[axis]) as Point;
       if (!next.every(Number.isFinite)) return failure(parameterOffset, 'sampled coordinate is not finite', command);
-      subpath.segments.push({ start: current, end: next });
-      subpath.points.push(next);
+      (subpath as SvgSubpath).segments.push({ start: current, end: next });
+      (subpath as SvgSubpath).points.push(next);
       current = next;
     }
     current = end;

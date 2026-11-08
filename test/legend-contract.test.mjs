@@ -412,7 +412,7 @@ test('measured legend rows share baselines and stay within the viewBox for local
 process.on('exit', () => fs.rmSync(tmp, { recursive: true, force: true }));
 
 test('legend entries reserve the width of their rendered label font', async () => {
-  const { renderLegend } = await import('../archify/renderers/shared/legend.mjs');
+  const { renderLegend } = await import('../archify/renderers/shared/legend.ts');
   const label = 'post-start-input-writer';
   const svg = renderLegend({
     entries: [{ kind: 'a', label }, { kind: 'b', label: 'next' }],

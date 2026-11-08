@@ -1,20 +1,20 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../shared/utils.mjs';
-import { NODE_CARD_ATTR, nodeCardStyle } from '../shared/node-card-style.mjs';
-import { chooseFix, fixFields, setFix } from '../shared/fixes.mjs';
+import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../shared/utils.ts';
+import { NODE_CARD_ATTR, nodeCardStyle } from '../shared/node-card-style.ts';
+import { chooseFix, fixFields, setFix } from '../shared/fixes.ts';
 import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, loadDiagramWithBrandMarks, writeDiagram, svgAccessibleText, svgRootAttrs } from '../shared/cli.mjs';
-import { componentBox, boundaryBox, connectionPath } from '../shared/layout-report.mjs';
-import { rendererFailure, throwDiagnosticProblems } from '../shared/diagnostics.mjs';
-import { legendFootprint, relationshipLegendObstacles, resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.mjs';
-import { availableNodeTextWidth, fittedNodeFontSize, inlineTitleSigilLayout, minimumNodeTextWidth } from '../shared/text-fit.mjs';
+import { componentBox, boundaryBox, connectionPath } from '../shared/layout-report.ts';
+import { rendererFailure, throwDiagnosticProblems } from '../shared/diagnostics.ts';
+import { legendFootprint, relationshipLegendObstacles, resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.ts';
+import { availableNodeTextWidth, fittedNodeFontSize, inlineTitleSigilLayout, minimumNodeTextWidth } from '../shared/text-fit.ts';
 import { brandLabelFitWidth, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../shared/brand-marks.mjs';
-import { minimumReadableSourceTextPx } from '../shared/desktop-readability.mjs';
-import { translateMessage as i18nText } from '../shared/i18n.mjs';
+import { minimumReadableSourceTextPx } from '../shared/desktop-readability.ts';
+import { translateMessage as i18nText } from '../shared/i18n.ts';
 import { gridLayout, resolveComponentPos, validateGridPlacement } from './grid.mjs';
 import { createRouter } from './routing.mjs';
-import { placeAutomaticLabels, reservedLabelRect } from '../shared/automatic-labels.mjs';
-import { cleanRouteDetourProblems } from '../shared/route-quality.mjs';
+import { placeAutomaticLabels, reservedLabelRect } from '../shared/automatic-labels.ts';
+import { cleanRouteDetourProblems } from '../shared/route-quality.ts';
 import {
   asArray,
   isFinitePoint,
@@ -467,7 +467,7 @@ function componentContext(component) {
     .filter((boundary) => asArray(boundary.wraps).includes(component.id))
     .sort((a, b) => (b.width * b.height) - (a.width * a.height))
     .map((boundary) => boundary.label);
-  return scopes.length ? scopes.join(' › ') : i18nText(arch.meta.locale, 'node.context.architecture');
+  return scopes.join(' › ');
 }
 
 // ---- Auto viewBox: fit all geometry + the measured resolved legend ----------

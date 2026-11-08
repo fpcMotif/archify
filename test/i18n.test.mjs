@@ -22,7 +22,7 @@ import {
   translateMessage,
   registerLocale,
   validateTranslations,
-} from '../archify/renderers/shared/i18n.mjs';
+} from '../archify/renderers/shared/i18n.ts';
 
 const templatePath = path.join(skillRoot, 'assets/template.html');
 const { tmp, run, deliverKoreanFixture, deliverJapaneseFixture, cliJson } = createLocaleFixture();
@@ -626,7 +626,6 @@ for (const locale of ['fr', 'pt', 'ja', 'de', 'it', 'ru']) {
     assert.ok(embedded, `${locale}: missing embedded i18n data script`);
     const messages = JSON.parse(embedded[1]).messages;
     const englishBadges = {
-      'viewer.preset.badge.signalFlow': 'SIGNAL FLOW',
       'viewer.nav.radar.short': 'MAP',
       'viewer.nav.level.map': 'MAP',
       'viewer.nav.lens.short': 'LENS',

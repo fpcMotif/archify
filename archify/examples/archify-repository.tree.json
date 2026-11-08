@@ -118,13 +118,13 @@
     },
     {
       "id": "s_geometry",
-      "label": "geometry.mjs",
+      "label": "geometry.ts",
       "parent": "r_shared",
       "sublabel": "Composition gates"
     },
     {
       "id": "s_i18n",
-      "label": "i18n.mjs",
+      "label": "i18n.ts",
       "parent": "r_shared",
       "sublabel": "Locale catalogs"
     },

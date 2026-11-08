@@ -14,7 +14,7 @@ import {
   MIN_PROJECTED_NODE_TEXT_PX,
   minimumReadableSourceTextPx,
   projectedNodeTextPx,
-} from '../archify/renderers/shared/desktop-readability.mjs';
+} from '../archify/renderers/shared/desktop-readability.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'archify');

@@ -13,7 +13,6 @@
       var kind = document.getElementById('focus-kind');
       var context = document.getElementById('focus-context');
       var tag = document.getElementById('focus-tag');
-      var semanticId = document.getElementById('focus-id');
       var evidence = document.getElementById('focus-evidence');
       var repositoryLink = document.getElementById('focus-repository');
       var evidenceLinks = document.getElementById('focus-evidence-links');
@@ -380,8 +379,6 @@
         setPassportValue(context, node.getAttribute('data-node-context'));
         setPassportValue(tag, node.getAttribute('data-node-tag'));
         setPassportValue(document.getElementById('focus-brand'), node.getAttribute('data-node-brand'));
-        semanticId.textContent = id;
-        semanticId.hidden = false;
         renderSourceEvidence(id);
       }
       function relationshipsFor(id, byId) {
@@ -950,13 +947,7 @@
         relationsBtn.setAttribute('aria-expanded', 'false');
         relationsBtn.textContent = viewerCount('viewer.passport.relationship.count', relationships.length);
         relationsBtn.setAttribute('aria-label', viewerCount('viewer.passport.relationship.show', relationships.length));
-        var counts = { out: 0, in: 0, loop: 0 };
-        relationships.forEach(function (relationship) { counts[relationship.direction] += 1; });
-        summary.textContent = viewerText('viewer.passport.relationship.summary', {
-          out: counts.out,
-          in: counts.in,
-          loops: counts.loop ? viewerText('viewer.passport.relationship.loops', { count: counts.loop }) : ''
-        });
+        summary.textContent = '';
         renderReachabilityControls(id);
         relationshipList.textContent = '';
         if (!relationships.length) {
@@ -978,7 +969,7 @@
           section.className = 'relationship-lens-group';
           var heading = document.createElement('span');
           heading.className = 'relationship-lens-group-title';
-          heading.textContent = group.label + ' · ' + items.length;
+          heading.textContent = group.label;
           section.appendChild(heading);
           items.forEach(function (relationship) {
             var button = document.createElement('button');
@@ -995,19 +986,10 @@
               relationship: relationship.label,
               neighbor: relationship.neighborLabel
             }));
-            var direction = document.createElement('span');
-            direction.className = 'relationship-lens-direction';
-            direction.setAttribute('aria-hidden', 'true');
-            direction.textContent = viewerText(relationship.direction === 'out'
-              ? 'viewer.passport.relationship.direction.out'
-              : relationship.direction === 'in'
-                ? 'viewer.passport.relationship.direction.in'
-                : 'viewer.passport.relationship.direction.loop');
             var target = document.createElement('strong');
             target.textContent = relationship.neighborLabel;
             var relation = document.createElement('small');
             relation.textContent = relationship.label;
-            button.appendChild(direction);
             button.appendChild(target);
             button.appendChild(relation);
             section.appendChild(button);
@@ -1281,8 +1263,6 @@
         context.hidden = true;
         tag.textContent = '';
         tag.hidden = true;
-        semanticId.textContent = '';
-        semanticId.hidden = true;
         evidence.hidden = true;
         evidenceLinks.textContent = '';
         repositoryLink.removeAttribute('href');

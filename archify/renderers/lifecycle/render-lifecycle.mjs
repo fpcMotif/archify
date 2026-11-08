@@ -1,14 +1,14 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { esc, renderDefinitions, renderSemanticSigil, textUnits, SEMANTIC_SIGIL_FOOTPRINT, SOURCE_BADGE_FOOTPRINT } from '../shared/utils.mjs';
+import { esc, renderDefinitions, renderSemanticSigil, textUnits, SEMANTIC_SIGIL_FOOTPRINT, SOURCE_BADGE_FOOTPRINT } from '../shared/utils.ts';
 import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, loadDiagramWithBrandMarks, writeDiagram, svgAccessibleText, svgRootAttrs } from '../shared/cli.mjs';
-import { throwDiagnosticProblems } from '../shared/diagnostics.mjs';
-import { chooseFix, fixFields, setFix } from '../shared/fixes.mjs';
-import { legendFootprint, resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.mjs';
-import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth, nodeLabelLayout, nodeTextFit } from '../shared/text-fit.mjs';
+import { throwDiagnosticProblems } from '../shared/diagnostics.ts';
+import { chooseFix, fixFields, setFix } from '../shared/fixes.ts';
+import { legendFootprint, resolveLegend, renderLegend as renderResolvedLegend } from '../shared/legend.ts';
+import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth, nodeLabelLayout, nodeTextFit } from '../shared/text-fit.ts';
 import { brandLabelFitWidth, brandMarkFor, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../shared/brand-marks.mjs';
-import { translateMessage as i18nText } from '../shared/i18n.mjs';
-import { DESKTOP_READER_DIAGRAM_WIDTH, MIN_PROJECTED_NODE_TEXT_PX } from '../shared/desktop-readability.mjs';
+import { translateMessage as i18nText } from '../shared/i18n.ts';
+import { DESKTOP_READER_DIAGRAM_WIDTH, MIN_PROJECTED_NODE_TEXT_PX } from '../shared/desktop-readability.ts';
 import { asArray, rectsOverlap, segmentRectClearance, roundedPath, routePointsValue, arrowClassMap, edgeLabelAccent } from '../shared/geometry.ts';
 
 // Lifecycle v3 draws one shape: the main path as a left-to-right row, loops
@@ -1010,7 +1010,6 @@ function renderState(state) {
     kind: state.type,
     sublabel: state.sublabel,
     tag: state.tag,
-    context: i18nText(lifecycle.meta.locale, 'node.context.lifecycle'),
     ...brandMetadataFor(state),
   };
   return `        <g ${focusNodeAttrs(state.id, state.label, passport, lifecycle.meta.locale)}>

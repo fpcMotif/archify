@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadDiagramWithBrandMarks, writeDiagram } from '../shared/cli.mjs';
-import { recordDiagnostic, throwDiagnosticError, withIsolatedDiagnosticRecording } from '../shared/diagnostics.mjs';
+import { recordDiagnostic, throwDiagnosticError, withIsolatedDiagnosticRecording } from '../shared/diagnostics.ts';
 import { compileWorkflow } from './workflow-compiler.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

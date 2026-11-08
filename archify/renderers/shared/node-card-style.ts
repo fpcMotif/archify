@@ -5,9 +5,9 @@ const TONES = ['frontend', 'backend', 'database', 'cloud', 'security', 'messageb
 
 export const NODE_CARD_ATTR = 'data-node-ui=""';
 
-export function nodeCardStyle() {
+export function nodeCardStyle(): string {
   const all = 'svg[data-node-ui]';
-  const solid = `${all}:is([data-preset="classic"], [data-preset="signal-flow"], [data-preset="editorial"])`;
+  const solid = `${all}:is([data-preset="classic"], [data-preset="editorial"])`;
   const blueprint = `${all}[data-preset="blueprint"]`;
   const editorial = `${all}[data-preset="editorial"]`;
   const dark = `:is([data-theme="dark"] ${all}, ${all}[data-theme="dark"])`;
