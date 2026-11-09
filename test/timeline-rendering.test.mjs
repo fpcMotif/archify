@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
-const renderer = path.join(skillRoot, 'packages', 'timeline', 'render-timeline.mjs');
+const renderer = path.join(skillRoot, 'packages', 'timeline', 'render-timeline.ts');
 const checker = path.join(skillRoot, 'scripts', 'check-render-output.mjs');
 const small = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'payment-incident.timeline.json'), 'utf8'));
 const large = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'schematics-dev-activity.timeline.json'), 'utf8'));

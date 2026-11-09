@@ -29,7 +29,6 @@ schematics/packages/explainer/sources.mjs
 schematics/packages/explainer/validate.mjs
 schematics/packages/explainer/writing.mjs
 schematics/packages/migrations/workflow-v2.mjs
-schematics/packages/timeline/render-timeline.mjs
 schematics/packages/waterfall/render-waterfall.mjs
 schematics/recipes/scenarios.mjs
 schematics/scripts/check-render-output.mjs
