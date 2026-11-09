@@ -24,7 +24,7 @@ test('Focus preserves semantic selection, relationships, reachability and shared
   const files = {};
   for (const [mode, example] of Object.entries(cases)) {
     files[mode] = path.join(scratch, mode + '.html');
-    execFileSync(process.execPath, [path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`), path.join(skillRoot, 'examples', example), files[mode]]);
+    execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`), path.join(skillRoot, 'examples', example), files[mode]]);
   }
   // The graph fixture deliberately exercises DOM fragment contracts outside IR validation.
   const graph = `<g data-edge-key="a" data-edge-id="edge-a" data-edge-from="users" data-edge-to="cdn"></g>

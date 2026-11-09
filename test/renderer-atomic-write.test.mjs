@@ -12,8 +12,8 @@ import {
   quarantineRemoveRegularFileBinding,
   releaseRegularFileBinding,
   removeOwnedRegularFile,
-} from '../schematics/renderers/shared/atomic-output.mjs';
-import { loadDiagram, writeDiagram } from '../schematics/renderers/shared/cli.mjs';
+} from '../schematics/packages/output/atomic-output.mjs';
+import { loadDiagram, writeDiagram } from '../schematics/packages/svg/cli.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..', 'schematics');
@@ -27,7 +27,7 @@ function workspace(t, prefix) {
 
 function loadWorkflow(input, output) {
   return loadDiagram({
-    rendererDir: path.join(skillRoot, 'renderers/workflow'),
+    rendererDir: path.join(skillRoot, 'packages/workflow'),
     diagramType: 'workflow',
     defaultExample: 'agent-tool-call.workflow.json',
     argv: ['node', 'render-workflow.mjs', input, output],

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { compileWorkflow } from '../schematics/renderers/workflow/workflow-compiler.mjs';
+import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.mjs';
 
 function workflow(version, locale = 'en') {
   return {

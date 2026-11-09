@@ -9,8 +9,8 @@ import standaloneCode from 'ajv/dist/standalone/index.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const schemasDir = path.join(root, 'schemas');
-const indexOutput = path.join(root, 'renderers/shared/generated-validators.mjs');
-const typeDir = path.join(root, 'renderers/shared/generated-validators');
+const indexOutput = path.join(root, 'packages/validation/generated-validators.mjs');
+const typeDir = path.join(root, 'packages/validation/generated-validators');
 const diagramTypes = ['workflow', 'sequence', 'dataflow', 'lifecycle', 'architecture', 'erd', 'tree', 'class', 'timeline', 'waterfall', 'explainer'];
 const commonSchema = JSON.parse(fs.readFileSync(path.join(schemasDir, 'common.schema.json'), 'utf8'));
 
@@ -48,7 +48,7 @@ function typeValidatorSource(type) {
   const match = validatorCode.match(exportPattern);
   if (!match) throw new Error(`AJV standalone output no longer exports the ${type} validator as expected`);
   validatorCode = validatorCode.replace(exportPattern, `const schemaValidate = ${match[1]};`);
-  return `${banner}import { validatePortablePath } from '../portable-path.mjs';
+  return `${banner}import { validatePortablePath } from '../../output/portable-path.mjs';
 ${validatorCode}
 export function validate(data, context = undefined) {
   if (!schemaValidate(data, context)) {

@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sameEntry } from '../schematics/renderers/shared/path-semantics.mjs';
+import { sameEntry } from '../schematics/packages/output/path-semantics.mjs';
 
 const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // Each fragment maps a marker in `viewer/template.source.html` to a file in

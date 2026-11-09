@@ -18,7 +18,7 @@ function render(mode, doc) {
   fs.writeFileSync(input, JSON.stringify(renderDoc));
   try {
     execFileSync(process.execPath, [
-      path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
+      path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
       input,
       output,
     ], { stdio: ['ignore', 'ignore', 'pipe'] });

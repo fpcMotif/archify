@@ -7,8 +7,8 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { BRAND_MARKS } from '../schematics/renderers/shared/generated-brand-marks.mjs';
-import { isPrivateBrandAddress, prepareDiagramBrandMarks } from '../schematics/renderers/shared/brand-marks.mjs';
+import { BRAND_MARKS } from '../schematics/packages/svg/generated-brand-marks.mjs';
+import { isPrivateBrandAddress, prepareDiagramBrandMarks } from '../schematics/packages/svg/brand-marks.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..', 'schematics');
@@ -52,7 +52,7 @@ function writeFixture(type, name, brand, customize) {
 function renderSync(type, input, name, env = {}) {
   const output = path.join(tmp, `${name}.html`);
   const result = spawnSync(process.execPath, [
-    path.join(skillRoot, `renderers/${type}/render-${type}.mjs`),
+    path.join(skillRoot, `packages/${type}/render-${type}.mjs`),
     input,
     output,
   ], {
@@ -67,7 +67,7 @@ function renderAsync(type, input, name, env = {}) {
   const output = path.join(tmp, `${name}.html`);
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [
-      path.join(skillRoot, `renderers/${type}/render-${type}.mjs`),
+      path.join(skillRoot, `packages/${type}/render-${type}.mjs`),
       input,
       output,
     ], {

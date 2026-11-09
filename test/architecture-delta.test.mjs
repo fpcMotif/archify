@@ -13,7 +13,7 @@ import {
   compareArchitecture,
   renderArchitectureDeltaHtml,
   validateArchitectureDeltaHtml,
-} from '../schematics/delta/architecture-delta.mjs';
+} from '../schematics/packages/delta/architecture-delta.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
@@ -292,7 +292,7 @@ test('evidence-only component changes keep an enabled exact review contract', ()
   assert.equal(receipt.changes.components.length, 1);
   assert.equal(receipt.changes.components[0].status, 'evidence-changed');
   assert.deepEqual(receipt.changes.components[0].classifications, ['evidence']);
-  const runtime = fs.readFileSync(path.join(skillRoot, 'delta/architecture-delta.mjs'), 'utf8');
+  const runtime = fs.readFileSync(path.join(skillRoot, 'packages/delta/architecture-delta.mjs'), 'utf8');
   assert.match(runtime, /statuses: \['added', 'changed', 'evidence-changed', 'removed', 'moved'\]/);
 });
 

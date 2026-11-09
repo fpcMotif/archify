@@ -25,7 +25,7 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
   delete source.meta.animation;
   source.meta.visual_preset = 'blueprint';
   fs.writeFileSync(input, JSON.stringify(source));
-  execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'), input, file]);
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'), input, file]);
   const browser = new ChromeVisualBrowser(chrome);
   t.after(() => browser.close());
   const session = await browser.sessionPromise;
@@ -288,7 +288,7 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
     ];
     try {
       for (const [mode, fixture] of fixtures) {
-        execFileSync(process.execPath, [path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`), path.join(skillRoot, 'examples', fixture), file]);
+        execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`), path.join(skillRoot, 'examples', fixture), file]);
         for (const theme of ['dark', 'light']) {
           await load({ theme });
           const dimensions = await run(`(()=>{const v=document.querySelector('.diagram-container svg').viewBox.baseVal;return [v.width,v.height];})()`);
@@ -346,7 +346,7 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
         }
       }
     } finally {
-      execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'), input, file]);
+      execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'), input, file]);
     }
   });
 
@@ -356,7 +356,7 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
       const cjkSource = JSON.parse(originalInput);
       cjkSource.components[0].label = '用户入口';
       fs.writeFileSync(input, JSON.stringify(cjkSource));
-      execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'), input, file]);
+      execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'), input, file]);
       await load();
       await run(`Schematics.exportMenu.run('svg')`);
       await run('exportWait(()=>exportDownloads.length===1)');
@@ -368,7 +368,7 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
       await record('svg-utf8');
     } finally {
       fs.writeFileSync(input, originalInput);
-      execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'), input, file]);
+      execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'), input, file]);
     }
   });
 });

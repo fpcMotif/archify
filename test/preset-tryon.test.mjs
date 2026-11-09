@@ -27,7 +27,7 @@ function render(mode, preset) {
   const input = path.join(tmp, `${mode}-${fixtureName}.json`);
   const output = path.join(tmp, `${mode}-${fixtureName}.html`);
   fs.writeFileSync(input, JSON.stringify(source));
-  execFileSync(process.execPath, [path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`), input, output]);
+  execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`), input, output]);
   return fs.readFileSync(output, 'utf8');
 }
 

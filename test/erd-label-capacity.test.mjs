@@ -5,11 +5,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rectsOverlap, segmentRectClearanceWithin } from '../schematics/renderers/shared/geometry.ts';
+import { rectsOverlap, segmentRectClearanceWithin } from '../schematics/packages/geometry/geometry.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cli = path.join(root, 'schematics/bin/schematics.mjs');
-const renderer = path.join(root, 'schematics/renderers/erd/render-erd.mjs');
+const renderer = path.join(root, 'schematics/packages/erd/render-erd.mjs');
 const rows = count => Array.from({ length: count }, (_, index) => ({ name: `field_${index}`, type: 'TEXT' }));
 
 function fixture(quality = 'standard') {

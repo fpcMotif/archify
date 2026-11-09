@@ -11,7 +11,7 @@
     "test:generated": "bun run --cwd schematics check:viewer && bun run --cwd schematics check:brand-marks && bun run --cwd schematics check:validators && bun test/golden.mjs",
     "test:all": "bun test --timeout 120000",
     "test:full": "bun run test:generated && bun run test:all",
-    "lint:boundaries": "depcruise packages"
+    "lint:boundaries": "depcruise packages schematics test scripts --exclude '(^|/)(node_modules|vendor|examples)/'"
   },
   "devDependencies": {
     "@types/bun": "^1.4.4",

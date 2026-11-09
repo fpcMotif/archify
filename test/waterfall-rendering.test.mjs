@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
-const renderer = path.join(skillRoot, 'renderers', 'waterfall', 'render-waterfall.mjs');
+const renderer = path.join(skillRoot, 'packages', 'waterfall', 'render-waterfall.mjs');
 const checker = path.join(skillRoot, 'scripts', 'check-render-output.mjs');
 const small = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'checkout-request.waterfall.json'), 'utf8'));
 const large = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'example-rebuild.waterfall.json'), 'utf8'));

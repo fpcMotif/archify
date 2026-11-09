@@ -8,7 +8,7 @@ import * as simpleIcons from 'simple-icons';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const catalogPath = path.join(root, 'brand-marks', 'catalog.json');
-const outputPath = path.join(root, 'renderers', 'shared', 'generated-brand-marks.mjs');
+const outputPath = path.join(root, 'packages', 'svg', 'generated-brand-marks.mjs');
 const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
 const simpleIconsVersion = JSON.parse(fs.readFileSync(
   path.join(root, 'node_modules', 'simple-icons', 'package.json'),

@@ -1,4 +1,4 @@
-import { softwareNoticesHtml } from '../renderers/shared/software-notices.mjs';
+import { softwareNoticesHtml } from '../packages/output/software-notices.mjs';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
@@ -7,8 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { openLoopbackUrl } from './open-artifact.mjs';
-import { resolveOutputPath } from '../renderers/shared/output-path.mjs';
-import { sameLocation } from '../renderers/shared/path-semantics.mjs';
+import { resolveOutputPath } from '../packages/output/output-path.mjs';
+import { sameLocation } from '../packages/output/path-semantics.mjs';
 import {
   captureAtomicOutput,
   captureRegularFileBinding,
@@ -17,7 +17,7 @@ import {
   removeEmptyDirectoryWithRetry,
   removeOwnedRegularFile,
   verifyAtomicOutput,
-} from '../renderers/shared/atomic-output.mjs';
+} from '../packages/output/atomic-output.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const cliPath = path.join(here, 'schematics.mjs');

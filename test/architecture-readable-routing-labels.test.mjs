@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRouter } from '../schematics/renderers/architecture/routing.mjs';
-import { reservedLabelRect } from '../schematics/renderers/architecture/labels.mjs';
-import { labelPoint, rectsOverlap, segmentIntersectsRect } from '../schematics/renderers/shared/geometry.ts';
+import { createRouter } from '../schematics/packages/architecture/routing.mjs';
+import { reservedLabelRect } from '../schematics/packages/architecture/labels.mjs';
+import { labelPoint, rectsOverlap, segmentIntersectsRect } from '../schematics/packages/geometry/geometry.ts';
 
 function fixture() {
   const boxes = new Map(Array.from({ length: 6 }, (_, index) => {

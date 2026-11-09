@@ -3,12 +3,12 @@ import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { canonicalFuturePath, pathsAlias, resolveNativeOutputDirectory, resolveOutputPath } from '../renderers/shared/output-path.mjs';
-import { boundedSidecarStem } from '../renderers/shared/sidecar-path.mjs';
+import { canonicalFuturePath, pathsAlias, resolveNativeOutputDirectory, resolveOutputPath } from '../packages/output/output-path.mjs';
+import { boundedSidecarStem } from '../packages/output/sidecar-path.mjs';
 import {
   captureAtomicOutput, captureRegularFileBinding, publishRegularFileBinding,
   releaseRegularFileBinding, removeOwnedRegularFile, verifyAtomicOutput,
-} from '../renderers/shared/atomic-output.mjs';
+} from '../packages/output/atomic-output.mjs';
 import {
   browserCheckSidecarPaths,
   CAPTURE_VIEWPORTS,
@@ -825,7 +825,7 @@ export async function runFinalize({
       let result;
       if (preparedExplainer) {
         try {
-          const { assertPreparedDependencies } = await import('../explainer/prepare.mjs');
+          const { assertPreparedDependencies } = await import('../packages/explainer/prepare.mjs');
           assertPreparedDependencies(preparedExplainer);
         } catch (error) {
           result = { status: 1, stdout: JSON.stringify({ok:false,status:'fail',command:stage,stage:'prepare',diagnostics:error.schematicsDiagnostics || []}) };
@@ -881,7 +881,7 @@ export async function runFinalize({
       }
       if (preparedExplainer && result.status === 0) {
         try {
-          const { assertPreparedDependencies } = await import('../explainer/prepare.mjs');
+          const { assertPreparedDependencies } = await import('../packages/explainer/prepare.mjs');
           assertPreparedDependencies(preparedExplainer);
         } catch (error) {
           result = { status: 1, stdout: JSON.stringify({ok:false,status:'fail',command:stage,stage:'prepare',diagnostics:error.schematicsDiagnostics || []}) };

@@ -30,14 +30,14 @@ test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
   const files = {};
   for (const [mode, example] of Object.entries(cases)) {
     files[mode] = path.join(scratch, mode + '.html');
-    execFileSync(process.execPath, [path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
+    execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
       path.join(skillRoot, 'examples', example), files[mode]]);
   }
   const trace = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', cases.architecture), 'utf8'));
   trace.meta.animation = 'trace';
   const traceInput = path.join(scratch, 'trace.json');
   fs.writeFileSync(traceInput, JSON.stringify(trace)); files.trace = path.join(scratch, 'trace.html');
-  execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'), traceInput, files.trace]);
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'), traceInput, files.trace]);
 
   const browser = desktopBrowser(chrome);
   t.after(() => browser.close());

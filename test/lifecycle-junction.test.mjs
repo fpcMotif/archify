@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectAmbiguousCorridors, collectArrowheadCollisions } from '../schematics/renderers/shared/geometry.ts';
+import { collectAmbiguousCorridors, collectArrowheadCollisions } from '../schematics/packages/geometry/geometry.ts';
 
 const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
 const state = (id, type = 'active') => ({ id, type, label: id });
@@ -26,7 +26,7 @@ test('multi-target lifecycle bus passes the public artifact checker and validati
   const input = path.join(dir, 'bus.json');
   const output = path.join(dir, 'bus.html');
   fs.writeFileSync(input, JSON.stringify(bus));
-  const render = spawnSync(process.execPath, [path.join(skillRoot, 'renderers/lifecycle/render-lifecycle.mjs'), input, output], { encoding: 'utf8' });
+  const render = spawnSync(process.execPath, [path.join(skillRoot, 'packages/lifecycle/render-lifecycle.mjs'), input, output], { encoding: 'utf8' });
   assert.equal(render.status, 0, render.stderr);
   assert.match(fs.readFileSync(output, 'utf8'), /data-composition-junction="a\+c"/);
   const check = spawnSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.mjs'), output], { encoding: 'utf8' });

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { validateSchema } from '../schematics/renderers/shared/validator.mjs';
+import { validateSchema } from '../schematics/packages/validation/validator.mjs';
 
 const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
 

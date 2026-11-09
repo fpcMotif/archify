@@ -30,8 +30,8 @@ function fixture(t) {
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   fs.mkdirSync(path.join(root, 'scripts'));
   fs.mkdirSync(path.join(root, 'schematics/assets'), { recursive: true });
-  fs.mkdirSync(path.join(root, 'schematics/renderers/shared'), { recursive: true });
-  fs.copyFileSync(path.join(repoRoot, 'schematics/renderers/shared/path-semantics.mjs'), path.join(root, 'schematics/renderers/shared/path-semantics.mjs'));
+  fs.mkdirSync(path.join(root, 'schematics/packages/output'), { recursive: true });
+  fs.copyFileSync(path.join(repoRoot, 'schematics/packages/output/path-semantics.mjs'), path.join(root, 'schematics/packages/output/path-semantics.mjs'));
   fs.cpSync(path.join(repoRoot, 'viewer'), path.join(root, 'viewer'), { recursive: true });
   fs.copyFileSync(path.join(repoRoot, 'scripts/generate-viewer.mjs'), path.join(root, 'scripts/generate-viewer.mjs'));
   const output = path.join(root, 'schematics/assets/template.html');

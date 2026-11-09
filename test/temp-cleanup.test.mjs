@@ -3,7 +3,7 @@ import os from 'node:os';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { createOwnedTempDirectory } from '../schematics/renderers/shared/owned-temp-directory.mjs';
+import { createOwnedTempDirectory } from '../schematics/packages/output/owned-temp-directory.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -101,7 +101,7 @@ test('relative temp parent stays bound across a cwd change', t => {
   const base = fixture(t);
   fs.mkdirSync(path.join(base, 'temp'));
   fs.mkdirSync(path.join(base, 'other'));
-  const moduleUrl = new URL('../schematics/renderers/shared/owned-temp-directory.mjs', import.meta.url).href;
+  const moduleUrl = new URL('../schematics/packages/output/owned-temp-directory.mjs', import.meta.url).href;
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', `
     import { createOwnedTempDirectory } from ${JSON.stringify(moduleUrl)};
     import fs from 'node:fs';

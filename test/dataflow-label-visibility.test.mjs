@@ -5,7 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { rectsOverlap, segmentRectClearanceWithin } from '../schematics/renderers/shared/geometry.ts';
+import { rectsOverlap, segmentRectClearanceWithin } from '../schematics/packages/geometry/geometry.ts';
 
 const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
 const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/dataflow-label-visibility.json', import.meta.url)));

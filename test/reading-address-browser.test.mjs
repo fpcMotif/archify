@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { applyTemplate } from '../schematics/renderers/shared/utils.ts';
+import { applyTemplate } from '../schematics/packages/svg/utils.ts';
 import { findChrome } from '../schematics/bin/visual-check.mjs';
 import { desktopBrowser, desktopPointerCheck } from './helpers/desktop-browser.mjs';
 

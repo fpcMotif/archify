@@ -64,7 +64,7 @@ function mutableRemoteReferences() {
     const source = fs.readFileSync(absolute, 'utf8');
     for (const reference of usesReferences(source)) {
       const value = reference.value;
-      if (value.startsWith('./')) continue;
+      if (value.startsWith('.//')) continue;
       if (value.startsWith('docker://')) continue;
       const separator = value.lastIndexOf('@');
       const ref = separator === -1 ? '' : value.slice(separator + 1);

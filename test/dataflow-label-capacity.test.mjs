@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { flowLabelSize, wrapBlockedFlowLabels } from '../schematics/renderers/dataflow/label-capacity.mjs';
-import { rectsOverlap, segmentRectClearanceWithin } from '../schematics/renderers/shared/geometry.ts';
+import { flowLabelSize, wrapBlockedFlowLabels } from '../schematics/packages/dataflow/label-capacity.mjs';
+import { rectsOverlap, segmentRectClearanceWithin } from '../schematics/packages/geometry/geometry.ts';
 
 function fixture(text = '保存 / 复制结果') {
   const relation = { id: 'output', label: text };

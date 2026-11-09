@@ -9,7 +9,7 @@ import { assertFontCss, assertOfflineArtifact, inspectDocuments } from './helper
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const repoRoot = path.resolve(skillRoot, '..');
-import { softwareNotices, softwareNoticesHtml } from '../schematics/renderers/shared/software-notices.mjs';
+import { softwareNotices, softwareNoticesHtml } from '../schematics/packages/output/software-notices.mjs';
 
 const cli = path.join(skillRoot, 'bin/schematics.mjs');
 const template = fs.readFileSync(path.join(skillRoot, 'assets/template.html'), 'utf8');

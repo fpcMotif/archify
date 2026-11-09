@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020.js';
-import * as generatedValidators from '../schematics/renderers/shared/generated-validators.mjs';
+import * as generatedValidators from '../schematics/packages/validation/generated-validators.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
@@ -129,7 +129,7 @@ test('validator freshness check accepts CRLF checkouts', () => {
   const scratch = fs.mkdtempSync(path.join(skillRoot, '.validator-check-'));
   try {
     fs.mkdirSync(path.join(scratch, 'scripts'));
-    fs.mkdirSync(path.join(scratch, 'renderers', 'shared'), { recursive: true });
+    fs.mkdirSync(path.join(scratch, 'packages', 'validation'), { recursive: true });
     fs.cpSync(path.join(skillRoot, 'schemas'), path.join(scratch, 'schemas'), { recursive: true });
     fs.copyFileSync(
       path.join(skillRoot, 'scripts', 'generate-validators.mjs'),
@@ -138,13 +138,13 @@ test('validator freshness check accepts CRLF checkouts', () => {
 
     const generatedFiles = [
       'generated-validators.mjs',
-      ...fs.readdirSync(path.join(skillRoot, 'renderers', 'shared', 'generated-validators'))
+      ...fs.readdirSync(path.join(skillRoot, 'packages', 'validation', 'generated-validators'))
         .map((name) => path.join('generated-validators', name)),
     ];
-    fs.mkdirSync(path.join(scratch, 'renderers', 'shared', 'generated-validators'));
+    fs.mkdirSync(path.join(scratch, 'packages', 'validation', 'generated-validators'));
     for (const file of generatedFiles) {
-      const validator = fs.readFileSync(path.join(skillRoot, 'renderers', 'shared', file), 'utf8');
-      fs.writeFileSync(path.join(scratch, 'renderers', 'shared', file), validator.replace(/\r\n?|\n/g, '\r\n'));
+      const validator = fs.readFileSync(path.join(skillRoot, 'packages', 'validation', file), 'utf8');
+      fs.writeFileSync(path.join(scratch, 'packages', 'validation', file), validator.replace(/\r\n?|\n/g, '\r\n'));
     }
 
     const result = spawnSync(process.execPath, [

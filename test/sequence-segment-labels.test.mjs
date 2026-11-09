@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const renderer = path.resolve(__dirname, '..', 'schematics', 'renderers', 'sequence', 'render-sequence.mjs');
+const renderer = path.resolve(__dirname, '..', 'schematics', 'packages', 'sequence', 'render-sequence.mjs');
 const cli = path.resolve(__dirname, '..', 'schematics', 'bin', 'schematics.mjs');
 // An unedited first draft with two abutting segments (140-300, 300-520). On
 // dev the first label climbed behind the participant headers and the second

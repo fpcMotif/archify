@@ -32,7 +32,7 @@ test('Export cleanup preserves canonical artifacts and live interaction state', 
     if (process.env.SCHEMATICS_EXPORT_BASELINE_DIR) {
       fs.copyFileSync(path.join(process.env.SCHEMATICS_EXPORT_BASELINE_DIR, `${mode}.html`), file);
     } else {
-      execFileSync(process.execPath, [path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
+      execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
         path.join(skillRoot, 'examples', example), file]);
     }
     files[mode] = file;

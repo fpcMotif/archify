@@ -6,7 +6,7 @@ status: accepted
 
 This fork moves its CLI, renderers, scripts and tests from Node `.mjs` to typed TypeScript. Bun is the only runtime: it runs the Skill, the CLI, the tests and CI. Node is not supported. The goal is a release that ships as a compiled executable, so users need no JavaScript runtime: `bun build --compile` builds the whole CLI, and scriptc compiles the typed layout core to native code. The owner wants one typed language across the repository, and a fast native release.
 
-The language migration is not done. `renderers/shared/geometry.ts` is the first converted module; the other `.mjs` files run unchanged under Bun until they are converted. The ratchet's remaining count is the progress measure.
+The language migration is not done. `packages/geometry/geometry.ts` is the first converted module; the other `.mjs` files run unchanged under Bun until they are converted. The ratchet's remaining count is the progress measure.
 
 ## Measurements behind the choice
 
@@ -21,7 +21,7 @@ Measured on an Apple Silicon Mac on 2026-11-06 with hyperfine:
 
 In a sequence render under Bun, the layout code itself takes about 5 ms. Most of the rest is process start-up, a second renderer process, locale loading and string patching of the template.
 
-`scriptc coverage` reports that `renderers/shared/geometry` and `fixes` compile 100% to native code. `text-fit`, `utils`, `i18n` and `legend` each compile 99%; one `Map` typing blocks each. The generated Ajv validators (`generated-validators/<type>.js`) do not compile, because they read a `var` before its assignment.
+`scriptc coverage` reports that `packages/geometry/geometry` and `fixes` compile 100% to native code. `text-fit`, `utils`, `i18n` and `legend` each compile 99%; one `Map` typing blocks each. The generated Ajv validators (`generated-validators/<type>.js`) do not compile, because they read a `var` before its assignment.
 
 `bun test` runs the existing `node:test` files. All golden example renders are byte-identical under Bun. A few tests needed Bun equivalents: fault injection through Node's `--import` loader hooks moves to a `--preload` script with `Bun.plugin`.
 

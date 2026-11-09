@@ -7,11 +7,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { segmentIntersectsRect } from '../schematics/renderers/shared/geometry.ts';
+import { segmentIntersectsRect } from '../schematics/packages/geometry/geometry.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
-const renderer = path.join(skillRoot, 'renderers', 'erd', 'render-erd.mjs');
+const renderer = path.join(skillRoot, 'packages', 'erd', 'render-erd.mjs');
 const checker = path.join(skillRoot, 'scripts', 'check-render-output.mjs');
 const examplePath = path.join(skillRoot, 'examples', 'orders.erd.json');
 // One legend band plus the title gap a band has to clear below the content.

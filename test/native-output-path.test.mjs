@@ -7,7 +7,7 @@ import {
   resolveNativeOutputDirectory,
   resolveOutputPath,
   validateNativeOutputPath,
-} from '../schematics/renderers/shared/output-path.mjs';
+} from '../schematics/packages/output/output-path.mjs';
 
 function nativeFailure(value, options) {
   assert.throws(

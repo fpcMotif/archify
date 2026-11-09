@@ -36,7 +36,7 @@ function render(mode, example, animation = 'trace', visualPreset) {
   const input = path.join(tmp, `${mode}-${suffix}.json`);
   const output = path.join(tmp, `${mode}-${suffix}.html`);
   fs.writeFileSync(input, JSON.stringify(doc));
-  execFileSync(process.execPath, [path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`), input, output], {
+  execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`), input, output], {
     stdio: ['ignore', 'ignore', 'pipe'],
   });
   return fs.readFileSync(output, 'utf8');

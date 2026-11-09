@@ -36,13 +36,13 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
     if (process.env.SCHEMATICS_READER_BASELINE_DIR) {
       fs.copyFileSync(path.join(process.env.SCHEMATICS_READER_BASELINE_DIR, `${mode}.html`), output);
     } else {
-      execFileSync(process.execPath, [path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
+      execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
         path.join(skillRoot, 'examples', example), output]);
     }
     artifacts[mode] = output;
   }
   const compactErd = path.join(scratch, 'compact-table.html');
-  execFileSync(process.execPath, [path.join(skillRoot, 'renderers/erd/render-erd.mjs'),
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/erd/render-erd.mjs'),
     path.resolve(skillRoot, '../test/fixtures/reader-readability/compact-table.erd.json'), compactErd]);
   const browser = new ChromeVisualBrowser(chromePath);
   const records = [];

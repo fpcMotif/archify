@@ -26,7 +26,7 @@ test('Reader Layout settles when card height depends on the reader width', {
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-reader-settle-'));
   const output = path.join(scratch, 'portrait-cards.html');
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'),
+    path.join(skillRoot, 'packages/architecture/render-architecture.mjs'),
     path.join(skillRoot, '..', 'test', 'fixtures/architecture-viewport/portrait-cards.architecture.json'),
     output,
   ]);

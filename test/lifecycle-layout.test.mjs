@@ -9,8 +9,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { nodeLabelLayout } from '../schematics/renderers/shared/text-fit.ts';
-import { SOURCE_BADGE_FOOTPRINT } from '../schematics/renderers/shared/utils.ts';
+import { nodeLabelLayout } from '../schematics/packages/svg/text-fit.ts';
+import { SOURCE_BADGE_FOOTPRINT } from '../schematics/packages/svg/utils.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
@@ -24,7 +24,7 @@ function render(doc) {
   const output = path.join(tmp, `case-${counter}.html`);
   fs.writeFileSync(input, JSON.stringify({ ...doc, meta: { ...doc.meta, output: `case-${counter}.html` } }));
   try {
-    execFileSync(process.execPath, [path.join(skillRoot, 'renderers/lifecycle/render-lifecycle.mjs'), input, output], { stdio: ['ignore', 'ignore', 'pipe'] });
+    execFileSync(process.execPath, [path.join(skillRoot, 'packages/lifecycle/render-lifecycle.mjs'), input, output], { stdio: ['ignore', 'ignore', 'pipe'] });
   } catch (error) {
     return { code: error.status ?? 1, stderr: String(error.stderr || '') };
   }

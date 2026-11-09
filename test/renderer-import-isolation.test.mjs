@@ -6,7 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const compilerUrl = new URL('../schematics/renderers/workflow/workflow-compiler.mjs', import.meta.url).href;
+const compilerUrl = new URL('../schematics/packages/workflow/workflow-compiler.mjs', import.meta.url).href;
 const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
 
 function workspace(t) {
@@ -77,7 +77,7 @@ for (const type of ['architecture', 'workflow', 'sequence', 'dataflow', 'lifecyc
     const cwd = workspace(t);
     const output = path.join(cwd, 'diagram.html');
     fs.writeFileSync(output, 'previous artifact');
-    const renderer = path.join(skillRoot, 'renderers', type, `render-${type}.mjs`);
+    const renderer = path.join(skillRoot, 'packages', type, `render-${type}.mjs`);
     for (const [name, contents, code] of [
       ['missing', null, 'input/read'],
       ['malformed', '{"broken":', 'input/json-parse'],

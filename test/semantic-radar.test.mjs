@@ -24,7 +24,7 @@ const CASES = {
 function render(mode, example) {
   const output = path.join(tmp, `${mode}.html`);
   execFileSync(process.execPath, [
-    path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
+    path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
     path.join(skillRoot, 'examples', example),
     output,
   ]);
@@ -225,7 +225,7 @@ test('Semantic Radar stays above the measured MAP control strip', {
 }, async () => {
   const artifact = path.join(tmp, 'radar-control-clearance.html');
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'),
+    path.join(skillRoot, 'packages/architecture/render-architecture.mjs'),
     path.join(skillRoot, 'examples', CASES.architecture),
     artifact,
   ]);
@@ -253,7 +253,7 @@ test('Semantic Radar avoids an expanded mobile Passport without hiding a collisi
 }, async () => {
   const artifact = path.join(tmp, 'radar-mobile-passport.html');
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'),
+    path.join(skillRoot, 'packages/architecture/render-architecture.mjs'),
     pinnedArchitectureInput('radar-mobile-passport.json'),
     artifact,
   ]);
@@ -352,7 +352,7 @@ test('Semantic Radar reports a consistent unavailable state and recovers when sp
 }, async () => {
   const artifact = path.join(tmp, 'radar-unavailable.html');
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'),
+    path.join(skillRoot, 'packages/architecture/render-architecture.mjs'),
     pinnedArchitectureInput('radar-unavailable.json'),
     artifact,
   ]);
@@ -449,7 +449,7 @@ test('Semantic Radar automatically avoids a tall Semantic Passport', {
     cards: [],
   }, null, 2));
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'),
+    path.join(skillRoot, 'packages/architecture/render-architecture.mjs'),
     input,
     artifact,
   ]);
@@ -511,7 +511,7 @@ test('Semantic Radar titlebar drag persists while surface drag still pans the di
 }, async () => {
   const artifact = path.join(tmp, 'radar-dragging.html');
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'),
+    path.join(skillRoot, 'packages/architecture/render-architecture.mjs'),
     path.join(skillRoot, 'examples', CASES.architecture),
     artifact,
   ]);

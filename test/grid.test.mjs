@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { gridLayout, resolveComponentPos, validateGridPlacement } from '../schematics/renderers/architecture/grid.mjs';
+import { gridLayout, resolveComponentPos, validateGridPlacement } from '../schematics/packages/architecture/grid.mjs';
 
 test('gridLayout returns null for free placement', () => {
   assert.equal(gridLayout({}), null);

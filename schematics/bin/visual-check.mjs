@@ -1,8 +1,8 @@
-import { softwareNoticesHtml } from '../renderers/shared/software-notices.mjs';
+import { softwareNoticesHtml } from '../packages/output/software-notices.mjs';
 import { spawn } from 'node:child_process';
-import { isExplainerHtml } from '../explainer/check.mjs';
-import { EXPLAINER_VIEWPORTS, inspectExplainerBrowser, explainerObservation, explainerObservationDiagnostics } from '../explainer/browser-check.mjs';
-import { createOwnedTempDirectory } from '../renderers/shared/owned-temp-directory.mjs';
+import { isExplainerHtml } from '../packages/explainer/check.mjs';
+import { EXPLAINER_VIEWPORTS, inspectExplainerBrowser, explainerObservation, explainerObservationDiagnostics } from '../packages/explainer/browser-check.mjs';
+import { createOwnedTempDirectory } from '../packages/output/owned-temp-directory.mjs';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -11,7 +11,7 @@ import { pathToFileURL } from 'node:url';
 import {
   DESKTOP_READABILITY_VIEWPORT,
   MIN_PROJECTED_NODE_TEXT_PX,
-} from '../renderers/shared/desktop-readability.ts';
+} from '../packages/diagnostics/desktop-readability.ts';
 import {
   backupPublicRegularFileBinding,
   captureAtomicOutput,
@@ -22,17 +22,17 @@ import {
   removeEmptyDirectoryWithRetry,
   verifyAtomicOutput,
   verifyRegularFileBinding,
-} from '../renderers/shared/atomic-output.mjs';
+} from '../packages/output/atomic-output.mjs';
 import {
   sameEntry,
   sameLocation,
   sameParent,
   sidecarNamespaceComponentKey,
-} from '../renderers/shared/path-semantics.mjs';
+} from '../packages/output/path-semantics.mjs';
 import {
   boundedSidecarStem,
   sidecarStemFromComponent,
-} from '../renderers/shared/sidecar-path.mjs';
+} from '../packages/output/sidecar-path.mjs';
 
 export const VISUAL_CHECK_VIEWPORTS = Object.freeze([
   DESKTOP_READABILITY_VIEWPORT,

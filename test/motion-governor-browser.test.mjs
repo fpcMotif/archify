@@ -35,12 +35,12 @@ test('Motion Governor preserves mode, ownership, continuous Live flow and real c
     const input = path.join(scratch, mode + '.json');
     fs.writeFileSync(input, JSON.stringify(doc));
     files[mode] = path.join(scratch, mode + '.html');
-    execFileSync(process.execPath, [path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`), input, files[mode]]);
+    execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`), input, files[mode]]);
     if (mode === 'tree') {
       doc.nodes.find(n=>n.id==='orders').collapsed=true;
       fs.writeFileSync(input, JSON.stringify(doc));
       files.treeCollapsed = path.join(scratch, 'tree-collapsed.html');
-      execFileSync(process.execPath, [path.join(skillRoot, 'renderers/tree/render-tree.mjs'), input, files.treeCollapsed]);
+      execFileSync(process.execPath, [path.join(skillRoot, 'packages/tree/render-tree.mjs'), input, files.treeCollapsed]);
     }
   }
   // Old standalone static HTML still has an inert Governor. New renders default to motion.

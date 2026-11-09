@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSpatialGrid } from '../schematics/renderers/shared/spatial-grid.ts';
+import { createSpatialGrid } from '../schematics/packages/geometry/spatial-grid.ts';
 
 test('a query returns the items its box reaches, once each', () => {
   const grid = createSpatialGrid(100);

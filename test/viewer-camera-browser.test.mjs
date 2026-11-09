@@ -81,14 +81,14 @@ test('Camera preserves transactions, rendered state and real caller handoffs', {
   const files = {};
   for (const [mode, example] of Object.entries(cases)) {
     files[mode] = path.join(scratch, `${mode}.html`);
-    execFileSync(process.execPath, [path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
+    execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
       path.join(skillRoot, 'examples', example), files[mode]]);
   }
   const trace = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', cases.architecture), 'utf8'));
   trace.meta.animation = 'trace';
   fs.writeFileSync(path.join(scratch, 'trace.json'), JSON.stringify(trace));
   files.trace = path.join(scratch, 'trace.html');
-  execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'),
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'),
     path.join(scratch, 'trace.json'), files.trace]);
   const longSequence = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', cases.sequence), 'utf8'));
   longSequence.meta.viewBox = [1080, 3400];
@@ -99,13 +99,13 @@ test('Camera preserves transactions, rendered state and real caller handoffs', {
   }));
   fs.writeFileSync(path.join(scratch, 'long-sequence.json'), JSON.stringify(longSequence));
   files.longSequence = path.join(scratch, 'long-sequence.html');
-  execFileSync(process.execPath, [path.join(skillRoot, 'renderers/sequence/render-sequence.mjs'),
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/sequence/render-sequence.mjs'),
     path.join(scratch, 'long-sequence.json'), files.longSequence]);
   const mobileWide = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', cases.architecture), 'utf8'));
   mobileWide.meta.viewBox = [1600, 700];
   fs.writeFileSync(path.join(scratch, 'mobile-wide.json'), JSON.stringify(mobileWide));
   files.mobileWide = path.join(scratch, 'mobile-wide.html');
-  execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'),
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'),
     path.join(scratch, 'mobile-wide.json'), files.mobileWide]);
   const browser = new ChromeVisualBrowser(chrome);
   t.after(() => browser.close());

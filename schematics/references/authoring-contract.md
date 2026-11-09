@@ -29,9 +29,9 @@ Use schema v2 for new workflows and keep schema v1 when an existing source must
 retain fixed geometry. In both versions, `col` stays in `0..5` and semantic
 edge labels are never deleted as a spacing repair. Do not change only
 `schema_version` when absolute coordinates exist: follow the canonical
-[migration and layout-receipt contract](../renderers/workflow/README.md#migration-and-layout-receipt).
+[migration and layout-receipt contract](../packages/workflow/README.md#migration-and-layout-receipt).
 The complete normative invariants live in the workflow renderer's
-[layout contracts](../renderers/workflow/README.md#layout-contracts).
+[layout contracts](../packages/workflow/README.md#layout-contracts).
 For sequential stages stacked in one container, use one v2 lane and group,
 omit `meta.viewBox`, and center nodes around the lane content with symmetric
 `yOffset` values such as `-90 / 0 / 90`. Keep semantic edge labels and act on
@@ -87,7 +87,7 @@ bundled catalog.
 
 `meta.translations` is an optional per-key override: an object mapping the
 renderer's canonical message keys (`locales/en.json`, or `catalogKeys()` in
-`renderers/shared/i18n.ts`) to translated strings whose `{placeholder}` tokens
+`packages/i18n/i18n.ts`) to translated strings whose `{placeholder}` tokens
 match the English source exactly. Each message resolves as: valid
 `meta.translations` value → the selected bundled catalog → English. For a
 bundled locale, supply only the keys whose wording the diagram needs to change;
@@ -318,7 +318,7 @@ and use large `yOffset` values. Readable-v2 reserves symmetric space around
 offsets. With a same-column vertical stack, an implicit canvas and no absolute
 route or label pins, it measures each lane independently. Other cases retain
 shared-height geometry for compatibility; see the canonical
-[lane measurement contract](../renderers/workflow/README.md#readable-v2).
+[lane measurement contract](../packages/workflow/README.md#readable-v2).
 
 Where the source's ownership and explicit geometry permit, redistribute steps
 across logical columns and meaningful lanes, keeping the main path monotonic.
@@ -419,7 +419,7 @@ interior floor is a `composition/short-interior-segment` failure.
 An automatic canvas is sized so the default legend is always in the generated
 content, and a canvas the author fixes with `meta.viewBox` reports its legend
 capacity instead of dropping the key; see
-[`../renderers/erd/README.md`](../renderers/erd/README.md) for the band, port, and
+[`../packages/erd/README.md`](../packages/erd/README.md) for the band, port, and
 reader contract.
 
 ### Tree
@@ -438,7 +438,7 @@ reader. Labels wrap between words. `collapsed: true` makes a branch start
 collapsed in the Viewer; it never removes content from the artifact, and every
 export is the complete tree. For a real codebase, ground each node in the
 observed path and attach `sources`. See
-[`../renderers/tree/README.md`](../renderers/tree/README.md).
+[`../packages/tree/README.md`](../packages/tree/README.md).
 
 ### Class
 
@@ -463,7 +463,7 @@ Place types on the `row`/`col` grid with supertypes above their subtypes. Two
 or more automatic generalizations into one supertype draw as one hierarchy bus
 with a single triangle. Members never truncate: a type grows to its widest
 member up to `layout.typeMaxW` and longer members wrap at parameter boundaries.
-See [`../renderers/class/README.md`](../renderers/class/README.md).
+See [`../packages/class/README.md`](../packages/class/README.md).
 
 First-draft shape: types use `row`/`col` (not `pos`/`size`), fields go in
 `attributes[]`, operations in `methods[]` with `parameters` as one string such as
@@ -492,7 +492,7 @@ For events known only to the day (releases, milestones, history), set
 `layout.scale: "date"`: the axis ticks on days, months, quarters, or years and
 every label drops the clock. Each event must then sit on midnight in
 `meta.timezone`, or validation fails with `timeline/date-scale-clock-time`.
-See [`../renderers/timeline/README.md`](../renderers/timeline/README.md).
+See [`../packages/timeline/README.md`](../packages/timeline/README.md).
 
 ### Waterfall
 
@@ -510,7 +510,7 @@ an end before the start, a missing parent, or a parent cycle is refused.
 Percentages are always "of the wall-clock total"; parent and child durations
 are inclusive and never summed. Do not mark a critical path or waiting time
 unless the input states the dependency. See
-[`../renderers/waterfall/README.md`](../renderers/waterfall/README.md).
+[`../packages/waterfall/README.md`](../packages/waterfall/README.md).
 
 ### Lifecycle
 

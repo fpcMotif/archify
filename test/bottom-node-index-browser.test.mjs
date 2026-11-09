@@ -22,7 +22,7 @@ test('Bottom node index preserves readable rows and native Viewer interaction', 
   const evidence = process.env.SCHEMATICS_BOTTOM_INDEX_EVIDENCE;
   if (evidence) fs.mkdirSync(evidence, { recursive: true });
   const artifact = path.join(scratch, 'architecture.html');
-  execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'),
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'),
     path.join(skillRoot, 'examples/web-app.architecture.json'), artifact]);
   const browser = new ChromeVisualBrowser(chrome);
   t.after(() => browser.close());
@@ -182,7 +182,7 @@ test('Bottom node index preserves readable rows and native Viewer interaction', 
   const wrappedPath = path.join(scratch, 'wrapped.json');
   const wrappedArtifact = path.join(scratch, 'wrapped.html');
   fs.writeFileSync(wrappedPath, JSON.stringify(wrappedInput));
-  execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'), wrappedPath, wrappedArtifact]);
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'), wrappedPath, wrappedArtifact]);
   const wrappedLoaded = browser.cdp.waitFor('Page.loadEventFired', session);
   await send('Page.navigate', { url: pathToFileURL(wrappedArtifact).href + '?theme=light' });
   await wrappedLoaded;

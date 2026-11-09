@@ -7,7 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const diagnostics = new URL('../schematics/renderers/shared/diagnostics.ts', import.meta.url).href;
+const diagnostics = new URL('../schematics/packages/diagnostics/diagnostics.ts', import.meta.url).href;
 
 // A pipe holds 8KB on macOS and 64KB on Linux before it blocks. The large case
 // stays far above both so the receipt cannot leave the renderer in one write.

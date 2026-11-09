@@ -21,7 +21,7 @@ test('class: hierarchy bus motion follows from-to while retaining aligned visual
   const input = path.join(scratch, 'payments.class.json');
   const output = path.join(scratch, 'payments.html');
   fs.writeFileSync(input, JSON.stringify(diagram));
-  execFileSync(process.execPath, [path.join(skillRoot, 'renderers/class/render-class.mjs'), input, output]);
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/class/render-class.mjs'), input, output]);
   const browser = desktopBrowser(chrome);
   t.after(() => browser.close());
   const session = await browser.sessionPromise;

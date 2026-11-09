@@ -6,7 +6,7 @@ import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { startPreview } from '../schematics/bin/preview.mjs';
-import { validateSchema } from '../schematics/renderers/shared/validator.mjs';
+import { validateSchema } from '../schematics/packages/validation/validator.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..', 'schematics');

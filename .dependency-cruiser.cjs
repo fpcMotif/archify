@@ -12,7 +12,7 @@
 // The only thing you should ever need to edit here is PACKAGES_ROOT.
 
 /** Where packages live. One immediate child dir per package (flat, no nesting). */
-const PACKAGES_ROOT = "packages";
+const PACKAGES_ROOT = "(?:schematics/)?packages";
 
 // --- derived patterns (no need to edit) -------------------------------------
 const R = PACKAGES_ROOT;

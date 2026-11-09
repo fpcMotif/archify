@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { ChromeVisualBrowser, findChrome, runVisualCheck } from '../schematics/bin/visual-check.mjs';
-import { DESKTOP_READABILITY_VIEWPORT, MIN_PROJECTED_NODE_TEXT_PX } from '../schematics/renderers/shared/desktop-readability.ts';
+import { DESKTOP_READABILITY_VIEWPORT, MIN_PROJECTED_NODE_TEXT_PX } from '../schematics/packages/diagnostics/desktop-readability.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
@@ -33,7 +33,7 @@ test('waterfall axis labels stay distinct and inside the SVG at nonzero origins'
       fs.writeFileSync(input, JSON.stringify({ schema_version: 1, diagram_type: 'waterfall',
         meta: { title: 'Recorded range', evidence: 'illustrative', unit: 'ms' }, layout,
         spans: [{ id: 'request', name: 'Request', ...timing }] }));
-      execFileSync(process.execPath, [path.join(skillRoot, 'renderers/waterfall/render-waterfall.mjs'), input, artifactPath]);
+      execFileSync(process.execPath, [path.join(skillRoot, 'packages/waterfall/render-waterfall.mjs'), input, artifactPath]);
       for (const theme of ['light', 'dark']) {
         await browser.inspect({ artifactPath, width: 1280, height: 900, theme });
         const session = await browser.sessionPromise;

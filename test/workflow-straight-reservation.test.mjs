@@ -5,8 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { compileWorkflow } from '../schematics/renderers/workflow/workflow-compiler.mjs';
-import { labelPoint } from '../schematics/renderers/shared/geometry.ts';
+import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.mjs';
+import { labelPoint } from '../schematics/packages/geometry/geometry.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = path.join(root, 'test/fixtures/workflow-first-draft/automatic-fanout.workflow.json');

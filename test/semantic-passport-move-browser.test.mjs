@@ -27,7 +27,7 @@ function renderArtifact(locale = 'en', animation = null) {
     fs.writeFileSync(input, JSON.stringify(document));
   }
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'),
+    path.join(skillRoot, 'packages/architecture/render-architecture.mjs'),
     input,
     artifact,
   ]);
@@ -347,7 +347,7 @@ test('compact ERD Passport reclamps to the settled container when the reader cap
 }, async () => {
   const artifact = path.join(tmp, 'compact-erd-passport.html');
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'renderers/erd/render-erd.mjs'),
+    path.join(skillRoot, 'packages/erd/render-erd.mjs'),
     path.join(skillRoot, '../test/fixtures/reader-readability/compact-table.erd.json'), artifact,
   ]);
   const browser = desktopBrowser(chromePath);

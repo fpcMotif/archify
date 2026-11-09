@@ -6,7 +6,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {ChromeVisualBrowser,findChrome} from '../schematics/bin/visual-check.mjs';
-import {fittedNodeFontSize} from '../schematics/renderers/shared/text-fit.ts';
+import {fittedNodeFontSize} from '../schematics/packages/svg/text-fit.ts';
 
 const testDir=path.dirname(fileURLToPath(import.meta.url));
 

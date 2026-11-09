@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { validateSchema } from '../schematics/renderers/shared/validator.mjs';
+import { validateSchema } from '../schematics/packages/validation/validator.mjs';
 import {
   skillRoot, ES_TRANSLATIONS, KO_TRANSLATIONS, FR_PARTIAL_TRANSLATIONS,
   MANIFEST, EXAMPLES, example, authoredExample, localeDocument, createLocaleFixture,
@@ -22,7 +22,7 @@ import {
   translateMessage,
   registerLocale,
   validateTranslations,
-} from '../schematics/renderers/shared/i18n.ts';
+} from '../schematics/packages/i18n/i18n.ts';
 
 const templatePath = path.join(skillRoot, 'assets/template.html');
 const { tmp, run, deliverKoreanFixture, deliverJapaneseFixture, cliJson } = createLocaleFixture();

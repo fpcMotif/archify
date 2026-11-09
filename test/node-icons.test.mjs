@@ -24,7 +24,7 @@ for (const [mode, [example, collection, index = 0]] of Object.entries(cases)) {
       const output = path.join(dir, 'output.html');
       const render = () => {
         fs.writeFileSync(input, JSON.stringify(spec));
-        const result = spawnSync(process.execPath, [path.join(root, `renderers/${mode}/render-${mode}.mjs`), input, output], { encoding: 'utf8' });
+        const result = spawnSync(process.execPath, [path.join(root, `packages/${mode}/render-${mode}.mjs`), input, output], { encoding: 'utf8' });
         assert.equal(result.status, 0, result.stderr);
         return fs.readFileSync(output, 'utf8');
       };

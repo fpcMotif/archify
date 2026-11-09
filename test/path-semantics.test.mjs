@@ -9,7 +9,7 @@ import {
   sameEntry,
   sameLocation,
   sameParent,
-} from '../schematics/renderers/shared/path-semantics.mjs';
+} from '../schematics/packages/output/path-semantics.mjs';
 
 function scratchDirectory(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-path-semantics-'));

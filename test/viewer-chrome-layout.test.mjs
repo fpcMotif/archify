@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
-import { MIN_PROJECTED_NODE_TEXT_PX } from '../schematics/renderers/shared/desktop-readability.ts';
+import { MIN_PROJECTED_NODE_TEXT_PX } from '../schematics/packages/diagnostics/desktop-readability.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');

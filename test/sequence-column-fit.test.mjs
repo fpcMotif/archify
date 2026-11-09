@@ -5,8 +5,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { textUnits } from '../schematics/renderers/shared/utils.ts';
-import { minimumNodeTextWidth } from '../schematics/renderers/shared/text-fit.ts';
+import { textUnits } from '../schematics/packages/svg/utils.ts';
+import { minimumNodeTextWidth } from '../schematics/packages/svg/text-fit.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
@@ -21,7 +21,7 @@ function renderOutcome(doc, publicCli = false) {
   try {
     execFileSync(process.execPath, publicCli
       ? [path.join(skillRoot, 'bin/schematics.mjs'), 'render', 'sequence', input, output]
-      : [path.join(skillRoot, 'renderers/sequence/render-sequence.mjs'), input, output], { stdio: ['ignore', 'ignore', 'pipe'] });
+      : [path.join(skillRoot, 'packages/sequence/render-sequence.mjs'), input, output], { stdio: ['ignore', 'ignore', 'pipe'] });
     return { code: 0, stderr: '', html: fs.readFileSync(output, 'utf8') };
   } catch (err) {
     return { code: err.status ?? 1, stderr: String(err.stderr || ''), html: '' };
@@ -128,7 +128,7 @@ test('the authoring contract explains automatic spread and explicit geometry com
   const schema = JSON.parse(fs.readFileSync(path.join(skillRoot, 'schemas/sequence.schema.json'), 'utf8'));
   const description = schema.properties.meta.properties.column_fit.description;
   const skill = fs.readFileSync(path.join(skillRoot, 'references/authoring-defaults.md'), 'utf8');
-  const rendererReadme = fs.readFileSync(path.join(skillRoot, 'renderers/sequence/README.md'), 'utf8');
+  const rendererReadme = fs.readFileSync(path.join(skillRoot, 'packages/sequence/README.md'), 'utf8');
 
   assert.match(description, /wide viewBox/);
   assert.match(description, /meaningful participant labels/);

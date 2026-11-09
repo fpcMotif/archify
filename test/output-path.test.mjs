@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startPreview } from '../schematics/bin/preview.mjs';
-import { loadDiagram, writeDiagram } from '../schematics/renderers/shared/cli.mjs';
-import { pathsAlias } from '../schematics/renderers/shared/output-path.mjs';
+import { loadDiagram, writeDiagram } from '../schematics/packages/svg/cli.mjs';
+import { pathsAlias } from '../schematics/packages/output/output-path.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..', 'schematics');
@@ -110,7 +110,7 @@ test('render reports an output symlink cycle as a structured output diagnostic',
 
   const result = spawnSync(
     process.execPath,
-    [path.join(skillRoot, 'renderers/workflow/render-workflow.mjs'), input, output],
+    [path.join(skillRoot, 'packages/workflow/render-workflow.mjs'), input, output],
     {
       cwd,
       encoding: 'utf8',
@@ -265,8 +265,8 @@ test('deliver rechecks aliases immediately before committing a verified candidat
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-deliver-race-'));
   const installedRoot = path.join(cwd, 'skill');
   const installedBin = path.join(installedRoot, 'bin');
-  const installedShared = path.join(installedRoot, 'renderers/shared');
-  const installedRenderer = path.join(installedRoot, 'renderers/workflow');
+  const installedShared = path.join(installedRoot, 'packages/output');
+  const installedRenderer = path.join(installedRoot, 'packages/workflow');
   const installedScripts = path.join(installedRoot, 'scripts');
   fs.mkdirSync(installedBin, { recursive: true });
   fs.mkdirSync(installedShared, { recursive: true });
@@ -274,23 +274,23 @@ test('deliver rechecks aliases immediately before committing a verified candidat
   fs.mkdirSync(installedScripts, { recursive: true });
   fs.copyFileSync(cli, path.join(installedBin, 'schematics.mjs'));
   fs.copyFileSync(
-    path.join(skillRoot, 'renderers/shared/output-path.mjs'),
+    path.join(skillRoot, 'packages/output/output-path.mjs'),
     path.join(installedShared, 'output-path.mjs'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'renderers/shared/path-semantics.mjs'),
+    path.join(skillRoot, 'packages/output/path-semantics.mjs'),
     path.join(installedShared, 'path-semantics.mjs'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'renderers/shared/portable-path.mjs'),
+    path.join(skillRoot, 'packages/output/portable-path.mjs'),
     path.join(installedShared, 'portable-path.mjs'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'renderers/shared/atomic-output.mjs'),
+    path.join(skillRoot, 'packages/output/atomic-output.mjs'),
     path.join(installedShared, 'atomic-output.mjs'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'renderers/shared/sidecar-path.mjs'),
+    path.join(skillRoot, 'packages/output/sidecar-path.mjs'),
     path.join(installedShared, 'sidecar-path.mjs'),
   );
   fs.writeFileSync(path.join(installedRenderer, 'render-workflow.mjs'), `
@@ -966,7 +966,7 @@ test('the shared renderer rechecks its guarded output immediately before writing
   fs.writeFileSync(input, source);
 
   const loaded = loadDiagram({
-    rendererDir: path.join(skillRoot, 'renderers/workflow'),
+    rendererDir: path.join(skillRoot, 'packages/workflow'),
     diagramType: 'workflow',
     defaultExample: 'agent-tool-call.workflow.json',
     argv: ['node', 'render-workflow.mjs', input, output],
@@ -992,32 +992,32 @@ test('compare rechecks every target immediately before committing the artifact p
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-compare-race-'));
   const installedRoot = path.join(cwd, 'skill');
   const installedBin = path.join(installedRoot, 'bin');
-  const installedShared = path.join(installedRoot, 'renderers/shared');
-  const installedRenderer = path.join(installedRoot, 'renderers/architecture');
+  const installedShared = path.join(installedRoot, 'packages/output');
+  const installedRenderer = path.join(installedRoot, 'packages/architecture');
   const installedScripts = path.join(installedRoot, 'scripts');
-  const installedDelta = path.join(installedRoot, 'delta');
+  const installedDelta = path.join(installedRoot, 'packages/delta');
   for (const directory of [installedBin, installedShared, installedRenderer, installedScripts, installedDelta]) {
     fs.mkdirSync(directory, { recursive: true });
   }
   fs.copyFileSync(cli, path.join(installedBin, 'schematics.mjs'));
   fs.copyFileSync(
-    path.join(skillRoot, 'renderers/shared/output-path.mjs'),
+    path.join(skillRoot, 'packages/output/output-path.mjs'),
     path.join(installedShared, 'output-path.mjs'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'renderers/shared/path-semantics.mjs'),
+    path.join(skillRoot, 'packages/output/path-semantics.mjs'),
     path.join(installedShared, 'path-semantics.mjs'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'renderers/shared/portable-path.mjs'),
+    path.join(skillRoot, 'packages/output/portable-path.mjs'),
     path.join(installedShared, 'portable-path.mjs'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'renderers/shared/atomic-output.mjs'),
+    path.join(skillRoot, 'packages/output/atomic-output.mjs'),
     path.join(installedShared, 'atomic-output.mjs'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'renderers/shared/sidecar-path.mjs'),
+    path.join(skillRoot, 'packages/output/sidecar-path.mjs'),
     path.join(installedShared, 'sidecar-path.mjs'),
   );
   fs.writeFileSync(path.join(installedRenderer, 'render-architecture.mjs'), `
@@ -1115,7 +1115,7 @@ test('doctor reports a missing output-path safety runtime in an installed skill'
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-doctor-'));
   const installedRoot = path.join(cwd, 'skill');
   copyInstalledSkill(installedRoot);
-  fs.rmSync(path.join(installedRoot, 'renderers/shared/output-path.mjs'));
+  fs.rmSync(path.join(installedRoot, 'packages/output/output-path.mjs'));
 
   const result = spawnSync(process.execPath, [path.join(installedRoot, 'bin/schematics.mjs'), 'doctor'], {
     cwd: installedRoot,
@@ -1127,9 +1127,9 @@ test('doctor reports a missing output-path safety runtime in an installed skill'
 });
 
 for (const [relative, label] of [
-  ['renderers/shared/path-semantics.mjs', 'Physical path semantics runtime'],
-  ['renderers/shared/portable-path.mjs', 'Portable path contract runtime'],
-  ['renderers/shared/sidecar-path.mjs', 'Sidecar path naming runtime'],
+  ['packages/output/path-semantics.mjs', 'Physical path semantics runtime'],
+  ['packages/output/portable-path.mjs', 'Portable path contract runtime'],
+  ['packages/output/sidecar-path.mjs', 'Sidecar path naming runtime'],
 ]) {
   test(`doctor reports a missing ${path.basename(relative)} runtime without crashing`, () => {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-doctor-dependency-'));

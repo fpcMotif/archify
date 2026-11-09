@@ -271,7 +271,7 @@ test('cli: doctor identifies an incomplete installation', () => {
 test('cli: doctor rejects a corrupt standalone validator', () => {
   const corruptRoot = path.join(tmp, 'corrupt-skill');
   copyInstalledSkill(corruptRoot);
-  fs.writeFileSync(path.join(corruptRoot, 'renderers/shared/generated-validators.mjs'), 'export const workflow = ;\n');
+  fs.writeFileSync(path.join(corruptRoot, 'packages/validation/generated-validators.mjs'), 'export const workflow = ;\n');
 
   const result = spawnSync(process.execPath, [path.join(corruptRoot, 'bin/schematics.mjs'), 'doctor'], {
     cwd: corruptRoot,

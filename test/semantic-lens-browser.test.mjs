@@ -31,14 +31,14 @@ test('Semantic Lens preserves selection, legend preview and panel contracts', {
   const files = {};
   for (const [mode, example] of Object.entries(cases)) {
     files[mode] = path.join(scratch, mode + '.html');
-    execFileSync(process.execPath, [path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
+    execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
       path.join(skillRoot, 'examples', example), files[mode]]);
   }
   const trace = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', cases.architecture), 'utf8'));
   trace.meta.animation = 'trace';
   const traceInput = path.join(scratch, 'trace.json');
   fs.writeFileSync(traceInput, JSON.stringify(trace)); files.trace = path.join(scratch, 'trace.html');
-  execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'), traceInput, files.trace]);
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'), traceInput, files.trace]);
   // Initialization fixtures alter only inputs immediately before Lens captures DOM/media.
   const original = fs.readFileSync(files.architecture, 'utf8');
   assert.ok(original.includes('    Schematics.semanticLens = (function () {'), 'Lens fixture anchor');

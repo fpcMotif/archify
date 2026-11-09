@@ -34,7 +34,7 @@ test('Finder preserves search, keyboard, contextual Route selection and cleanup'
   const files = {};
   for (const [mode, example] of Object.entries(cases)) {
     files[mode] = path.join(scratch, mode + '.html');
-    execFileSync(process.execPath, [path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
+    execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
       path.join(skillRoot, 'examples', example), files[mode]]);
   }
   // A controlled metadata fixture exercises the Finder's input boundary;

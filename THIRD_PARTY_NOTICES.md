@@ -40,7 +40,7 @@ pinned Simple Icons 16.28.0 metadata:
 | Vue.js | [Vue logo source](https://github.com/vuejs/art/blob/a1c78b74569b70a25300925b4eacfefcc143b8f6/logo.svg) | [`CC-BY-NC-SA-4.0`](https://creativecommons.org/licenses/by-nc-sa/4.0/) | Embedded as vector-path data; color may be changed by the authored diagram. The non-commercial and share-alike conditions remain applicable; see the [Vue artwork terms](https://github.com/vuejs/art/blob/a1c78b74569b70a25300925b4eacfefcc143b8f6/README.md). |
 
 The source, guideline, and known license fields for every packaged mark are
-preserved in `renderers/shared/generated-brand-marks.mjs`.
+preserved in `packages/svg/generated-brand-marks.mjs`.
 
 ## OpenAI mark
 
@@ -67,14 +67,14 @@ in the font CSS carried by standalone HTML and SVG exports.
 The explainer renders Mermaid chart fences with an unmodified subset of
 [Pele 1.3.0](https://github.com/obsidianmd/pele), copyright (c) 2026 kepano,
 distributed under the MIT License. The subset and its license text are in
-`explainer/vendor/pele/` in the packaged Skill. Charts are rendered to static
+`packages/explainer/vendor/pele/` in the packaged Skill. Charts are rendered to static
 SVG when a page is built; delivered pages contain no Pele code.
 
 `schematics import mermaid` parses flowchart, sequence, state, ER, class,
 timeline, mindmap and architecture diagrams with an unmodified subset of
 [Pele 1.13.0](https://github.com/obsidianmd/pele), copyright (c) 2026 kepano,
 distributed under the MIT License. The subset and its license text are in
-`mermaid/vendor/pele/` in the packaged Skill. Only Pele's parsers run, during
+`packages/mermaid/vendor/pele/` in the packaged Skill. Only Pele's parsers run, during
 import; delivered pages contain no Pele code.
 
 ## No additional rights granted

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { labelPoint, segmentRectClearanceWithin } from '../schematics/renderers/shared/geometry.ts';
+import { labelPoint, segmentRectClearanceWithin } from '../schematics/packages/geometry/geometry.ts';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';

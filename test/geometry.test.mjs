@@ -40,8 +40,8 @@ import {
   suggestLabelObstacleFix,
   suggestComponentSeparation,
   cleanLabelCanvasContainmentProblems,
-} from '../schematics/renderers/shared/geometry.ts';
-import { textUnits, applyTemplate, renderSemanticSigil } from '../schematics/renderers/shared/utils.ts';
+} from '../schematics/packages/geometry/geometry.ts';
+import { textUnits, applyTemplate, renderSemanticSigil } from '../schematics/packages/svg/utils.ts';
 
 const rect = (x, y, w, h) => ({ x, y, width: w, height: h, cx: x + w / 2, cy: y + h / 2 });
 

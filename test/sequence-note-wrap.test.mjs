@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { minimumNodeTextWidth } from '../schematics/renderers/shared/text-fit.ts';
+import { minimumNodeTextWidth } from '../schematics/packages/svg/text-fit.ts';
 
 // Sequence message notes wrap inside one gap between neighbouring lifelines and
 // keep every character (#676).

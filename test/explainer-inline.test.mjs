@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseInline,renderInline} from '../schematics/explainer/inline.mjs';
+import {parseInline,renderInline} from '../schematics/packages/explainer/inline.mjs';
 
 test('inline content preserves escaped literals and safe text while exposing reference semantics',()=>{
   const source='**先查** `GET <key>`，再看 [Redis](node:path.redis)、[请求路径](route:path.api~db) 和 [依据](source:trace)。\\*';

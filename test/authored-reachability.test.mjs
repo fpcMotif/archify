@@ -23,7 +23,7 @@ const CASES = {
 function render(mode, example) {
   const output = path.join(tmp, `${mode}.html`);
   execFileSync(process.execPath, [
-    path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
+    path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
     path.join(skillRoot, 'examples', example),
     output,
   ]);

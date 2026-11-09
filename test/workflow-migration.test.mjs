@@ -9,14 +9,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   createHorizontalRankMapper,
   migrateWorkflowDocument,
-} from '../schematics/migrations/workflow-v2.mjs';
+} from '../schematics/packages/migrations/workflow-v2.mjs';
 import {
   createMappedWorkflowCandidate,
   intrinsicWorkflow,
   planningWorkflow,
   WorkflowRankMappingError,
-} from '../schematics/renderers/workflow/workflow-migration-geometry.mjs';
-import { compileWorkflow } from '../schematics/renderers/workflow/workflow-compiler.mjs';
+} from '../schematics/packages/workflow/workflow-migration-geometry.mjs';
+import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');

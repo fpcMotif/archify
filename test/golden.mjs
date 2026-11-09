@@ -28,7 +28,7 @@ function check(name, ok, detail) {
 
 function render(mode, inputPath, outPath) {
   execFileSync(process.execPath, [
-    path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
+    path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
     inputPath,
     outPath,
   ], { stdio: ['ignore', 'ignore', 'pipe'] });

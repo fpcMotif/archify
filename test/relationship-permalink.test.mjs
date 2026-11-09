@@ -27,7 +27,7 @@ function run(mode, doc, suffix) {
   const output = path.join(tmp, `${mode}-${suffix}.html`);
   fs.writeFileSync(input, JSON.stringify(doc));
   const result = spawnSync(process.execPath, [
-    path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`), input, output,
+    path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`), input, output,
   ], { encoding: 'utf8' });
   return { result, html: fs.existsSync(output) ? fs.readFileSync(output, 'utf8') : '' };
 }

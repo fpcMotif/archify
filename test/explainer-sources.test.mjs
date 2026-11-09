@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { resolveExplainerSources } from '../schematics/explainer/sources.mjs';
+import { resolveExplainerSources } from '../schematics/packages/explainer/sources.mjs';
 
 function fixture(t, files = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'explainer-sources-'));

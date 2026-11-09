@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
-import { translateMessage } from '../schematics/renderers/shared/i18n.ts';
+import { translateMessage } from '../schematics/packages/i18n/i18n.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
@@ -26,7 +26,7 @@ const CASES = {
 function render(mode, example) {
   const output = path.join(tmp, `${mode}.html`);
   execFileSync(process.execPath, [
-    path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
+    path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
     path.join(skillRoot, 'examples', example),
     output,
   ]);

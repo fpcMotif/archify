@@ -2,8 +2,8 @@ import { afterAll, afterEach, expect, test } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import * as source from '../schematics/mermaid/import.ts';
-import { bytecodeCacheRoot, loadMermaidImporter } from '../schematics/mermaid/load.ts';
+import * as source from '../schematics/packages/mermaid/import.ts';
+import { bytecodeCacheRoot, loadMermaidImporter } from '../schematics/packages/mermaid/load.ts';
 
 const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-mermaid-load-'));
 const previousCacheDir = Bun.env.SCHEMATICS_CACHE_DIR;

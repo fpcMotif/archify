@@ -51,7 +51,7 @@ function render(mode, doc) {
   let code = 0;
   let stderr = '';
   try {
-    execFileSync(process.execPath, [path.join(installedRoot, `renderers/${mode}/render-${mode}.mjs`), input, out],
+    execFileSync(process.execPath, [path.join(installedRoot, `packages/${mode}/render-${mode}.mjs`), input, out],
       { stdio: ['ignore', 'ignore', 'pipe'] });
   } catch (err) {
     code = err.status ?? 1;

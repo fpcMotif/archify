@@ -13,11 +13,11 @@ import {
   publishRegularFileBinding,
   recoverRetiredPublication,
   releaseRegularFileBinding,
-} from '../schematics/renderers/shared/atomic-output.mjs';
+} from '../schematics/packages/output/atomic-output.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..', 'schematics');
-const atomicOutput = path.join(skillRoot, 'renderers/shared/atomic-output.mjs');
+const atomicOutput = path.join(skillRoot, 'packages/output/atomic-output.mjs');
 const recoveryCli = path.join(skillRoot, 'bin/recover-output.mjs');
 
 function workspace(t, prefix) {

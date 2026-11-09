@@ -21,7 +21,7 @@ test('Viewer menus preserve modified navigation keys', {
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const source = path.join(skillRoot, 'examples', 'web-app.architecture.json');
   const output = path.join(scratch, 'viewer.html');
-  execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'), source, output]);
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'), source, output]);
 
   const browser = new ChromeVisualBrowser(chrome);
   t.after(() => browser.close());

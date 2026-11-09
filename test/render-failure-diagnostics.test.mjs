@@ -9,7 +9,7 @@ import vm from 'node:vm';
 
 const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
 const cli = path.join(skillRoot, 'bin/schematics.mjs');
-const diagnosticModule = new URL('../schematics/renderers/shared/diagnostics.ts', import.meta.url).href;
+const diagnosticModule = new URL('../schematics/packages/diagnostics/diagnostics.ts', import.meta.url).href;
 const installBoundary = `import { installRendererDiagnosticBoundary } from ${JSON.stringify(diagnosticModule)}; installRendererDiagnosticBoundary();`;
 const examples = {
   architecture: 'web-app.architecture.json',
@@ -58,7 +58,7 @@ for (const [type, example] of Object.entries(examples)) {
     // permission bits (which a privileged test process may bypass).
     fs.mkdirSync(output);
     assertHumanFailure(run([cli, 'render', type, input, output], cwd), 'output/target-not-regular-file');
-    const renderer = path.join(skillRoot, 'renderers', type, `render-${type}.mjs`);
+    const renderer = path.join(skillRoot, 'packages', type, `render-${type}.mjs`);
     const machine = run([renderer, input, output], cwd, true);
     assert.equal(machine.status, 1);
     assert.equal(machine.stdout, '');
@@ -88,7 +88,7 @@ for (const [type, example] of Object.entries(examples)) {
     assert.equal(publicResult.stdout, `${output}\n`);
     assert.equal(publicResult.stderr, '');
     const bytes = fs.readFileSync(output);
-    const directResult = run([path.join(skillRoot, 'renderers', type, `render-${type}.mjs`), input, output], cwd);
+    const directResult = run([path.join(skillRoot, 'packages', type, `render-${type}.mjs`), input, output], cwd);
     assert.equal(directResult.status, 0, directResult.stderr);
     assert.equal(directResult.stdout, `${output}\n`);
     assert.equal(directResult.stderr, '');
@@ -146,7 +146,7 @@ test('render layout rejection exposes the existing diagnostic and preserves an e
     assert.ok(Array.isArray(layout.supportedFixes));
     assert.equal(fs.readFileSync(output, 'utf8'), 'trusted artifact');
   }
-  const direct = run([path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'), input, output], cwd, true);
+  const direct = run([path.join(skillRoot, 'packages/architecture/render-architecture.mjs'), input, output], cwd, true);
   assert.equal(direct.status, 1);
   assert.equal(direct.stdout, '');
   const receipt = JSON.parse(direct.stderr);
@@ -162,9 +162,9 @@ test('locale warnings cannot classify an unrelated native renderer error', t => 
   const document = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples/web-app.architecture.json'), 'utf8'));
   document.meta.locale = 'en-US';
   fs.writeFileSync(input, JSON.stringify(document));
-  const helper = new URL('../schematics/renderers/shared/cli.mjs', import.meta.url).href;
+  const helper = new URL('../schematics/packages/svg/cli.mjs', import.meta.url).href;
   const script = `import { loadDiagram } from ${JSON.stringify(helper)};
-    loadDiagram({ rendererDir: ${JSON.stringify(path.join(skillRoot, 'renderers/architecture'))}, diagramType: 'architecture', argv: ['node', 'renderer', ${JSON.stringify(input)}, ${JSON.stringify(output)}] });
+    loadDiagram({ rendererDir: ${JSON.stringify(path.join(skillRoot, 'packages/architecture'))}, diagramType: 'architecture', argv: ['node', 'renderer', ${JSON.stringify(input)}, ${JSON.stringify(output)}] });
     throw new TypeError('unrelated implementation defect');`;
   const human = run(['--input-type=module', '-e', script], cwd);
   assert.equal(human.status, 1);
@@ -184,7 +184,7 @@ test('direct renderer warning modes preserve the successful artifact contract', 
   const document = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples/web-app.architecture.json'), 'utf8'));
   document.meta.locale = 'en-US';
   fs.writeFileSync(input, JSON.stringify(document));
-  const renderer = path.join(skillRoot, 'renderers/architecture/render-architecture.mjs');
+  const renderer = path.join(skillRoot, 'packages/architecture/render-architecture.mjs');
   const human = run([renderer, input, output], cwd);
   assert.equal(human.status, 0, human.stderr);
   assert.equal(human.stdout, `${output}\n`);
@@ -230,7 +230,7 @@ test('public post-render checker failures retain the locale warning once', t => 
 
 test('unexpected renderer exceptions keep native debugging information and are not relabelled as input errors', t => {
   const cwd = workspace(t);
-  const helper = new URL('../schematics/renderers/shared/cli.mjs', import.meta.url).href;
+  const helper = new URL('../schematics/packages/svg/cli.mjs', import.meta.url).href;
   const script = `${installBoundary} import ${JSON.stringify(helper)}; throw Object.assign(new SyntaxError('implementation defect'), { code: 'EACCES' });`;
   const human = run(['--input-type=module', '-e', script], cwd);
   assert.equal(human.status, 1);
@@ -243,7 +243,7 @@ test('unexpected renderer exceptions keep native debugging information and are n
 
 test('a recorded layout diagnostic cannot hide a later unclassified exception', t => {
   const cwd = workspace(t);
-  const helper = new URL('../schematics/renderers/shared/diagnostics.ts', import.meta.url).href;
+  const helper = new URL('../schematics/packages/diagnostics/diagnostics.ts', import.meta.url).href;
   const setup = `import { installRendererDiagnosticBoundary, recordDiagnostic, throwDiagnosticError } from ${JSON.stringify(helper)};
     installRendererDiagnosticBoundary();
     recordDiagnostic({ code: 'layout/constraint', message: 'earlier layout problem' });`;
@@ -391,7 +391,7 @@ test('repeated problem messages keep their own subject and evidence', t => {
 
 test('invalid output arguments keep their implementation error instead of a filesystem repair', t => {
   const cwd = workspace(t);
-  const helper = new URL('../schematics/renderers/shared/cli.mjs', import.meta.url).href;
+  const helper = new URL('../schematics/packages/svg/cli.mjs', import.meta.url).href;
   const templatePath = path.join(skillRoot, 'assets/template.html');
   const script = `${installBoundary} import fs from 'node:fs'; import { writeDiagram } from ${JSON.stringify(helper)};
     writeDiagram({ outPath: undefined, template: fs.readFileSync(${JSON.stringify(templatePath)}, 'utf8'), diagramType: 'architecture', meta: { title: 'Test' }, svg: '', cards: [] });`;
@@ -408,7 +408,7 @@ test('invalid output arguments keep their implementation error instead of a file
 test('renderer and standalone CLI format the same diagnostics consistently', () => {
   // Evaluate only the pure formatter: importing the CLI would run its command
   // dispatch, and sharing its renderer import would break incomplete-install doctor.
-  const formatters = [cli, path.join(skillRoot, 'renderers/shared/diagnostics.ts')].map(file => {
+  const formatters = [cli, path.join(skillRoot, 'packages/diagnostics/diagnostics.ts')].map(file => {
     const source = fs.readFileSync(file, 'utf8');
     const start = source.indexOf('function formatDiagnostics(');
     assert.notEqual(start, -1);

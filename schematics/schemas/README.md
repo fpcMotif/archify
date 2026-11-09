@@ -133,7 +133,7 @@ Workflow supports schema versions 1 and 2. Version 1 remains the fixed-layout
 compatibility contract; version 2 opts into the readable workflow compiler and
 can be produced explicitly with `schematics migrate workflow ... --to-schema 2`.
 Lifecycle accepts only version 3, an automatic main-path layout (see the
-[lifecycle renderer](../renderers/lifecycle/README.md)).
+[lifecycle renderer](../packages/lifecycle/README.md)).
 The other three diagram schemas keep `schema_version` pinned to `1`; they have
 no schema-version migration command. For any of the five diagram types, repair
 a legacy missing or nonportable `meta.output` in the source and run `validate`.
@@ -199,10 +199,10 @@ that need the same cross-platform acceptance boundary should use that wrapper.
 At development time, `scripts/generate-validators.mjs` compiles every diagram
 schema with ajv's draft 2020-12 standalone generator using `strict: true` and
 `allErrors: true`. It writes one validator per diagram type to
-`renderers/shared/generated-validators/<type>.js`, and
-`renderers/shared/generated-validators.mjs` loads only the one a render needs.
+`packages/validation/generated-validators/<type>.js`, and
+`packages/validation/generated-validators.mjs` loads only the one a render needs.
 Both are committed and shipped with the skill, so runtime validation has no npm
-or network dependency. `renderers/shared/validator.mjs` applies the matching
+or network dependency. `packages/validation/validator.mjs` applies the matching
 standalone validator before the renderer's own layout checks.
 The shared loader then checks cross-collection facts that JSON Schema cannot
 express cleanly here: duplicate view IDs, duplicate focus IDs, focus IDs that do

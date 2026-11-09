@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { collectLabelRouteClearance, rectsOverlap, labelPoint } from '../schematics/renderers/shared/geometry.ts';
+import { collectLabelRouteClearance, rectsOverlap, labelPoint } from '../schematics/packages/geometry/geometry.ts';
 
 const root = fileURLToPath(new URL('../schematics/', import.meta.url));
 const cli = path.join(root, 'bin/schematics.mjs');

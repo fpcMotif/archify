@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { applyRepair } from '../schematics/renderers/shared/fixes.ts';
+import { applyRepair } from '../schematics/packages/diagnostics/fixes.ts';
 
 const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
 const cli = path.join(skillRoot, 'bin/schematics.mjs');

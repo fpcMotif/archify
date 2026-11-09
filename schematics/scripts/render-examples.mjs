@@ -29,7 +29,7 @@ const TARGETS = [
 
 for (const [mode, input, output] of TARGETS) {
   execFileSync(process.execPath, [
-    path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
+    path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
     path.join(skillRoot, 'examples', input),
     path.join(outputRoot, output),
   ], { stdio: 'inherit' });

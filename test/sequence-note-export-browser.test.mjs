@@ -35,7 +35,7 @@ test('SVG and PNG exports keep every line of a wrapped sequence note', {
     ],
   };
   fs.writeFileSync(input, JSON.stringify(spec));
-  execFileSync(process.execPath, [path.join(skillRoot, 'renderers/sequence/render-sequence.mjs'), input, file]);
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/sequence/render-sequence.mjs'), input, file]);
   const lines = [...fs.readFileSync(file, 'utf8').matchAll(/<tspan x="[\d.]+" dy="[\d.]+">([^<]*)<\/tspan>/g)].map((match) => match[1]);
   assert.ok(lines.length > 1, 'the fixture note wraps');
 
@@ -194,7 +194,7 @@ test('SVG and PNG exports keep every line of a wrapped sequence note', {
       { from: 241, to: 350, label: 'Reply' },
     ];
     fs.writeFileSync(input, JSON.stringify(spec));
-    execFileSync(process.execPath, [path.join(skillRoot, 'renderers/sequence/render-sequence.mjs'), input, file]);
+    execFileSync(process.execPath, [path.join(skillRoot, 'packages/sequence/render-sequence.mjs'), input, file]);
     const reloaded = browser.cdp.waitFor('Page.loadEventFired', session);
     await send('Page.reload', { ignoreCache: true });
     await reloaded;

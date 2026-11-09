@@ -6,11 +6,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { collectAmbiguousCorridors, properSegmentIntersection } from '../schematics/renderers/shared/geometry.ts';
+import { collectAmbiguousCorridors, properSegmentIntersection } from '../schematics/packages/geometry/geometry.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
-const renderer = path.join(skillRoot, 'renderers', 'dataflow', 'render-dataflow.mjs');
+const renderer = path.join(skillRoot, 'packages', 'dataflow', 'render-dataflow.mjs');
 const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
 const fixture = path.join(__dirname, 'fixtures', 'dataflow-first-draft', 'ml-features.dataflow.json');
 

@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
-const renderer = fileURLToPath(new URL('../schematics/renderers/timeline/render-timeline.mjs', import.meta.url));
+const renderer = fileURLToPath(new URL('../schematics/packages/timeline/render-timeline.mjs', import.meta.url));
 const hour = 60 * 60 * 1000;
 
 function fixture(timezone, first, last, width = 480) {

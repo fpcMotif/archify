@@ -28,7 +28,7 @@ function render(mode, mutate) {
     fs.writeFileSync(input, JSON.stringify(document));
   }
   execFileSync(process.execPath, [
-    path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
+    path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
     input,
     output,
   ]);

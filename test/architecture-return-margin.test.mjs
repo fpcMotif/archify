@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createRouter } from '../schematics/renderers/architecture/routing.mjs';
-import { reservedLabelRect } from '../schematics/renderers/architecture/labels.mjs';
-import { labelPoint, properSegmentIntersection, routeHonorsEndpointSides } from '../schematics/renderers/shared/geometry.ts';
-import { textUnits } from '../schematics/renderers/shared/utils.ts';
+import { createRouter } from '../schematics/packages/architecture/routing.mjs';
+import { reservedLabelRect } from '../schematics/packages/architecture/labels.mjs';
+import { labelPoint, properSegmentIntersection, routeHonorsEndpointSides } from '../schematics/packages/geometry/geometry.ts';
+import { textUnits } from '../schematics/packages/svg/utils.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';

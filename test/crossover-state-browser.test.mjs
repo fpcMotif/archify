@@ -48,7 +48,7 @@ test(`${diagramType} automatic crossover masks follow live relationship state wi
     flows: architecture.connections.map(edge => ({ ...edge, label: edge.id })),
   };
   fs.writeFileSync(input, JSON.stringify(diagramType === 'architecture' ? architecture : dataflow));
-  execFileSync(process.execPath, [path.join(skillRoot, `renderers/${diagramType}/render-${diagramType}.mjs`), input, output]);
+  execFileSync(process.execPath, [path.join(skillRoot, `packages/${diagramType}/render-${diagramType}.mjs`), input, output]);
 
   const rendered = fs.readFileSync(output, 'utf8');
   const svgMarkup = rendered.match(/<svg\b[\s\S]*?<\/svg>/i)?.[0] || '';

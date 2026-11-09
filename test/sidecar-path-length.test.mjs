@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { sidecarPaths } from '../schematics/bin/visual-check.mjs';
-import { sidecarNamespaceComponentKey } from '../schematics/renderers/shared/path-semantics.mjs';
+import { sidecarNamespaceComponentKey } from '../schematics/packages/output/path-semantics.mjs';
 
 function basenameFits(file) {
   const name = path.basename(file);

@@ -28,7 +28,7 @@ async function loadSidecarPathRuntime() {
     isBoundedSidecarStem,
     sidecarStemFromComponent,
     sidecarStemNeedsBounding,
-  } = await import('../renderers/shared/sidecar-path.mjs'));
+  } = await import('../packages/output/sidecar-path.mjs'));
 }
 
 function deliverySidecarNamespace(artifactPath) {
@@ -1876,7 +1876,7 @@ async function specificationLocaleDiagnostics(type, specification) {
     return [];
   }
   if (!meta?.locale) return [];
-  const { localeDiagnostics } = await import('../renderers/shared/i18n.ts');
+  const { localeDiagnostics } = await import('../packages/i18n/i18n.ts');
   return localeDiagnostics(type, meta);
 }
 
@@ -2246,7 +2246,7 @@ function rendererPath(type) {
       supportedFixes: [`use one of: ${[...TYPES].join(', ')}`],
     });
   }
-  return path.join(skillRoot, 'renderers', type, `render-${type}.mjs`);
+  return path.join(skillRoot, 'packages', type, `render-${type}.mjs`);
 }
 
 // Default capture ceiling for piped child output. spawnSync's own default
@@ -2387,7 +2387,7 @@ function extractExplainerWritingArgs(args) {
 }
 
 async function prepareExplainerInput(specification, inputPath, options = {}) {
-  const runtime = await import('../explainer/prepare.mjs');
+  const runtime = await import('../packages/explainer/prepare.mjs');
   const text = specification.toString('utf8');
   if (!Buffer.from(text).equals(specification)) {
     const message='Explainer draft must contain valid UTF-8 bytes.';
@@ -3643,7 +3643,7 @@ async function commandCompare(args) {
     canonicalFuturePath,
     resolveOutputPath,
     validateAuthoredOutputPath,
-  } = await import('../renderers/shared/output-path.mjs');
+  } = await import('../packages/output/output-path.mjs');
   const {
     captureAtomicOutput,
     verifyAtomicOutput,
@@ -3652,7 +3652,7 @@ async function commandCompare(args) {
     quarantineRemoveRegularFileBinding,
     verifyRegularFileBinding,
     releaseRegularFileBinding,
-  } = await import('../renderers/shared/atomic-output.mjs');
+  } = await import('../packages/output/atomic-output.mjs');
   const fileBindingRuntime = {
     backupPublicRegularFileBinding,
     captureRegularFileBinding,
@@ -3663,7 +3663,7 @@ async function commandCompare(args) {
   const {
     sameParent,
     sidecarNamespaceComponentKey,
-  } = await import('../renderers/shared/path-semantics.mjs');
+  } = await import('../packages/output/path-semantics.mjs');
   sidecarNamespaceComponentKeyRuntime = sidecarNamespaceComponentKey;
   const qualityArgs = extractQualityArgs(args);
   const repoArgs = extractRepoRootArgs(qualityArgs.rest);
@@ -3672,7 +3672,7 @@ async function commandCompare(args) {
   if (type !== 'architecture' || !baseInput || !headInput || options.positional.length > 4) fail(usage());
   let deltaRuntime;
   try {
-    deltaRuntime = await import(pathToFileURL(path.join(skillRoot, 'delta/architecture-delta.mjs')).href);
+    deltaRuntime = await import(pathToFileURL(path.join(skillRoot, 'packages/delta/architecture-delta.mjs')).href);
   } catch (error) {
     reportCompareFailure({ json: options.json, stage: 'prepare', error: 'Architecture compare runtime is unavailable.', code: 'delta/runtime-missing', details: { reason: error.message, supportedFixes: ['install the complete Schematics skill package'] } });
     return;
@@ -4389,7 +4389,7 @@ async function commandDeliver(args) {
     pathsAlias,
     resolveOutputPath,
     validateAuthoredOutputPath,
-  } = await import('../renderers/shared/output-path.mjs');
+  } = await import('../packages/output/output-path.mjs');
   const {
     captureAtomicOutput,
     verifyAtomicOutput,
@@ -4398,9 +4398,9 @@ async function commandDeliver(args) {
     quarantineRemoveRegularFileBinding,
     verifyRegularFileBinding,
     releaseRegularFileBinding,
-  } = await import('../renderers/shared/atomic-output.mjs');
+  } = await import('../packages/output/atomic-output.mjs');
   ({ sidecarNamespaceComponentKey: sidecarNamespaceComponentKeyRuntime }
-    = await import('../renderers/shared/path-semantics.mjs'));
+    = await import('../packages/output/path-semantics.mjs'));
   const fileBindingRuntime = {
     backupPublicRegularFileBinding,
     captureRegularFileBinding,
@@ -4816,7 +4816,7 @@ async function commandDeliver(args) {
     let preparedBundlePath;
     if (explainerBundle) {
       try {
-        const { writePreparedBundle } = await import('../explainer/prepare.mjs');
+        const { writePreparedBundle } = await import('../packages/explainer/prepare.mjs');
         preparedBundlePath = writePreparedBundle(stagingDirectory, explainerBundle);
         captureDeliveryStagingFile(preparedBundlePath, artifactIdentity(fs.readFileSync(preparedBundlePath)));
       } catch (error) {
@@ -5033,7 +5033,7 @@ async function commandDeliver(args) {
 
     try {
       if (explainerBundle) {
-        const { assertPreparedDependencies } = await import('../explainer/prepare.mjs');
+        const { assertPreparedDependencies } = await import('../packages/explainer/prepare.mjs');
         assertPreparedDependencies(explainerBundle);
       }
       const committed = commitDeliveryPair({
@@ -5234,22 +5234,22 @@ async function commandPatch(rawArgs) {
       throw Object.assign(new Error('The original explainer artifact failed validation.'), {schematicsDiagnostics:receipt?.diagnostics || [{code:'explainer/patch-artifact',severity:'error',message:'The original explainer artifact failed validation.',subject:{input:path.resolve(artifact),line:1,component:'document'},evidence:{reason:'invalid-original-artifact',example:'Use an unchanged formal explainer artifact.'},supportedFixes:['Rebuild the original artifact.']}]});
     }
     const originalCheck=checked.receipt;
-    const { preparePanelPatch } = await import('../explainer/patch.mjs');
+    const { preparePanelPatch } = await import('../packages/explainer/patch.mjs');
     const prepared = await preparePanelPatch({artifactPath:path.resolve(artifact),panelId,replacementPath:path.resolve(replacement),repoRoot:repoArgs.repoRoot,quality:qualityArgs.quality,writingMode:writingArgs.writingMode,expectedArtifact:originalCheck.artifact});
-    const { resolveOutputPath } = await import('../renderers/shared/output-path.mjs');
+    const { resolveOutputPath } = await import('../packages/output/output-path.mjs');
     resolveOutputPath({requestedOutput:output,inputPaths:[path.resolve(replacement),prepared.sourcePath]});
-    const { createOwnedTempDirectory } = await import('../renderers/shared/owned-temp-directory.mjs');
-    const { writePreparedBundle } = await import('../explainer/prepare.mjs');
+    const { createOwnedTempDirectory } = await import('../packages/output/owned-temp-directory.mjs');
+    const { writePreparedBundle } = await import('../packages/explainer/prepare.mjs');
     temporary=createOwnedTempDirectory('schematics-explainer-patch-');
     const input=path.join(temporary.path,'patched-draft.json');
     fs.writeFileSync(input,prepared.sourceText,{flag:'wx'});
-    const { rebindPreparedBundle } = await import('../explainer/prepare.mjs');
+    const { rebindPreparedBundle } = await import('../packages/explainer/prepare.mjs');
     prepared.bundle=rebindPreparedBundle({...prepared.bundle,inputPath:input},{sourceText:prepared.bundle.sourceText,document:prepared.bundle.document,sourceMap:prepared.bundle.sourceMap,format:prepared.bundle.format,diagnostics:prepared.bundle.diagnostics});
     const preparedFile=writePreparedBundle(temporary.path,prepared.bundle);
     const delivery=runNode([fileURLToPath(import.meta.url),'deliver','explainer',input,output,'--quality',qualityArgs.quality || prepared.bundle.quality || 'standard','--writing',prepared.bundle.writingMode || 'warn',...(repoArgs.repoRoot?['--repo-root',repoArgs.repoRoot]:[]),'--json'],{stdio:'pipe',env:{SCHEMATICS_EXPLAINER_PREPARED:preparedFile}});
     let receipt;
     try {receipt=JSON.parse(delivery.stdout);} catch {throw new Error('Patch delivery did not return a structured receipt.');}
-    const { computeExplainerRevision } = await import('../explainer/revision.mjs');
+    const { computeExplainerRevision } = await import('../packages/explainer/revision.mjs');
     const result={...receipt,command:'patch',panelId,original:{path:path.resolve(artifact),revision:prepared.previousRevision,sourceSha256:prepared.previousSourceSha256},replacement:{path:path.resolve(replacement)},revision:computeExplainerRevision(prepared.bundle),sourceSha256:prepared.bundle.source.sha256};
     if(json)console.log(JSON.stringify(result,null,2));
     else if(result.ok)console.log(`patched ${panelId} ${result.output}`);
@@ -5276,7 +5276,7 @@ async function commandPreview(args) {
 
   try {
     const source = JSON.parse(fs.readFileSync(path.resolve(input), 'utf8'));
-    const { validateAuthoredOutputPath } = await import('../renderers/shared/output-path.mjs');
+    const { validateAuthoredOutputPath } = await import('../packages/output/output-path.mjs');
     validateAuthoredOutputPath(source?.meta?.output);
   } catch (error) {
     // Preserve live repair for unreadable or malformed JSON. A parsed document,
@@ -5311,13 +5311,13 @@ async function loadPathIdentityRuntime() {
     const {
       sameEntry,
       sidecarNamespaceComponentKey,
-    } = await import('../renderers/shared/path-semantics.mjs');
+    } = await import('../packages/output/path-semantics.mjs');
     sidecarNamespaceComponentKeyRuntime = sidecarNamespaceComponentKey;
     const {
       captureRegularFileBinding,
       verifyRegularFileBinding,
       releaseRegularFileBinding,
-    } = await import('../renderers/shared/atomic-output.mjs');
+    } = await import('../packages/output/atomic-output.mjs');
     return {
       sameEntry,
       captureRegularFileBinding,
@@ -5631,7 +5631,7 @@ async function commandBrowserEvidence(rawArgs, { command, capture }) {
   const artifactPath = path.resolve(positional[0]);
   let outDir;
   if (rawOutDir !== undefined) {
-    const { resolveNativeOutputDirectory } = await import('../renderers/shared/output-path.mjs');
+    const { resolveNativeOutputDirectory } = await import('../packages/output/output-path.mjs');
     try {
       outDir = resolveNativeOutputDirectory(rawOutDir);
     } catch (error) {
@@ -5801,8 +5801,8 @@ async function finalizeAttempt(rawArgs) {
     let preparedBundlePath;
     if (type === 'explainer') {
       preparedExplainer = await prepareExplainerInput(fs.readFileSync(path.resolve(input)), path.resolve(input), { repoRoot: repoArgs.repoRoot, quality: qualityArgs.quality || 'showcase', writingMode: writingArgs.writingMode });
-      const { createOwnedTempDirectory } = await import('../renderers/shared/owned-temp-directory.mjs');
-      const { writePreparedBundle } = await import('../explainer/prepare.mjs');
+      const { createOwnedTempDirectory } = await import('../packages/output/owned-temp-directory.mjs');
+      const { writePreparedBundle } = await import('../packages/explainer/prepare.mjs');
       explainerTemporary = createOwnedTempDirectory('schematics-explainer-finalize-');
       preparedBundlePath = writePreparedBundle(explainerTemporary.path, preparedExplainer);
     }
@@ -5890,7 +5890,7 @@ async function commandAutofix(rawArgs) {
     subject: { type: 'explainer' },
     supportedFixes: ['run schematics finalize explainer and apply its diagnostics by hand'],
   });
-  const { applyRepairs } = await import('../renderers/shared/fixes.ts');
+  const { applyRepairs } = await import('../packages/diagnostics/fixes.ts');
   const passes = [];
   let attempt;
   for (let pass = 1; pass <= AUTOFIX_MAX_PASSES; pass += 1) {
@@ -5919,7 +5919,7 @@ async function commandChart(rawArgs) {
   const [inputPath, outputPath] = rawArgs;
   if (!inputPath) fail('Usage: schematics chart <input.mmd|text> [output.svg]');
   const text = fs.existsSync(inputPath) ? fs.readFileSync(inputPath, 'utf-8') : inputPath;
-  const { compileExplainerChart } = await import('../explainer/charts.mjs');
+  const { compileExplainerChart } = await import('../packages/explainer/charts.mjs');
   const result = compileExplainerChart(text);
   if (result.error) {
     fail(`Chart compilation failed: ${result.error}`);
@@ -5959,7 +5959,7 @@ async function commandImport(rawArgs) {
   } catch (error) {
     fail(`Mermaid input could not be read: ${error.message}`, 1);
   }
-  const { loadMermaidImporter } = await import(pathToFileURL(path.join(skillRoot, 'mermaid/load.ts')).href);
+  const { loadMermaidImporter } = await import(pathToFileURL(path.join(skillRoot, 'packages/mermaid/load.ts')).href);
   const { importMermaid, MermaidImportError } = await loadMermaidImporter();
   const htmlName = outputPath ? `${path.basename(outputPath).replace(/\.json$/i, '')}.html` : undefined;
   let result;
@@ -6051,35 +6051,35 @@ async function commandDoctor(args) {
     missing: fs.existsSync(finalizeRuntime) ? 0 : 1,
   });
 
-  const outputPathRuntime = path.join(skillRoot, 'renderers/shared/output-path.mjs');
+  const outputPathRuntime = path.join(skillRoot, 'packages/output/output-path.mjs');
   checks.push({
     label: 'Output path safety runtime',
     ok: fs.existsSync(outputPathRuntime),
     missing: fs.existsSync(outputPathRuntime) ? 0 : 1,
   });
 
-  const atomicOutputRuntime = path.join(skillRoot, 'renderers/shared/atomic-output.mjs');
+  const atomicOutputRuntime = path.join(skillRoot, 'packages/output/atomic-output.mjs');
   checks.push({
     label: 'Atomic output safety runtime',
     ok: fs.existsSync(atomicOutputRuntime),
     missing: fs.existsSync(atomicOutputRuntime) ? 0 : 1,
   });
 
-  const pathSemanticsRuntime = path.join(skillRoot, 'renderers/shared/path-semantics.mjs');
+  const pathSemanticsRuntime = path.join(skillRoot, 'packages/output/path-semantics.mjs');
   checks.push({
     label: 'Physical path semantics runtime',
     ok: fs.existsSync(pathSemanticsRuntime),
     missing: fs.existsSync(pathSemanticsRuntime) ? 0 : 1,
   });
 
-  const sidecarPathRuntime = path.join(skillRoot, 'renderers/shared/sidecar-path.mjs');
+  const sidecarPathRuntime = path.join(skillRoot, 'packages/output/sidecar-path.mjs');
   checks.push({
     label: 'Sidecar path naming runtime',
     ok: fs.existsSync(sidecarPathRuntime),
     missing: fs.existsSync(sidecarPathRuntime) ? 0 : 1,
   });
 
-  const portablePathRuntime = path.join(skillRoot, 'renderers/shared/portable-path.mjs');
+  const portablePathRuntime = path.join(skillRoot, 'packages/output/portable-path.mjs');
   checks.push({
     label: 'Portable path contract runtime',
     ok: fs.existsSync(portablePathRuntime),
@@ -6105,7 +6105,7 @@ async function commandDoctor(args) {
     missing: authoringReferencesMissing,
   });
 
-  const compareRuntime = path.join(skillRoot, 'delta/architecture-delta.mjs');
+  const compareRuntime = path.join(skillRoot, 'packages/delta/architecture-delta.mjs');
   const compareFixtures = [
     path.join(skillRoot, 'examples/checkout-platform.base.architecture.json'),
     path.join(skillRoot, 'examples/checkout-platform.head.architecture.json'),
@@ -6117,7 +6117,7 @@ async function commandDoctor(args) {
     missing: compareMissing,
   });
 
-  const validators = path.join(skillRoot, 'renderers/shared/generated-validators.mjs');
+  const validators = path.join(skillRoot, 'packages/validation/generated-validators.mjs');
   const validatorsExist = fs.existsSync(validators);
   let validatorsValid = false;
   if (validatorsExist) {
@@ -6152,7 +6152,7 @@ async function commandDoctor(args) {
 
   for (const type of TYPES) {
     const required = [
-      path.join(skillRoot, 'renderers', type, `render-${type}.mjs`),
+      path.join(skillRoot, 'packages', type, `render-${type}.mjs`),
       path.join(skillRoot, 'schemas', `${type}.schema.json`),
       path.join(skillRoot, 'examples', examples[type]),
     ];
@@ -6165,7 +6165,7 @@ async function commandDoctor(args) {
   }
 
   const explainerRuntime = ['parse.mjs', 'validate.mjs', 'inline.mjs', 'sources.mjs', 'writing.mjs', 'diagrams.mjs', 'prepare.mjs', 'patch.mjs', 'diff.mjs', 'revision.mjs', 'layout.mjs', 'render.mjs', 'check.mjs', 'browser-check.mjs', 'charts.mjs', 'page-bundle.mjs', 'vendor/pele/core.js', 'reader.css', 'reader.js'];
-  const missingExplainerRuntime = explainerRuntime.filter(file => !fs.existsSync(path.join(skillRoot, 'explainer', file))).length;
+  const missingExplainerRuntime = explainerRuntime.filter(file => !fs.existsSync(path.join(skillRoot, 'packages', 'explainer', file))).length;
   checks.push({label:'Explainer runtime and reader assets',ok:missingExplainerRuntime===0,missing:missingExplainerRuntime});
 
   console.log('Schematics doctor\n');
@@ -6249,7 +6249,7 @@ async function commandBrands(args) {
   const positional = args.filter((arg) => arg !== '--json');
   if (positional[0] === 'capture') {
     if (positional.length !== 2) fail('Usage: schematics brands capture <url> [--json]');
-    const { captureBrandReference } = await import('../renderers/shared/brand-marks.mjs');
+    const { captureBrandReference } = await import('../packages/svg/brand-marks.mjs');
     let capture;
     try {
       capture = await captureBrandReference(positional[1]);
@@ -6272,7 +6272,7 @@ async function commandBrands(args) {
     return;
   }
   const query = positional.join(' ').trim();
-  const { listBrandMarks } = await import('../renderers/shared/brand-marks.mjs');
+  const { listBrandMarks } = await import('../packages/svg/brand-marks.mjs');
   const marks = listBrandMarks(query);
   if (json) {
     console.log(JSON.stringify({
@@ -6479,7 +6479,7 @@ async function commandMigrate(args) {
     });
     return;
   }
-  const { pathsAlias, validateAuthoredOutputPath } = await import('../renderers/shared/output-path.mjs');
+  const { pathsAlias, validateAuthoredOutputPath } = await import('../packages/output/output-path.mjs');
   const {
     backupPublicRegularFileBinding,
     captureAtomicOutput,
@@ -6488,7 +6488,7 @@ async function commandMigrate(args) {
     releaseRegularFileBinding,
     verifyAtomicOutput,
     verifyRegularFileBinding,
-  } = await import('../renderers/shared/atomic-output.mjs');
+  } = await import('../packages/output/atomic-output.mjs');
   // `--output` repairs only the durable output field in the migration
   // candidate. It never writes the source and deliberately leaves every
   // other schema and compiler failure visible to the normal migration path.
@@ -6545,7 +6545,7 @@ async function commandMigrate(args) {
     return;
   }
 
-  const { migrateWorkflowDocument, serializeMigratedWorkflow } = await import('../migrations/workflow-v2.mjs');
+  const { migrateWorkflowDocument, serializeMigratedWorkflow } = await import('../packages/migrations/workflow-v2.mjs');
   let migration;
   try {
     migration = migrateWorkflowDocument(migrationSourceDocument);
@@ -6980,8 +6980,8 @@ async function commandValidate(args, invocation = {}) {
     if (type === 'explainer') explainerBundle = await prepareExplainerInput(specification, inputPath, { repoRoot, quality, writingMode: writingArgs.writingMode });
     const document = explainerBundle?.document || JSON.parse(specification.toString('utf8'));
     const [{ validateAuthoredOutputPath }, { validateSchema }] = await Promise.all([
-      import('../renderers/shared/output-path.mjs'),
-      import('../renderers/shared/validator.mjs'),
+      import('../packages/output/output-path.mjs'),
+      import('../packages/validation/validator.mjs'),
     ]);
     if (document?.meta?.output !== undefined) validateAuthoredOutputPath(document.meta.output);
     else if (type !== 'explainer') validateSchema(type, document);
@@ -7036,7 +7036,7 @@ async function commandValidate(args, invocation = {}) {
     return;
   }
 
-  const { createOwnedTempDirectory } = await import('../renderers/shared/owned-temp-directory.mjs');
+  const { createOwnedTempDirectory } = await import('../packages/output/owned-temp-directory.mjs');
   const temporary = createOwnedTempDirectory('schematics-validate-');
   const tmp = temporary.path;
   const out = path.join(tmp, `${type}.html`);
@@ -7048,7 +7048,7 @@ async function commandValidate(args, invocation = {}) {
     fs.writeFileSync(snapshot, specification, { flag: 'wx' });
     let preparedBundlePath;
     if (explainerBundle) {
-      const { writePreparedBundle } = await import('../explainer/prepare.mjs');
+      const { writePreparedBundle } = await import('../packages/explainer/prepare.mjs');
       preparedBundlePath = writePreparedBundle(tmp, explainerBundle);
     }
     const render = runNode([renderer, snapshot, out], {

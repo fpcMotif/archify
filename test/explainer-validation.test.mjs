@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {parseExplainer} from '../schematics/explainer/parse.mjs';
-import {validateExplainer} from '../schematics/explainer/validate.mjs';
+import {parseExplainer} from '../schematics/packages/explainer/parse.mjs';
+import {validateExplainer} from '../schematics/packages/explainer/validate.mjs';
 
 const base=()=>({schema_version:1,diagram_type:'explainer',meta:{id:'artifact',title:'Cache explanation'},answer:{summary:'Read the cache first.'},panels:[{id:'reasoning',title:'Why does it work?',blocks:[{id:'claim',type:'prose',text:'A cache stores a temporary copy.'}]}],sources:[{id:'evidence',title:'Stated facts'}]});
 const blocks=document=>document.panels[0].blocks;

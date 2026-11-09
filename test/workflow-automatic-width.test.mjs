@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { compileWorkflow } from '../schematics/renderers/workflow/workflow-compiler.mjs';
-import { intrinsicWorkflow } from '../schematics/renderers/workflow/workflow-migration-geometry.mjs';
-import { migrateWorkflowDocument } from '../schematics/migrations/workflow-v2.mjs';
+import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.mjs';
+import { intrinsicWorkflow } from '../schematics/packages/workflow/workflow-migration-geometry.mjs';
+import { migrateWorkflowDocument } from '../schematics/packages/migrations/workflow-v2.mjs';
 
 function lendingWorkflow() {
   return {

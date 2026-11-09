@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { importMermaid, MermaidImportError } from '../schematics/mermaid/import.ts';
+import { importMermaid, MermaidImportError } from '../schematics/packages/mermaid/import.ts';
 
 const cli = path.join(import.meta.dir, '..', 'schematics', 'bin', 'schematics.mjs');
 const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-mermaid-import-'));
