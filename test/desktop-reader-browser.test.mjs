@@ -33,7 +33,7 @@ test('waterfall axis labels stay distinct and inside the SVG at nonzero origins'
       fs.writeFileSync(input, JSON.stringify({ schema_version: 1, diagram_type: 'waterfall',
         meta: { title: 'Recorded range', evidence: 'illustrative', unit: 'ms' }, layout,
         spans: [{ id: 'request', name: 'Request', ...timing }] }));
-      execFileSync(process.execPath, [path.join(skillRoot, 'packages/waterfall/render-waterfall.mjs'), input, artifactPath]);
+      execFileSync(process.execPath, [path.join(skillRoot, 'packages/waterfall/render-waterfall.ts'), input, artifactPath]);
       for (const theme of ['light', 'dark']) {
         await browser.inspect({ artifactPath, width: 1280, height: 900, theme });
         const session = await browser.sessionPromise;
