@@ -47,8 +47,6 @@ schematics/packages/svg/brand-marks.mjs
 schematics/packages/svg/cli.mjs
 schematics/packages/svg/engineering-profiles.mjs
 schematics/packages/svg/generated-brand-marks.mjs
-schematics/packages/repository/repository-evidence.mjs
-schematics/packages/repository/repository-location.mjs
 schematics/packages/timeline/render-timeline.mjs
 schematics/packages/tree/render-tree.mjs
 schematics/packages/waterfall/render-waterfall.mjs

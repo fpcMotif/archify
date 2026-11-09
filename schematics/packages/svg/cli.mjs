@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { applyTemplate, renderCards, esc } from './utils.ts';
 import { validateSchema } from '../validation/validator.ts';
-import { verifyRepositoryEvidence } from '../repository/repository-evidence.mjs';
+import { verifyRepositoryEvidence } from '../repository/repository-evidence.ts';
 import { installRendererDiagnosticBoundary, throwDiagnosticError, throwDiagnosticProblems, recordDiagnostic } from '../diagnostics/diagnostics.ts';
 import { validateEngineeringProfile } from './engineering-profiles.mjs';
 import {

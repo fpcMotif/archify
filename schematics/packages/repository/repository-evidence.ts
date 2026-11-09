@@ -1,15 +1,80 @@
 import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { throwDiagnosticError, withDiagnosticRecordingSuppressed } from '../diagnostics/diagnostics.ts';
-import { sameEntry } from '../output/path-semantics.ts';
-import { parseRepositoryRemote, redactRepositoryRemote, repositorySourceHref, repositoryTreeHref } from './repository-location.mjs';
+import {
+  type Diagnostic,
+  throwDiagnosticError,
+  withDiagnosticRecordingSuppressed,
+} from '../diagnostics/diagnostics.ts';
+import { errorMessage, readField, sameEntry } from '../output/path-semantics.ts';
+import { parseRepositoryRemote, redactRepositoryRemote, repositorySourceHref, repositoryTreeHref } from './repository-location.ts';
 
 const FULL_SHA_RE = /^[a-f0-9]{40}$/i;
 const CONTROL_CHARACTER_RE = /[\u0000-\u001f\u007f]/;
 const MAX_SOURCE_BYTES = 16 * 1024 * 1024;
 
-function evidenceFailure(code, message, { subject = {}, evidence = {}, supportedFixes = [] } = {}) {
+export interface VerifiedSource {
+  path: string;
+  line?: number;
+  endLine?: number;
+  label?: string;
+  href?: string;
+}
+
+export interface SourceEvidence {
+  schemaVersion: 1;
+  verified: true;
+  repository: {
+    url: string;
+    revision: string;
+    shortRevision: string;
+    label: string;
+    href?: string;
+    linkMode?: 'local-only';
+  };
+  referenceCount: number;
+  nodes: Record<string, VerifiedSource[]>;
+}
+
+interface EvidenceFailureDetails {
+  subject?: Record<string, unknown>;
+  evidence?: Record<string, unknown>;
+  supportedFixes?: string[];
+}
+
+interface AuthoredSource {
+  path: unknown;
+  line?: number;
+  end_line?: number;
+  label?: string;
+}
+
+type BatchObject =
+  | { missing: true; type?: undefined; size?: undefined; content?: undefined }
+  | { missing?: undefined; type: string; size: number; content?: string };
+
+function authoredSource(value: unknown): AuthoredSource {
+  const line = readField(value, 'line');
+  const endLine = readField(value, 'end_line');
+  const label = readField(value, 'label');
+  return {
+    path: readField(value, 'path'),
+    ...(typeof line === 'number' ? { line } : {}),
+    ...(typeof endLine === 'number' ? { end_line: endLine } : {}),
+    ...(typeof label === 'string' ? { label } : {}),
+  };
+}
+
+function authoredSources(node: unknown): unknown[] | null {
+  const sources = readField(node, 'sources');
+  return Array.isArray(sources) && sources.length !== 0 ? sources : null;
+}
+
+function evidenceFailure(
+  code: string,
+  message: string,
+  { subject = {}, evidence = {}, supportedFixes = [] }: EvidenceFailureDetails = {},
+): never {
   throwDiagnosticError(message, [{
     code,
     severity: 'error',
@@ -20,7 +85,7 @@ function evidenceFailure(code, message, { subject = {}, evidence = {}, supported
   }]);
 }
 
-function runGit(repoRoot, args) {
+function runGit(repoRoot: string, args: string[]): childProcess.SpawnSyncReturns<string> {
   // 固定 SHA 的来源必须读取原始对象，不能使用本地 replacement refs 的替换内容。
   const result = childProcess.spawnSync('git', ['--no-replace-objects', '-C', repoRoot, ...args], {
     encoding: 'utf8',
@@ -37,7 +102,7 @@ function runGit(repoRoot, args) {
 
 // Check types in one session, then read only blobs whose cited lines need
 // verification. Path-only references never require loading the file contents.
-function prefetchBlobs(repoRoot, objectNeedsContent) {
+function prefetchBlobs(repoRoot: string, objectNeedsContent: Map<string, boolean>): Map<string, BatchObject> | null {
   const blobs = readBatchObjects(repoRoot, [...objectNeedsContent.keys()], false);
   if (!blobs) return null;
   const readable = [...objectNeedsContent].filter(([object, needsContent]) => {
@@ -51,7 +116,7 @@ function prefetchBlobs(repoRoot, objectNeedsContent) {
   return blobs;
 }
 
-function readBatchObjects(repoRoot, objects, includeContent) {
+function readBatchObjects(repoRoot: string, objects: string[], includeContent: boolean): Map<string, BatchObject> | null {
   if (!objects.length) return new Map();
   const mode = includeContent ? '--batch' : '--batch-check';
   const result = childProcess.spawnSync('git', ['--no-replace-objects', '-C', repoRoot, 'cat-file', mode], {
@@ -61,7 +126,7 @@ function readBatchObjects(repoRoot, objects, includeContent) {
   });
   if (result.error || result.status !== 0 || !Buffer.isBuffer(result.stdout)) return null;
   const buffer = result.stdout;
-  const blobs = new Map();
+  const blobs = new Map<string, BatchObject>();
   let cursor = 0;
   for (const object of objects) {
     const newline = buffer.indexOf(0x0a, cursor);
@@ -75,7 +140,7 @@ function readBatchObjects(repoRoot, objects, includeContent) {
     const parts = header.split(' ');
     const size = Number(parts[2]);
     if (parts.length !== 3 || !Number.isSafeInteger(size) || size < 0) return null;
-    const blob = { type: parts[1], size };
+    const blob: { type: string; size: number; content?: string } = { type: parts[1], size };
     if (includeContent) {
       if (cursor + size >= buffer.length || buffer[cursor + size] !== 0x0a) return null;
       blob.content = buffer.toString('utf8', cursor, cursor + size);
@@ -86,7 +151,7 @@ function readBatchObjects(repoRoot, objects, includeContent) {
   return blobs;
 }
 
-function gitValue(repoRoot, args, failure) {
+function gitValue(repoRoot: string, args: string[], failure: string): string {
   const result = runGit(repoRoot, args);
   if (result.status !== 0) evidenceFailure('repository-evidence/git-command', failure, {
     evidence: { gitArgs: args, exitCode: result.status },
@@ -96,7 +161,7 @@ function gitValue(repoRoot, args, failure) {
   return result.stdout.replace(/\n$/, '');
 }
 
-function verifiedSourcePath(value, where) {
+function verifiedSourcePath(value: unknown, where: string): string {
   const sourcePath = String(value || '');
   // path-contract-allow: git-path -- Git tree entries use repository-relative POSIX syntax.
   if (!sourcePath || sourcePath.startsWith('/') || sourcePath.includes('\\') || CONTROL_CHARACTER_RE.test(sourcePath)) {
@@ -117,7 +182,7 @@ function verifiedSourcePath(value, where) {
   return segments.join('/');
 }
 
-function sourceLineCount(content) {
+function sourceLineCount(content: string): number {
   if (!content.length) return 0;
   const lines = content.split(/\r\n|\n|\r/);
   return lines.length - (/(?:\r\n|\n|\r)$/.test(content) ? 1 : 0);
@@ -127,7 +192,7 @@ function sourceLineCount(content) {
 // source evidence is authored on those nodes. One table keeps the verification
 // below identical for all five types instead of branching per type: the only
 // per-type fact is which array to read and which JSON pointer to quote back.
-const EVIDENCE_NODE_COLLECTIONS = {
+const EVIDENCE_NODE_COLLECTIONS: Readonly<Record<string, string>> = {
   architecture: 'components',
   workflow: 'nodes',
   sequence: 'participants',
@@ -140,48 +205,61 @@ const EVIDENCE_NODE_COLLECTIONS = {
   waterfall: 'spans',
 };
 
-function evidenceNodes(diagramType, diagram) {
+function evidenceNodes(diagramType: string, diagram: unknown): { collection: string; nodes: unknown[] } | null {
   const collection = EVIDENCE_NODE_COLLECTIONS[diagramType];
   if (!collection) return null;
-  return { collection, nodes: Array.isArray(diagram?.[collection]) ? diagram[collection] : [] };
+  const nodes = readField(diagram, collection);
+  return { collection, nodes: Array.isArray(nodes) ? nodes : [] };
 }
 
-export function hasRepositoryEvidence(diagramType, diagram) {
+function authoredRepository(diagram: unknown): unknown {
+  return readField(readField(diagram, 'meta'), 'repository');
+}
+
+export function hasRepositoryEvidence(diagramType: string, diagram: unknown): boolean {
   const authored = evidenceNodes(diagramType, diagram);
   if (!authored) return false;
-  return Boolean(diagram?.meta?.repository) || authored.nodes.some((node) => Array.isArray(node?.sources) && node.sources.length);
+  return Boolean(authoredRepository(diagram)) || authored.nodes.some((node) => authoredSources(node) !== null);
 }
 
-export function verifyRepositoryEvidence(diagramType, diagram, repoRootInput) {
-  if (!hasRepositoryEvidence(diagramType, diagram)) return null;
-  const { collection, nodes: authoredNodes } = evidenceNodes(diagramType, diagram);
+export function verifyRepositoryEvidence(
+  diagramType: string,
+  diagram: unknown,
+  repoRootInput: string | undefined,
+): SourceEvidence | null {
+  const authored = evidenceNodes(diagramType, diagram);
+  if (!authored || !hasRepositoryEvidence(diagramType, diagram)) return null;
+  const { collection, nodes: authoredNodes } = authored;
 
-  const repository = diagram.meta?.repository;
+  const repository = authoredRepository(diagram);
   if (!repository) evidenceFailure('repository-evidence/repository-required', 'Repository evidence requires /meta/repository.', {
     subject: { path: '/meta/repository', diagramType, collection },
     supportedFixes: [`add the pinned repository metadata or remove /${collection} sources`],
   });
-  if (!FULL_SHA_RE.test(repository.revision || '')) {
+  const authoredRevision = readField(repository, 'revision');
+  const authoredUrl = readField(repository, 'url');
+  const authoredProvider = readField(repository, 'provider');
+  if (typeof authoredRevision !== 'string' || !FULL_SHA_RE.test(authoredRevision)) {
     evidenceFailure('repository-evidence/revision-invalid', '/meta/repository/revision must be a full 40-character commit SHA.', {
       subject: { path: '/meta/repository/revision' },
-      evidence: { revision: repository.revision },
+      evidence: { revision: authoredRevision },
       supportedFixes: ['pin one full 40-character commit SHA'],
     });
   }
-  const location = parseRepositoryRemote(repository.url, { authored: true, provider: repository.provider });
+  const location = parseRepositoryRemote(authoredUrl, { authored: true, provider: authoredProvider });
   if (!location) {
     // A filesystem path is the common authoring mistake: the field carries the
     // remote origin identity, which `git remote get-url origin` reports.
-    const filesystemPath = /^(?:[\\/]|~|\.{1,2}(?:[\\/]|$)|[A-Za-z]:[\\/])/.test(String(repository.url ?? ''));
+    const filesystemPath = /^(?:[\\/]|~|\.{1,2}(?:[\\/]|$)|[A-Za-z]:[\\/])/.test(String(authoredUrl ?? ''));
     evidenceFailure('repository-evidence/url-invalid', '/meta/repository/url must be a credential-free HTTP(S) or Git SSH repository address without query, fragment, or dot segments.', {
       subject: { path: '/meta/repository/url' },
       evidence: filesystemPath ? { authoredValueLooksLike: 'local filesystem path; the expected value is the remote origin address' } : {},
       supportedFixes: ['run `git remote get-url origin` inside --repo-root and declare that credential-free address', 'use link_mode: local-only for internal repositories'],
     });
   }
-  const linkMode = repository.link_mode ?? 'web';
-  if (!['web', 'local-only'].includes(linkMode)) evidenceFailure('repository-evidence/link-mode-invalid', 'Repository link_mode must be web or local-only.');
-  if (repository.provider !== undefined && (!['github', 'gitee', 'gitlab'].includes(repository.provider) || repository.provider !== location.provider)) {
+  const linkMode = readField(repository, 'link_mode') ?? 'web';
+  if (linkMode !== 'web' && linkMode !== 'local-only') evidenceFailure('repository-evidence/link-mode-invalid', 'Repository link_mode must be web or local-only.');
+  if (authoredProvider !== undefined && ((authoredProvider !== 'github' && authoredProvider !== 'gitee' && authoredProvider !== 'gitlab') || authoredProvider !== location.provider)) {
     evidenceFailure('repository-evidence/provider-invalid', 'Repository provider must match its supported public host (github.com, gitee.com or gitlab.com); gitlab also names a self-managed GitLab host.', {
       subject: { path: '/meta/repository/provider' },
       supportedFixes: ['use the matching provider or omit provider and select link_mode: local-only'],
@@ -203,13 +281,13 @@ export function verifyRepositoryEvidence(diagramType, diagram, repoRootInput) {
   }
 
   const requestedRoot = path.resolve(repoRootInput);
-  let realRoot;
+  let realRoot: string;
   try {
     realRoot = fs.realpathSync(requestedRoot);
   } catch (error) {
-    evidenceFailure('repository-evidence/root-unreadable', `Could not resolve evidence repository root "${requestedRoot}": ${error.message}`, {
+    evidenceFailure('repository-evidence/root-unreadable', `Could not resolve evidence repository root "${requestedRoot}": ${errorMessage(error)}`, {
       subject: { repoRoot: requestedRoot },
-      evidence: { reason: error.message },
+      evidence: { reason: errorMessage(error) },
       supportedFixes: ['pass one readable local repository directory'],
     });
   }
@@ -230,16 +308,16 @@ export function verifyRepositoryEvidence(diagramType, diagram, repoRootInput) {
     });
   }
   const origin = gitValue(realRoot, ['remote', 'get-url', 'origin'], 'Evidence repository must have an origin remote.').trim();
-  if (parseRepositoryRemote(origin, { provider: repository.provider })?.identity !== location.identity) {
+  if (parseRepositoryRemote(origin, { provider: authoredProvider })?.identity !== location.identity) {
     const safeOrigin = redactRepositoryRemote(origin);
-    evidenceFailure('repository-evidence/origin-mismatch', `Evidence repository origin ${JSON.stringify(safeOrigin)} does not match ${JSON.stringify(repository.url)}.`, {
+    evidenceFailure('repository-evidence/origin-mismatch', `Evidence repository origin ${JSON.stringify(safeOrigin)} does not match ${JSON.stringify(authoredUrl)}.`, {
       subject: { repoRoot: realRoot },
-      evidence: { localOrigin: safeOrigin, authoredRepository: repository.url },
+      evidence: { localOrigin: safeOrigin, authoredRepository: authoredUrl },
       supportedFixes: ['use the matching local checkout or correct the authored repository URL'],
     });
   }
 
-  const revision = repository.revision.toLowerCase();
+  const revision = authoredRevision.toLowerCase();
   const commit = runGit(realRoot, ['cat-file', '-e', `${revision}^{commit}`]);
   if (commit.status !== 0) {
     evidenceFailure('repository-evidence/revision-unavailable', `Evidence revision ${revision} is not available in the local repository.`, {
@@ -252,10 +330,12 @@ export function verifyRepositoryEvidence(diagramType, diagram, repoRootInput) {
   // The batch is an optimization only: every path, line-range, file and line
   // check still runs in source order in the verification loop below, so a
   // citation the batch cannot answer for never reorders the diagnostics.
-  const citedObjects = new Map();
+  const citedObjects = new Map<string, boolean>();
   for (const [nodeIndex, node] of authoredNodes.entries()) {
-    if (!Array.isArray(node.sources) || node.sources.length === 0) continue;
-    for (const [sourceIndex, authored] of node.sources.entries()) {
+    const sources = authoredSources(node);
+    if (!sources) continue;
+    for (const [sourceIndex, item] of sources.entries()) {
+      const authored = authoredSource(item);
       const at = `/${collection}/${nodeIndex}/sources/${sourceIndex}`;
       let sourcePath;
       try {
@@ -269,22 +349,25 @@ export function verifyRepositoryEvidence(diagramType, diagram, repoRootInput) {
   }
   const prefetchedBlobs = prefetchBlobs(realRoot, citedObjects);
 
-  const nodes = Object.create(null);
-  const sourceDiagnostics = [];
+  const nodes: Record<string, VerifiedSource[]> = Object.create(null);
+  const sourceDiagnostics: Diagnostic[] = [];
   let referenceCount = 0;
   for (const [nodeIndex, node] of authoredNodes.entries()) {
-    if (!Array.isArray(node.sources) || node.sources.length === 0) continue;
+    const sources = authoredSources(node);
+    if (!sources) continue;
+    const nodeId = readField(node, 'id');
     // `componentId` shipped with the architecture-only path; keep it beside the
     // type-neutral `nodeId` so existing agent handling stays valid.
     const nodeSubject = collection === 'components'
-      ? { diagramType, collection, nodeId: node.id, componentId: node.id }
-      : { diagramType, collection, nodeId: node.id };
-    const verified = [];
-    for (const [sourceIndex, authored] of node.sources.entries()) {
+      ? { diagramType, collection, nodeId, componentId: nodeId }
+      : { diagramType, collection, nodeId };
+    const verified: VerifiedSource[] = [];
+    for (const [sourceIndex, item] of sources.entries()) {
+      const authored = authoredSource(item);
       const at = `/${collection}/${nodeIndex}/sources/${sourceIndex}`;
       const where = `${at}/path`;
       try {
-        const source = {
+        const source: VerifiedSource = {
           path: verifiedSourcePath(authored.path, where),
           ...(authored.line ? { line: authored.line } : {}),
           ...(authored.end_line ? { endLine: authored.end_line } : {}),
@@ -296,7 +379,7 @@ export function verifyRepositoryEvidence(diagramType, diagram, repoRootInput) {
             supportedFixes: ['add line or remove end_line'],
           });
         }
-        if (source.endLine && source.endLine < source.line) {
+        if (source.endLine && source.line && source.endLine < source.line) {
           evidenceFailure('repository-evidence/line-range-invalid', `${at}/end_line must be greater than or equal to line.`, {
             subject: { path: at, ...nodeSubject },
             evidence: { line: source.line, endLine: source.endLine },
@@ -334,8 +417,9 @@ export function verifyRepositoryEvidence(diagramType, diagram, repoRootInput) {
           });
         }
         if (source.line) {
-          const content = prefetched && Object.hasOwn(prefetched, 'content')
-            ? { status: 0, stdout: prefetched.content }
+          const prefetchedContent = prefetched?.content;
+          const content = prefetchedContent !== undefined
+            ? { status: 0, stdout: prefetchedContent }
             : runGit(realRoot, ['show', object]);
           if (content.status !== 0) evidenceFailure('repository-evidence/file-unreadable', `${where} could not be read at revision ${revision}.`, {
             subject: { path: where, ...nodeSubject },
@@ -357,16 +441,18 @@ export function verifyRepositoryEvidence(diagramType, diagram, repoRootInput) {
       } catch (error) {
         // Independent citations can be repaired together. Keep the first
         // diagnostic and source order; an invalid reference never verifies.
-        if (!error?.schematicsDiagnostics?.length) throw error;
-        sourceDiagnostics.push(...error.schematicsDiagnostics);
+        const diagnostics = readField(error, 'schematicsDiagnostics');
+        if (!Array.isArray(diagnostics) || !diagnostics.length) throw error;
+        const thrown: Diagnostic[] = diagnostics;
+        sourceDiagnostics.push(...thrown);
         // An unavailable Git process or an oversized read is not a bad
         // citation. Stop rather than repeat that failure for every source.
-        if (error.schematicsDiagnostics.some(({ code }) => code === 'repository-evidence/git-unavailable')) {
+        if (thrown.some(({ code }) => code === 'repository-evidence/git-unavailable')) {
           throwDiagnosticError(sourceDiagnostics[0].message, sourceDiagnostics);
         }
       }
     }
-    nodes[node.id] = verified;
+    nodes[String(nodeId)] = verified;
   }
   if (sourceDiagnostics.length) {
     throwDiagnosticError(sourceDiagnostics[0].message, sourceDiagnostics);

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { startPreview } from '../schematics/bin/preview.mjs';
-import { verifyRepositoryEvidence } from '../schematics/packages/repository/repository-evidence.mjs';
+import { verifyRepositoryEvidence } from '../schematics/packages/repository/repository-evidence.ts';
 import { skillRoot, cli, git, fixture, run, evidencePayload } from './helpers/repository-evidence-fixture.mjs';
 
 // Address variants exercise the same real Git verifier. Keep representative

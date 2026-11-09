@@ -3,8 +3,8 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { throwDiagnosticError } from '../diagnostics/diagnostics.ts';
-import { verifyRepositoryEvidence } from '../repository/repository-evidence.mjs';
-import { parseRepositoryRemote } from '../repository/repository-location.mjs';
+import { verifyRepositoryEvidence } from '../repository/repository-evidence.ts';
+import { parseRepositoryRemote } from '../repository/repository-location.ts';
 import { chartFromData, compileExplainerChart } from './charts.mjs';
 
 const MAX_CODE_BYTES = 16 * 1024 * 1024;

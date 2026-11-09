@@ -1,6 +1,6 @@
 import { softwareNoticesHtml } from '../output/software-notices.ts';
 import { visualPreset } from '../svg/cli.mjs';
-import { parseRepositoryRemote } from '../repository/repository-location.mjs';
+import { parseRepositoryRemote } from '../repository/repository-location.ts';
 
 const COMPARATOR_VERSION = 1;
 const CANONICAL_VERSION = 1;

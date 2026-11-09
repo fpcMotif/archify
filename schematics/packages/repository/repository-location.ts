@@ -2,9 +2,29 @@
 // This module never contacts a remote server or reads the user's SSH config.
 // Public forge hosts select their provider automatically. GitLab is also
 // self-hosted, so an explicit `provider: "gitlab"` hint selects it on any host.
-const PROVIDER_HOSTS = { 'github.com': 'github', 'gitee.com': 'gitee', 'gitlab.com': 'gitlab' };
+const PROVIDER_HOSTS: Readonly<Record<string, RepositoryProvider>> = { 'github.com': 'github', 'gitee.com': 'gitee', 'gitlab.com': 'gitlab' };
 
-export function parseRepositoryRemote(value, { authored = false, provider: providerHint } = {}) {
+export type RepositoryProvider = 'github' | 'gitee' | 'gitlab';
+
+export interface RepositoryLocation {
+  identity: string;
+  url: string;
+  provider: RepositoryProvider | null;
+  protocol: string;
+  path: string;
+  endpoint: string;
+}
+
+export interface RepositorySourceLink {
+  path: string;
+  line?: number;
+  endLine?: number;
+}
+
+export function parseRepositoryRemote(
+  value: unknown,
+  { authored = false, provider: providerHint }: { authored?: boolean; provider?: unknown } = {},
+): RepositoryLocation | null {
   if (typeof value !== 'string') return null;
   const raw = authored ? value : value.trim();
   if (!raw || /[\s\\\u0000-\u001f\u007f?#]/.test(raw)) return null;
@@ -14,7 +34,7 @@ export function parseRepositoryRemote(value, { authored = false, provider: provi
   const match = expanded.match(/^(https?|ssh):\/\/([^/]+)\/(.+)$/i);
   if (!match) return null;
   // Validate the original path before URL parsing can collapse dot segments.
-  let segments;
+  let segments: string[];
   try {
     segments = match[3].replace(/\/$/, '').split('/');
     // Git passes SCP paths literally; percent escapes are decoded only in URIs.
@@ -29,7 +49,7 @@ export function parseRepositoryRemote(value, { authored = false, provider: provi
   if (authored && protocol !== 'ssh:' && (url.username || url.password)) return null;
   const hostname = url.hostname.toLowerCase();
   if (!hostname) return null;
-  const provider = Object.hasOwn(PROVIDER_HOSTS, hostname) ? PROVIDER_HOSTS[hostname] : providerHint === 'gitlab' ? 'gitlab' : null;
+  const provider: RepositoryProvider | null = Object.hasOwn(PROVIDER_HOSTS, hostname) ? PROVIDER_HOSTS[hostname] : providerHint === 'gitlab' ? 'gitlab' : null;
   const last = segments.length - 1;
   if (provider) segments[last] = segments[last].replace(provider === 'github' ? /\.git$/i : /\.git$/, '');
   if (!segments[last] || segments[last] === '.' || segments[last] === '..') return null;
@@ -48,13 +68,18 @@ export function parseRepositoryRemote(value, { authored = false, provider: provi
   return { identity: JSON.stringify([hostname, endpoint, pathKind, identityPath]), url: canonicalUrl, provider, protocol, path: repositoryPath, endpoint };
 }
 
-export function redactRepositoryRemote(value) {
+export function redactRepositoryRemote(value: unknown): string {
   return String(value || '')
     .replace(/^((?:https?|ssh):\/\/)[^/]*@/i, '$1REDACTED@')
     .replace(/[?#].*$/s, '?REDACTED');
 }
 
-export function repositorySourceHref(provider, url, revision, source) {
+export function repositorySourceHref(
+  provider: RepositoryProvider | null,
+  url: string,
+  revision: string,
+  source: RepositorySourceLink,
+): string {
   const encodedPath = source.path.split('/').map(encodeURIComponent).join('/');
   const end = source.endLine && source.endLine !== source.line
     ? `-${provider === 'github' ? 'L' : ''}${source.endLine}` : '';
@@ -66,6 +91,6 @@ export function repositorySourceHref(provider, url, revision, source) {
   return `${url}/-/blob/${revision}/${encodedPath}${plain}${fragment}`;
 }
 
-export function repositoryTreeHref(provider, url, revision) {
+export function repositoryTreeHref(provider: RepositoryProvider | null, url: string, revision: string): string {
   return `${url}/${provider === 'gitlab' ? '-/' : ''}tree/${revision}`;
 }
