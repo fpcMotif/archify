@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const cli = path.resolve('schematics/bin/schematics.mjs');
+const cli = path.resolve('schematics/bin/schematics.ts');
 const draft = chart => `# Why did P99 jump? {#p99}\n\nOnly the slowest requests got slower.\n\n@meta locale=en\n\n## How did the numbers move? {#shift}\n\n\`\`\`mermaid title="Before and after"\n${chart}\n\`\`\`\n`;
 function finalize(t, chart) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-explainer-chart-'));

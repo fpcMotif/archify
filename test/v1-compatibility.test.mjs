@@ -36,7 +36,7 @@ function validate(mode, doc) {
   fs.writeFileSync(input, JSON.stringify(cliDoc));
   try {
     execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin/schematics.mjs'),
+      path.join(skillRoot, 'bin/schematics.ts'),
       'validate',
       mode,
       input,

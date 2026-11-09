@@ -2,7 +2,7 @@
 // Usage: node replay.mjs --base <schematics-dir> [--head <schematics-dir>] [--type <type>] [--bench <dir>] [--out <dir>]
 //
 // Renders every benchmark first draft with two Schematics trees (each the
-// directory holding bin/schematics.mjs; head defaults to this repository) and
+// directory holding bin/schematics.ts; head defaults to this repository) and
 // reports, per type, how many drafts pass on each side, which flipped and
 // which passing drafts changed their rendered SVG or styles. Renders and replay.json go to
 // <tuning-home>/replays/<timestamp> unless --out. Exits 1 when a draft that
@@ -26,7 +26,7 @@ const head = path.resolve(option('--head', path.join(here, '../../../../schemati
 const bench = path.resolve(option('--bench', path.join(tuningHome(), 'bench')));
 const out = path.resolve(option('--out', path.join(tuningHome(), 'replays', new Date().toISOString().replace(/[:.]/g, '-'))));
 const onlyType = option('--type');
-if (!base || !fs.existsSync(path.join(base, 'bin/schematics.mjs')) || !fs.existsSync(path.join(head, 'bin/schematics.mjs'))) {
+if (!base || !fs.existsSync(path.join(base, 'bin/schematics.ts')) || !fs.existsSync(path.join(head, 'bin/schematics.ts'))) {
   console.error('Usage: node replay.mjs --base <schematics-dir> [--head <schematics-dir>] [--type <type>] [--bench <dir>] [--out <dir>]');
   process.exit(2);
 }
@@ -61,7 +61,7 @@ function render(tree, side, entry) {
   fs.rmSync(output, { force: true });
   const quality = document.meta?.quality_profile || 'showcase';
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [path.join(tree, 'bin/schematics.mjs'), 'render', entry.type, entry.file, output, '--quality', quality], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(process.execPath, [path.join(tree, 'bin/schematics.ts'), 'render', entry.type, entry.file, output, '--quality', quality], { stdio: ['ignore', 'pipe', 'pipe'] });
     let log = '';
     child.stdout.on('data', (chunk) => { log += chunk; });
     child.stderr.on('data', (chunk) => { log += chunk; });

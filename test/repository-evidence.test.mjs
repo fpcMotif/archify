@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { startPreview } from '../schematics/bin/preview.mjs';
+import { startPreview } from '../schematics/bin/preview.ts';
 import { verifyRepositoryEvidence } from '../schematics/packages/repository/repository-evidence.ts';
 import { skillRoot, cli, git, fixture, run, evidencePayload } from './helpers/repository-evidence-fixture.mjs';
 

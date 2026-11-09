@@ -3,12 +3,6 @@
 .agents/skills/schematics-tuning/scripts/replay.mjs
 .agents/skills/schematics-tuning/scripts/round.mjs
 .agents/skills/schematics-tuning/scripts/shots.mjs
-schematics/bin/finalize.mjs
-schematics/bin/open-artifact.mjs
-schematics/bin/preview.mjs
-schematics/bin/recover-output.mjs
-schematics/bin/schematics.mjs
-schematics/bin/visual-check.mjs
 test/adaptive-reader-layout.test.mjs
 test/animation.test.mjs
 test/architecture-automatic-labels.test.mjs

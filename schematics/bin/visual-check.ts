@@ -1,12 +1,13 @@
 import { softwareNoticesHtml } from '../packages/output/software-notices.ts';
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process';
 import { isExplainerHtml } from '../packages/explainer/check.ts';
-import { EXPLAINER_VIEWPORTS, inspectExplainerBrowser, explainerObservation, explainerObservationDiagnostics } from '../packages/explainer/browser-check.ts';
+import { EXPLAINER_VIEWPORTS, inspectExplainerBrowser, explainerObservation, explainerObservationDiagnostics, type ExplainerBrowser, type ExplainerObservation } from '../packages/explainer/browser-check.ts';
 import { createOwnedTempDirectory } from '../packages/output/owned-temp-directory.ts';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import type { Readable, Writable } from 'node:stream';
 import { pathToFileURL } from 'node:url';
 import {
   DESKTOP_READABILITY_VIEWPORT,
@@ -22,30 +23,524 @@ import {
   removeEmptyDirectoryWithRetry,
   verifyAtomicOutput,
   verifyRegularFileBinding,
+  type CapturedAtomicOutput,
+  type CapturedRegularFile,
+  type OutputFailure,
+  type OutputRelation,
+  type RegularFileBinding,
+  type RelationReason,
 } from '../packages/output/atomic-output.ts';
 import {
+  errorCode,
+  errorMessage,
+  readField,
   sameEntry,
   sameLocation,
   sameParent,
   sidecarNamespaceComponentKey,
+  type SemanticResult,
 } from '../packages/output/path-semantics.ts';
 import {
   boundedSidecarStem,
   sidecarStemFromComponent,
 } from '../packages/output/sidecar-path.ts';
 
-export const VISUAL_CHECK_VIEWPORTS = Object.freeze([
+type JsonRecord = Record<string, unknown>;
+
+export interface Viewport {
+  width: number;
+  height: number;
+}
+
+export interface ScreenshotTarget extends Viewport {
+  theme: string;
+  path: string;
+}
+
+export interface EvidenceOutputs {
+  base: string;
+  command: string;
+  capture: boolean;
+  receipt: string;
+  contactSheet: string;
+  screenshots: ScreenshotTarget[];
+}
+
+export interface SidecarOptions {
+  outDir?: string;
+  command?: string;
+  capture?: boolean;
+  captureViewports?: readonly Viewport[];
+}
+
+interface StagedOutputs {
+  receipt: string;
+  contactSheet: string;
+  screenshots: ScreenshotTarget[];
+}
+
+interface EvidenceDigest {
+  sha256: string;
+  bytes: number;
+}
+
+interface EvidenceIdentity {
+  device: bigint;
+  inode: bigint;
+  mode: number;
+  links: bigint;
+}
+
+interface ExpectedIdentity {
+  device: bigint;
+  inode: bigint;
+  mode: number;
+  links?: bigint | number;
+}
+
+interface StagedEntry {
+  path: string;
+  identity: EvidenceIdentity;
+  evidence?: EvidenceDigest;
+}
+
+interface OwnedDirectory {
+  directory: string;
+  identity?: EvidenceIdentity;
+}
+
+interface EvidenceOwnership {
+  active: boolean;
+  artifact: string;
+  receipt: string;
+  targets: Map<string, CapturedAtomicOutput>;
+  stagingDirectory: string;
+  stagingIdentity: EvidenceIdentity;
+  stagedOutputs: StagedOutputs;
+  stagingPaths: Map<string, string>;
+  stagedEntries: Map<string, StagedEntry>;
+  previousEvidence: Map<string, EvidenceDigest>;
+  inspection?: OwnedDirectory;
+}
+
+interface CleanupError {
+  file?: string;
+  reason?: unknown;
+  code?: unknown;
+  recoveryDirectory?: unknown;
+  recoveryFile?: unknown;
+  target?: unknown;
+  bindingState?: unknown;
+}
+
+export interface BrowserDiagnostic<E = JsonRecord> {
+  code: string;
+  severity: string;
+  message: string;
+  subject: unknown;
+  evidence: E;
+  supportedFixes: string[];
+}
+
+interface FailureDiagnosticInput<E> {
+  code: string;
+  message: string;
+  subject: unknown;
+  evidence: E;
+  supportedFixes: string[];
+  severity?: string;
+}
+
+interface EvidenceFailure<E> {
+  ok: false;
+  error: string;
+  diagnostic: BrowserDiagnostic<E>;
+}
+
+type ConflictFailure = EvidenceFailure<{ reason: unknown; rollbackErrors?: CleanupError[] }>;
+type WriteFailure = EvidenceFailure<{ errors: CleanupError[]; rollbackErrors?: CleanupError[] }>;
+type PublicationFailure = ConflictFailure | WriteFailure;
+
+interface EvidencePublication {
+  ok: true;
+  status: 'committed' | 'committed-with-warning';
+  cleanupErrors: CleanupError[];
+  recoveryDirectory?: unknown;
+  committedReceipt: string;
+}
+
+interface UnlinkResult {
+  status: string;
+  target?: unknown;
+  reason?: unknown;
+  error?: Error;
+  bindingState?: unknown;
+  recoveryDirectory?: unknown;
+  recoveryFile?: unknown;
+}
+
+interface OwnedBackup {
+  targetPath: string;
+  finalPath: string;
+  path: string;
+  identity: EvidenceIdentity;
+  evidence: EvidenceDigest;
+}
+
+interface PublishedEntry {
+  finalPath: string;
+  stagedPath: string;
+  identity: EvidenceIdentity;
+  evidence?: EvidenceDigest;
+  binding: RegularFileBinding;
+}
+
+interface PathEntry {
+  exists: boolean | null;
+  stat?: fs.Stats;
+  error?: unknown;
+}
+
+interface PageComposition {
+  bodyPaddingPx: number;
+  headerPx: number;
+  diagramChromePx: number;
+  svgPx: number;
+  cardsPx: number;
+  viewBoxHeight: number;
+}
+
+interface ExplainerObservationFields {
+  consoleErrors: unknown[];
+  duplicateIds: unknown[];
+  keyboardIssues: unknown[];
+  keyboardTraversal?: { ok?: unknown };
+  interactionFailures: unknown[];
+  references: unknown[];
+  noJavaScript: Array<{ ok?: unknown }>;
+  print: { ok?: unknown };
+}
+
+export interface BrowserObservation extends Partial<ExplainerObservationFields> {
+  width: number;
+  height: number;
+  theme: string;
+  innerWidth: number;
+  innerHeight: number;
+  scrollWidth: number;
+  scrollHeight: number;
+  overflowX: boolean;
+  overflowY: boolean;
+  verticalScrollAccepted: boolean;
+  overflowDisposition?: string;
+  readerLayout?: unknown;
+  readerOverflow?: unknown;
+  readerFit?: unknown;
+  diagramType?: unknown;
+  documentScrollUnclipped?: boolean;
+  ok: boolean;
+  readerWidth?: number | null;
+  diagramWidth?: number | null;
+  pageComposition?: PageComposition;
+  viewBoxWidth?: number | null;
+  workflowLanes?: unknown[];
+  minimumProjectedNodeTextPx?: number | null;
+  minimumProjectedNonEdgeTextPx?: number | null;
+  minimumProjectedEdgeTextPx?: number | null;
+  minimumProjectedNodeText?: unknown;
+  minimumProjectedNodeTextDetail?: unknown;
+  minimumProjectedNodeTextOwner?: unknown;
+  minimumRequiredNodeTextPx?: number;
+  readabilityOk: boolean;
+  hasLegend?: boolean;
+  hasNavigationDock?: boolean;
+  legendDockIntersectionArea: number;
+  dockStageIntersectionArea: number;
+  dockStageGap: number | null;
+  requiredDockStageGap: number;
+  viewerChromeStageOk: boolean;
+  viewerChromeReserve?: number;
+  viewerChromeActive?: boolean;
+  viewerChromeOk: boolean;
+  resolvedTheme: unknown;
+}
+
+interface ObservationInput extends Viewport {
+  theme: string;
+  metrics: JsonRecord;
+}
+
+interface ThemeStateEntry {
+  width: number;
+  height: number;
+  requestedTheme: string;
+  resolvedTheme: unknown;
+  ok: boolean;
+}
+
+type EvidenceObservation = BrowserObservation | ExplainerObservation;
+
+type CaptureEntry = EvidenceObservation & { file: string };
+
+type BudgetEntry = Pick<BrowserObservation, 'overflowY' | 'scrollHeight' | 'innerHeight' | 'pageComposition' | 'readerLayout' | 'diagramWidth'>;
+
+type ReceiptGroupKey = 'containment' | 'readability' | 'viewerChrome' | 'themeStates' | 'captures';
+
+type RunBrowserEvidenceOptions = BrowserEvidenceOptions & { command: string; capture: boolean };
+
+type SidecarDirectory =
+  | { ok: true; sidecars: EvidenceSidecars }
+  | { ok: false; sidecars: EvidenceSidecars; error: string; diagnostic: BrowserDiagnostic<{ comparison: unknown }> };
+
+interface EvidenceSidecars {
+  directory?: string;
+  receipt: string;
+  contactSheet?: string;
+}
+
+interface GroupStatus<T> {
+  status: string;
+  viewports: T[];
+}
+
+interface ObservationGroup {
+  status: string;
+  observations: unknown[];
+}
+
+export interface BrowserReceipt {
+  schemaVersion: number;
+  ok: boolean;
+  command: string;
+  evidenceKind: string;
+  status: string;
+  visualReview: string;
+  provenance?: unknown;
+  deliveryReceiptId?: unknown;
+  artifact: { path: string; sha256?: string; bytes?: number };
+  state?: { detail: string; motion: string };
+  chrome?: { status: string; executable: string | null };
+  diagnostics: unknown[];
+  containment: GroupStatus<EvidenceObservation> & { policy: string };
+  themeStates: GroupStatus<ThemeStateEntry>;
+  readability: GroupStatus<EvidenceObservation> & { minimumProjectedNodeTextPx: number };
+  viewerChrome: GroupStatus<EvidenceObservation>;
+  captures: { status: string; screenshots: CaptureEntry[]; contactSheet: string | null };
+  sidecars: EvidenceSidecars & { files: Array<EvidenceDigest & { file: string }> };
+  error?: unknown;
+  publication?: JsonRecord;
+  family?: string;
+  viewportPolicy?: string;
+  commonQa?: ObservationGroup;
+  interactions?: ObservationGroup;
+  references?: ObservationGroup;
+  noJavaScript?: ObservationGroup;
+  print?: ObservationGroup;
+}
+
+export type BrowserFailureInput = Partial<BrowserReceipt>;
+
+export type BrowserFailureReceipt = Partial<BrowserReceipt>
+  & Pick<BrowserReceipt, 'ok' | 'status' | 'containment' | 'captures' | 'sidecars'>;
+
+export interface DeliveryProvenance {
+  status?: unknown;
+  receiptId?: unknown;
+}
+
+export interface InspectOptions extends Viewport {
+  artifactPath: string;
+  theme: string;
+  screenshotPath?: string;
+  writeScreenshot?: (bytes: Buffer) => void;
+}
+
+export interface EvidenceBrowser {
+  inspect(options: InspectOptions): Promise<JsonRecord>;
+  close?: () => Promise<unknown>;
+}
+
+export interface PersistFailureOptions {
+  outDir?: string;
+  compareSidecarParents?: (left: string, right: string) => SemanticResult;
+  ownership?: EvidenceOwnership;
+  command?: string;
+  capture?: boolean;
+  captureViewports?: readonly Viewport[];
+}
+
+export interface BrowserEvidenceOptions {
+  artifactPath?: string;
+  outDir?: string;
+  chromePath?: string | null;
+  resolveChrome?: () => string | null | undefined;
+  chromeOverride?: string;
+  browserFactory?: (resolvedChrome: string) => EvidenceBrowser | Promise<EvidenceBrowser>;
+  deliveryProvenance?: DeliveryProvenance;
+  verifyArtifact?: (bytes: Buffer) => void;
+  compareSidecarParents?: (left: string, right: string) => SemanticResult;
+  command?: string;
+  capture?: boolean;
+}
+
+export interface BrowserEvidenceResult {
+  exitCode: number;
+  receipt: BrowserReceipt | BrowserFailureReceipt;
+}
+
+export interface FindChromeOptions {
+  env?: NodeJS.ProcessEnv;
+  platform?: string;
+  resolveExecutable?: (file: string | undefined, platform: string) => string | null;
+}
+
+export interface ChromeVisualBrowserOptions {
+  platform?: string;
+  env?: NodeJS.ProcessEnv;
+  getuid?: (() => number) | null;
+  spawnImpl?: (command: string, args: string[], options: SpawnOptions) => ChildProcess;
+  startupTimeoutMs?: number;
+  shutdownTimeoutMs?: number;
+}
+
+interface CdpTargetInfo {
+  type?: string;
+  targetId?: string;
+}
+
+interface CdpResult {
+  targetInfos?: CdpTargetInfo[];
+  targetId?: string;
+  sessionId?: string;
+  errorText?: string;
+  data?: string;
+  identifier?: unknown;
+  exceptionDetails?: { exception?: { description?: string }; text?: string };
+  result?: { value?: unknown };
+}
+
+interface CdpMessage {
+  id?: number;
+  method?: string;
+  sessionId?: string;
+  error?: { message?: unknown };
+  result?: CdpResult;
+  params?: JsonRecord;
+}
+
+interface CdpPending {
+  method: string;
+  resolve: (value: CdpResult) => void;
+  reject: (error: unknown) => void;
+  timer: ReturnType<typeof setTimeout>;
+}
+
+interface CdpWaiter {
+  method: string;
+  sessionId: string | undefined;
+  resolve: (value: JsonRecord) => void;
+  reject: (error: unknown) => void;
+  timer: ReturnType<typeof setTimeout> | null;
+}
+
+type CdpError = Error & { code?: unknown; method?: unknown };
+
+interface PreviousEvidenceReceipt {
+  schemaVersion?: unknown;
+  command?: unknown;
+  artifact?: { path?: string; sha256?: unknown; bytes?: unknown };
+  sidecars?: { receipt?: unknown; contactSheet?: unknown; directory?: string; files?: unknown };
+}
+
+function viewportAt(index: number): Viewport {
+  const viewport = VISUAL_CHECK_VIEWPORTS[index];
+  if (!viewport) throw new Error(`visual-check has no viewport ${index}.`);
+  return viewport;
+}
+
+function diagnosticsOf(error: unknown): unknown[] | undefined {
+  const diagnostics = readField(error, 'schematicsDiagnostics');
+  return Array.isArray(diagnostics) ? diagnostics : undefined;
+}
+
+function receiptArtifactPath(receipt: { artifact?: { path?: string } }): string {
+  const artifactPath = receipt.artifact?.path;
+  if (typeof artifactPath !== 'string') throw new TypeError('The browser evidence receipt has no artifact path.');
+  return artifactPath;
+}
+
+function defaultGetuid(): (() => number) | null {
+  return typeof process.getuid === 'function' ? () => Number(process.getuid?.()) : null;
+}
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === 'object' && value !== null;
+}
+
+function requiredEntry<K, V>(map: ReadonlyMap<K, V>, key: K): V {
+  const value = map.get(key);
+  if (value === undefined) throw new Error(`visual-check lost track of evidence entry "${String(key)}".`);
+  return value;
+}
+
+function isWritablePipe(value: unknown): value is Writable {
+  return isRecord(value) && typeof value.write === 'function';
+}
+
+function isReadablePipe(value: unknown): value is Readable {
+  return isRecord(value) && typeof value.setEncoding === 'function';
+}
+
+function writablePipe(child: ChildProcess, index: number): Writable {
+  const pipe = child.stdio[index];
+  if (!isWritablePipe(pipe)) throw new Error(`Chrome DevTools pipe ${index} is not writable.`);
+  return pipe;
+}
+
+function readablePipe(child: ChildProcess, index: number): Readable {
+  const pipe = child.stdio[index];
+  if (!isReadablePipe(pipe)) throw new Error(`Chrome DevTools pipe ${index} is not readable.`);
+  return pipe;
+}
+
+function isPageComposition(value: unknown): value is PageComposition {
+  return isRecord(value)
+    && ['bodyPaddingPx', 'headerPx', 'diagramChromePx', 'svgPx', 'cardsPx', 'viewBoxHeight']
+      .every((key) => typeof value[key] === 'number');
+}
+
+function isExplainerBrowser(browser: EvidenceBrowser): browser is EvidenceBrowser & ExplainerBrowser {
+  return 'cdp' in browser && 'sessionPromise' in browser;
+}
+
+function explainerBrowser(browser: EvidenceBrowser): ExplainerBrowser {
+  if (!isExplainerBrowser(browser)) throw new TypeError('The evidence browser cannot inspect explainer artifacts.');
+  return browser;
+}
+
+function explainerEvidence(entry: EvidenceObservation): ExplainerObservationFields & { width: number; theme: string } {
+  const { consoleErrors, duplicateIds, keyboardIssues, keyboardTraversal, interactionFailures, references, noJavaScript, print } = entry;
+  if (!consoleErrors || !duplicateIds || !keyboardIssues || !interactionFailures || !references || !noJavaScript || !print) {
+    throw new Error('The explainer browser observation is incomplete.');
+  }
+  return {
+    width: entry.width, theme: entry.theme,
+    consoleErrors, duplicateIds, keyboardIssues, keyboardTraversal, interactionFailures, references, noJavaScript, print,
+  };
+}
+
+export const VISUAL_CHECK_VIEWPORTS: readonly Viewport[] = Object.freeze([
   DESKTOP_READABILITY_VIEWPORT,
   Object.freeze({ width: 1600, height: 1000 }),
   Object.freeze({ width: 1920, height: 1080 }),
   Object.freeze({ width: 2048, height: 1320 }),
 ]);
 
-export const CAPTURE_VIEWPORTS = Object.freeze([
-  VISUAL_CHECK_VIEWPORTS[0],
-  VISUAL_CHECK_VIEWPORTS[VISUAL_CHECK_VIEWPORTS.length - 1],
+export const CAPTURE_VIEWPORTS: readonly Viewport[] = Object.freeze([
+  viewportAt(0),
+  viewportAt(VISUAL_CHECK_VIEWPORTS.length - 1),
 ]);
-export const THEMES = Object.freeze(['light', 'dark']);
+export const THEMES: readonly string[] = Object.freeze(['light', 'dark']);
 const EXIT = Object.freeze({ pass: 0, fail: 1, skipped: 2 });
 export const CHROME_NO_SANDBOX_ENV = 'SCHEMATICS_CHROME_NO_SANDBOX';
 const VISUAL_SIDECAR_SUFFIXES = Object.freeze([
@@ -55,33 +550,38 @@ const VISUAL_SIDECAR_SUFFIXES = Object.freeze([
     (theme) => `.visual-check.${width}x${height}.${theme}.png`,
   )),
 ]);
-const visualEvidenceOwnerships = new WeakSet();
+const visualEvidenceOwnerships = new WeakSet<EvidenceOwnership>();
 export const CHROME_STARTUP_TIMEOUT_MS = 90000;
+const HTML_ESCAPES: Record<string, string> = {
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+};
 
-function sha256(buffer) {
+function sha256(buffer: Buffer): string {
   return createHash('sha256').update(buffer).digest('hex');
 }
 
-function htmlEscape(value) {
-  return String(value).replace(/[&<>"']/g, (char) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  })[char]);
+function htmlEscape(value: unknown): string {
+  return String(value).replace(/[&<>"']/g, (char) => HTML_ESCAPES[char] ?? char);
 }
 
-function pathEntry(file) {
+function pathEntry(file: string): PathEntry {
   try {
     return { exists: true, stat: fs.lstatSync(file) };
   } catch (error) {
-    if (error?.code === 'ENOENT') return { exists: false };
+    if (errorCode(error) === 'ENOENT') return { exists: false };
     return { exists: null, error };
   }
 }
 
-function visualEvidencePaths(outputs) {
+function visualEvidencePaths(outputs: EvidenceOutputs): string[] {
   return outputs.capture === false ? [] : [outputs.contactSheet, ...outputs.screenshots.map((entry) => entry.path)];
 }
 
-function regularFileEvidence(file, { expectedLinks = 1 } = {}) {
+type RegularFileEvidence =
+  | { ok: false; reason: RelationReason }
+  | { ok: true; evidence: EvidenceDigest & { file: string }; identity: EvidenceIdentity };
+
+function regularFileEvidence(file: string, { expectedLinks = 1 }: { expectedLinks?: number } = {}): RegularFileEvidence {
   const captured = captureRegularFileBinding(file, {
     subject: 'evidence-file',
     expectedLinks,
@@ -123,7 +623,11 @@ function regularFileEvidence(file, { expectedLinks = 1 } = {}) {
   };
 }
 
-function readRegularFileContents(file, { subject = 'file' } = {}) {
+type RegularFileContents =
+  | { ok: false; reason: RelationReason }
+  | { ok: true; bytes: Buffer; evidence: EvidenceDigest; identity: EvidenceIdentity };
+
+function readRegularFileContents(file: string, { subject = 'file' }: { subject?: string } = {}): RegularFileContents {
   const captured = captureRegularFileBinding(file, {
     subject,
     expectedLinks: 1,
@@ -132,9 +636,11 @@ function readRegularFileContents(file, { subject = 'file' } = {}) {
   if (captured.status !== 'captured') return { ok: false, reason: captured.reason };
   const released = releaseRegularFileBinding(captured.binding);
   if (released.status !== 'released') return { ok: false, reason: released.reason };
+  const bytes = captured.content.buffer;
+  if (!bytes) return { ok: false, reason: { code: `${subject}-content-unavailable` } };
   return {
     ok: true,
-    bytes: captured.content.buffer,
+    bytes,
     evidence: {
       sha256: captured.content.sha256,
       bytes: captured.content.bytes,
@@ -143,30 +649,35 @@ function readRegularFileContents(file, { subject = 'file' } = {}) {
   };
 }
 
-function regularFileCaptureError(label, captured) {
+function regularFileCaptureError(label: string, captured: OutputRelation | undefined): Error {
   const reason = captured?.reason || { code: 'regular-file-capture-failed' };
-  const error = new Error(`${label} could not be read safely (${reason.code}).`);
+  const error: Error & { code?: unknown; evidenceReason?: unknown } = new Error(`${label} could not be read safely (${reason.code}).`);
   if (reason.systemCode) error.code = reason.systemCode;
   error.evidenceReason = reason;
   return error;
 }
 
-function screenshotKey(width, height, theme) {
+function screenshotKey(width: number, height: number, theme: string): string {
   return `${width}x${height}:${theme}`;
 }
 
-function resolvedSidecarNamespace(artifact, component) {
-  const namespace = sidecarNamespaceComponentKey(path.dirname(artifact), component);
-  if (namespace.status === 'resolved') return namespace;
-  const error = new Error(
-    `Could not establish a stable sidecar namespace (${namespace.reason?.code || 'unknown'}).`,
-  );
-  error.code = 'SCHEMATICS_SIDECAR_NAMESPACE_INDETERMINATE';
-  error.sidecarNamespaceReason = namespace.reason;
-  throw error;
+function sidecarNamespaceError(message: string, reason: unknown): Error {
+  return Object.assign(new Error(message), {
+    code: 'SCHEMATICS_SIDECAR_NAMESPACE_INDETERMINATE',
+    sidecarNamespaceReason: reason,
+  });
 }
 
-function portableSidecarComponentKey(component) {
+function resolvedSidecarNamespace(artifact: string, component: string) {
+  const namespace = sidecarNamespaceComponentKey(path.dirname(artifact), component);
+  if (namespace.status === 'resolved') return namespace;
+  throw sidecarNamespaceError(
+    `Could not establish a stable sidecar namespace (${namespace.reason?.code || 'unknown'}).`,
+    namespace.reason,
+  );
+}
+
+function portableSidecarComponentKey(component: string): string {
   return component
     .normalize('NFC')
     .toLocaleUpperCase('en-US')
@@ -174,7 +685,7 @@ function portableSidecarComponentKey(component) {
     .normalize('NFC');
 }
 
-function targetSidecarNamespace(directory, component) {
+function targetSidecarNamespace(directory: string, component: string): string {
   const namespace = sidecarNamespaceComponentKey(directory, component);
   if (namespace.status === 'resolved') return namespace.componentKey;
   if (namespace.reason?.code === 'sidecar-directory-missing') {
@@ -182,22 +693,23 @@ function targetSidecarNamespace(directory, component) {
     // collision envelope until the directory exists and can be probed.
     return portableSidecarComponentKey(component);
   }
-  const error = new Error(
+  throw sidecarNamespaceError(
     `Could not establish target sidecar semantics (${namespace.reason?.code || 'unknown'}).`,
+    namespace.reason,
   );
-  error.code = 'SCHEMATICS_SIDECAR_NAMESPACE_INDETERMINATE';
-  error.sidecarNamespaceReason = namespace.reason;
-  throw error;
 }
 
-function evidenceSidecarPaths(artifactPath, { outDir, command = 'visual-check', capture = true, captureViewports = CAPTURE_VIEWPORTS } = {}) {
+function evidenceSidecarPaths(
+  artifactPath: string,
+  { outDir, command = 'visual-check', capture = true, captureViewports = CAPTURE_VIEWPORTS }: SidecarOptions = {},
+): EvidenceOutputs {
   let artifact = path.resolve(artifactPath);
   try {
     // Existing aliases, including Windows 8.3 spellings, must share the
     // physical artifact's evidence namespace even when the stem is short.
     artifact = fs.realpathSync.native(artifact);
   } catch (error) {
-    if (!['ENOENT', 'ENOTDIR', 'ENAMETOOLONG'].includes(error?.code)) throw error;
+    if (!['ENOENT', 'ENOTDIR', 'ENAMETOOLONG'].includes(String(errorCode(error)))) throw error;
     // Missing artifacts still need deterministic failure sidecar paths.
   }
   const namespace = resolvedSidecarNamespace(artifact, path.basename(artifact));
@@ -235,15 +747,15 @@ function evidenceSidecarPaths(artifactPath, { outDir, command = 'visual-check', 
   };
 }
 
-export function sidecarPaths(artifactPath, options = {}) {
+export function sidecarPaths(artifactPath: string, options: SidecarOptions = {}): EvidenceOutputs {
   return evidenceSidecarPaths(artifactPath, options);
 }
 
-export function browserCheckSidecarPaths(artifactPath, options = {}) {
+export function browserCheckSidecarPaths(artifactPath: string, options: SidecarOptions = {}): EvidenceOutputs {
   return evidenceSidecarPaths(artifactPath, { ...options, command: 'browser-check', capture: false });
 }
 
-function evidencePathConflict(artifactPath, outputs, file, reason) {
+function evidencePathConflict(artifactPath: string, outputs: EvidenceOutputs, file: string | undefined, reason: unknown): ConflictFailure {
   const target = file || outputs.receipt;
   const error = `${outputs.command} will not replace the existing unowned evidence path "${target}".`;
   return {
@@ -261,14 +773,18 @@ function evidencePathConflict(artifactPath, outputs, file, reason) {
   };
 }
 
-function visualEvidenceOwnershipMatches(ownership, artifactPath, outputs) {
-  return visualEvidenceOwnerships.has(ownership)
+function visualEvidenceOwnershipMatches(
+  ownership: EvidenceOwnership | undefined,
+  artifactPath: string,
+  outputs: EvidenceOutputs,
+): ownership is EvidenceOwnership {
+  return ownership !== undefined && visualEvidenceOwnerships.has(ownership)
     && ownership.active
     && sameEntry(ownership.artifact, artifactPath).status === 'match'
     && sameLocation(ownership.receipt, outputs.receipt).status === 'match';
 }
 
-function visualEvidenceTargets(outputs) {
+function visualEvidenceTargets(outputs: EvidenceOutputs): Array<{ kind: string; path: string; index?: number }> {
   return [
     { kind: 'receipt', path: outputs.receipt },
     ...(outputs.capture === false ? [] : [{ kind: 'contact-sheet', path: outputs.contactSheet }]),
@@ -280,7 +796,7 @@ function visualEvidenceTargets(outputs) {
   ];
 }
 
-function evidenceWriteFailure(artifactPath, message, errors) {
+function evidenceWriteFailure(artifactPath: string, message: string, errors: CleanupError[]): WriteFailure {
   return {
     ok: false,
     error: message,
@@ -294,7 +810,7 @@ function evidenceWriteFailure(artifactPath, message, errors) {
   };
 }
 
-function fileIdentity(stat) {
+function fileIdentity(stat: fs.BigIntStats): EvidenceIdentity {
   return {
     device: stat.dev,
     inode: stat.ino,
@@ -303,7 +819,7 @@ function fileIdentity(stat) {
   };
 }
 
-function identityMatches(stat, identity, { directory = false } = {}) {
+function identityMatches(stat: fs.BigIntStats, identity: EvidenceIdentity, { directory = false }: { directory?: boolean } = {}): boolean {
   return stat.dev === identity.device
     && stat.ino === identity.inode
     && Number(stat.mode & 0o777n) === identity.mode
@@ -311,14 +827,18 @@ function identityMatches(stat, identity, { directory = false } = {}) {
     && !stat.isSymbolicLink();
 }
 
-function evidenceIdentityMatches(actual, expected, expectedLinks = expected?.links ?? 1) {
+function evidenceIdentityMatches(
+  actual: EvidenceIdentity | undefined,
+  expected: ExpectedIdentity | undefined,
+  expectedLinks: bigint | number = expected?.links ?? 1,
+): boolean {
   return actual?.device === expected?.device
     && actual?.inode === expected?.inode
     && actual?.mode === expected?.mode
     && BigInt(actual?.links ?? 0) === BigInt(expectedLinks);
 }
 
-function stagedOutputs(outputs, stagingDirectory) {
+function stagedOutputs(outputs: EvidenceOutputs, stagingDirectory: string): StagedOutputs {
   return {
     receipt: path.join(stagingDirectory, 'receipt.json'),
     contactSheet: path.join(stagingDirectory, 'contact-sheet.html'),
@@ -329,17 +849,17 @@ function stagedOutputs(outputs, stagingDirectory) {
   };
 }
 
-function stagedPathFor(ownership, finalPath) {
+function stagedPathFor(ownership: EvidenceOwnership, finalPath: string): string | undefined {
   return ownership.stagingPaths.get(finalPath);
 }
 
-function registerStagedEvidence(ownership, finalPath) {
-  const stagedPath = stagedPathFor(ownership, finalPath);
-  let stat;
+function registerStagedEvidence(ownership: EvidenceOwnership, finalPath: string): void {
+  const stagedPath = requiredEntry(ownership.stagingPaths, finalPath);
+  let stat: fs.BigIntStats;
   try {
     stat = fs.lstatSync(stagedPath, { bigint: true });
   } catch (error) {
-    throw new Error(`visual-check could not inspect staged evidence "${stagedPath}": ${error.message}`);
+    throw new Error(`visual-check could not inspect staged evidence "${stagedPath}": ${errorMessage(error)}`);
   }
   if (!stat.isFile() || stat.isSymbolicLink() || stat.ino === 0n) {
     throw new Error(`visual-check staged evidence is not a uniquely owned regular file: "${stagedPath}".`);
@@ -361,7 +881,7 @@ function registerStagedEvidence(ownership, finalPath) {
     }
     stat = adjusted;
   }
-  const entry = {
+  const entry: StagedEntry = {
     path: stagedPath,
     identity: fileIdentity(stat),
   };
@@ -376,11 +896,11 @@ function registerStagedEvidence(ownership, finalPath) {
   };
 }
 
-function writeStagedEvidence(ownership, finalPath, contents) {
-  const stagedPath = stagedPathFor(ownership, finalPath);
+function writeStagedEvidence(ownership: EvidenceOwnership, finalPath: string, contents: Buffer | string): void {
+  const stagedPath = requiredEntry(ownership.stagingPaths, finalPath);
   const target = ownership.targets.get(finalPath);
   const mode = target?.mode ?? 0o666;
-  let descriptor;
+  let descriptor: number | undefined;
   try {
     descriptor = fs.openSync(stagedPath, 'wx', mode);
     let stat = fs.fstatSync(descriptor, { bigint: true });
@@ -397,7 +917,7 @@ function writeStagedEvidence(ownership, finalPath, contents) {
       }
       stat = adjusted;
     }
-    const entry = {
+    const entry: StagedEntry = {
       path: stagedPath,
       identity: fileIdentity(stat),
     };
@@ -413,10 +933,10 @@ function writeStagedEvidence(ownership, finalPath, contents) {
   }
 }
 
-function unlinkOwnedEntry(file, identity, {
+function unlinkOwnedEntry(file: string, identity: EvidenceIdentity, {
   evidence,
   expectedLinks,
-} = {}) {
+}: { evidence?: EvidenceDigest; expectedLinks?: number } = {}): UnlinkResult {
   const verifiedLinks = Number(expectedLinks ?? identity.links ?? 1);
   let captured = captureRegularFileBinding(file, {
     subject: 'visual-cleanup',
@@ -428,7 +948,7 @@ function unlinkOwnedEntry(file, identity, {
       expectedBytes: evidence.bytes,
     } : {}),
   });
-  const reportedLinks = Number(captured.reason?.links);
+  const reportedLinks = Number(captured.status === 'captured' ? undefined : captured.reason.links);
   if (captured.status === 'unsupported'
     && captured.reason?.code === 'visual-cleanup-hardlinked'
     && Number.isSafeInteger(reportedLinks)
@@ -450,13 +970,13 @@ function unlinkOwnedEntry(file, identity, {
       status: captured.status === 'different' || captured.status === 'unsupported'
         ? 'different'
         : 'unknown',
-      reason: captured.reason?.code?.includes('content-changed') ? 'content' : 'identity',
+      reason: String(captured.reason?.code).includes('content-changed') ? 'content' : 'identity',
       error: new Error(captured.reason?.code || 'visual cleanup binding failed'),
       bindingState: captured.reason,
     };
   }
-  let removal;
-  let released;
+  let removal: OutputRelation;
+  let released: OutputRelation;
   try {
     removal = quarantineRemoveRegularFileBinding(captured.binding, file, {
       subject: 'visual-cleanup',
@@ -487,7 +1007,9 @@ function unlinkOwnedEntry(file, identity, {
   };
 }
 
-function backupOwnedPublishedEntry(file, backupPath, identity, evidence) {
+type BackupResult = OutputRelation & { backupCreated: boolean; backupVerified: boolean };
+
+function backupOwnedPublishedEntry(file: string, backupPath: string, identity: EvidenceIdentity, evidence: EvidenceDigest): BackupResult {
   const captured = captureRegularFileBinding(file, {
     subject: 'previous-evidence',
     expectedIdentity: identity,
@@ -499,8 +1021,8 @@ function backupOwnedPublishedEntry(file, backupPath, identity, evidence) {
   if (captured.status !== 'captured') {
     return { ...captured, backupCreated: false, backupVerified: false };
   }
-  let backup;
-  let released;
+  let backup: BackupResult | undefined;
+  let released: OutputRelation;
   try {
     backup = backupPublicRegularFileBinding(captured.binding, file, backupPath, {
       subject: 'previous-evidence',
@@ -525,9 +1047,10 @@ function backupOwnedPublishedEntry(file, backupPath, identity, evidence) {
   return backup;
 }
 
-function publishedRemovalError(file, result) {
-  const code = result.reason?.code;
-  let reason;
+function publishedRemovalError(file: string, result: UnlinkResult | OutputRelation): CleanupError {
+  const reasonCode = readField(result.reason, 'code');
+  const code = typeof reasonCode === 'string' ? reasonCode : undefined;
+  let reason: string;
   if (result.status === 'preserved') {
     reason = 'published entry changed during retirement; its successor was restored and preserved';
   } else if (result.status === 'recovery-required') {
@@ -551,8 +1074,8 @@ function publishedRemovalError(file, result) {
   };
 }
 
-function cleanupStagedEvidence(ownership, { removeDirectory = false } = {}) {
-  const errors = [];
+function cleanupStagedEvidence(ownership: EvidenceOwnership, { removeDirectory = false }: { removeDirectory?: boolean } = {}): CleanupError[] {
+  const errors: CleanupError[] = [];
   for (const [finalPath, entry] of [...ownership.stagedEntries]) {
     const result = unlinkOwnedEntry(entry.path, entry.identity, { evidence: entry.evidence });
     if (result.status === 'removed' || result.status === 'absent') {
@@ -574,7 +1097,7 @@ function cleanupStagedEvidence(ownership, { removeDirectory = false } = {}) {
       directory: ownership.stagingDirectory,
       identity: ownership.stagingIdentity,
     }] : []),
-  ].filter(Boolean);
+  ].filter((entry): entry is OwnedDirectory => Boolean(entry));
   for (const { directory, identity } of directories) {
     try {
       const stat = fs.lstatSync(directory, { bigint: true });
@@ -588,18 +1111,22 @@ function cleanupStagedEvidence(ownership, { removeDirectory = false } = {}) {
         removeEmptyDirectoryWithRetry(directory);
       }
     } catch (error) {
-      if (error?.code !== 'ENOENT') {
-        errors.push({ file: directory, recoveryDirectory: directory, reason: error.message });
+      if (errorCode(error) !== 'ENOENT') {
+        errors.push({ file: directory, recoveryDirectory: directory, reason: errorMessage(error) });
       }
     }
   }
   return errors;
 }
 
-function verifyVisualEvidenceTargets(artifactPath, outputs, ownership) {
+function verifyVisualEvidenceTargets(
+  artifactPath: string,
+  outputs: EvidenceOutputs,
+  ownership: EvidenceOwnership,
+): ConflictFailure | { ok: true } {
   for (const target of visualEvidenceTargets(outputs)) {
     const captured = ownership.targets.get(target.path);
-    const verification = captured ? verifyAtomicOutput(captured.snapshot) : {
+    const verification: OutputRelation = captured ? verifyAtomicOutput(captured.snapshot) : {
       status: 'unknown',
       reason: { code: 'evidence-snapshot-missing' },
     };
@@ -610,21 +1137,25 @@ function verifyVisualEvidenceTargets(artifactPath, outputs, ownership) {
   return { ok: true };
 }
 
-function beginVisualEvidenceWrite(artifactPath, artifactBytes, outputs) {
+function beginVisualEvidenceWrite(
+  artifactPath: string,
+  artifactBytes: Buffer,
+  outputs: EvidenceOutputs,
+): PublicationFailure | { ok: true; ownership: EvidenceOwnership } {
   const targets = visualEvidenceTargets(outputs);
   const candidates = targets.map((target) => target.path);
-  const previousEvidence = new Map();
+  const previousEvidence = new Map<string, EvidenceDigest>();
   try {
     fs.mkdirSync(path.dirname(outputs.receipt), { recursive: true });
   } catch (error) {
     return evidenceWriteFailure(
       artifactPath,
       'visual-check could not create its evidence directory.',
-      [{ file: path.dirname(outputs.receipt), reason: error.message }],
+      [{ file: path.dirname(outputs.receipt), reason: errorMessage(error) }],
     );
   }
 
-  const capturedTargets = new Map();
+  const capturedTargets = new Map<string, CapturedAtomicOutput>();
   for (const target of targets) {
     const captured = captureAtomicOutput(target.path, {
       requestedEntryPolicy: 'regular-or-absent',
@@ -635,9 +1166,9 @@ function beginVisualEvidenceWrite(artifactPath, artifactBytes, outputs) {
     capturedTargets.set(target.path, captured);
   }
 
-  const parent = capturedTargets.get(outputs.receipt).snapshot.slot;
+  const parent = requiredEntry(capturedTargets, outputs.receipt).snapshot.slot;
   for (const target of targets.slice(1)) {
-    const slot = capturedTargets.get(target.path).snapshot.slot;
+    const slot = requiredEntry(capturedTargets, target.path).snapshot.slot;
     if (slot.parentDevice !== parent.parentDevice || slot.parentInode !== parent.parentInode) {
       return evidencePathConflict(artifactPath, outputs, target.path, {
         code: 'evidence-parent-mismatch',
@@ -646,10 +1177,10 @@ function beginVisualEvidenceWrite(artifactPath, artifactBytes, outputs) {
   }
 
   const existing = candidates.filter((file) => (
-    capturedTargets.get(file).snapshot.requestedEntry.kind === 'existing'
+    requiredEntry(capturedTargets, file).snapshot.requestedEntry.kind === 'existing'
   ));
   if (existing.length) {
-    const receiptEntry = capturedTargets.get(outputs.receipt).snapshot.requestedEntry;
+    const receiptEntry = requiredEntry(capturedTargets, outputs.receipt).snapshot.requestedEntry;
     if (receiptEntry.kind !== 'existing') {
       return evidencePathConflict(artifactPath, outputs, existing[0], {
         code: 'ownership-receipt-missing',
@@ -659,28 +1190,29 @@ function beginVisualEvidenceWrite(artifactPath, artifactBytes, outputs) {
     const previousReceipt = readRegularFileContents(outputs.receipt, {
       subject: 'ownership-receipt',
     });
-    const capturedReceipt = capturedTargets.get(outputs.receipt).snapshot.target;
-    if (!previousReceipt.ok || !evidenceIdentityMatches(previousReceipt.identity, {
+    const capturedReceipt = requiredEntry(capturedTargets, outputs.receipt).snapshot.target;
+    if (!previousReceipt.ok || capturedReceipt.kind !== 'file' || !evidenceIdentityMatches(previousReceipt.identity, {
       device: capturedReceipt.device,
       inode: capturedReceipt.inode,
       mode: capturedReceipt.mode,
       links: 1,
     })) {
+      const previousReason = previousReceipt.ok ? undefined : previousReceipt.reason;
       return evidencePathConflict(artifactPath, outputs, outputs.receipt, {
         code: 'ownership-receipt-invalid',
-        ...(previousReceipt.reason?.code ? { bindingCode: previousReceipt.reason.code } : {}),
-        ...(previousReceipt.reason?.systemCode
-          ? { systemCode: previousReceipt.reason.systemCode } : {}),
+        ...(previousReason?.code ? { bindingCode: previousReason.code } : {}),
+        ...(previousReason?.systemCode
+          ? { systemCode: previousReason.systemCode } : {}),
       });
     }
     const previousBytes = previousReceipt.bytes;
-    let previous;
+    let previous: PreviousEvidenceReceipt | null;
     try {
       previous = JSON.parse(previousBytes.toString('utf8'));
     } catch (error) {
       return evidencePathConflict(artifactPath, outputs, outputs.receipt, {
         code: 'ownership-receipt-invalid',
-        ...(error?.code ? { systemCode: error.code } : {}),
+        ...(errorCode(error) ? { systemCode: errorCode(error) } : {}),
       });
     }
     previousEvidence.set(outputs.receipt, {
@@ -701,9 +1233,9 @@ function beginVisualEvidenceWrite(artifactPath, artifactBytes, outputs) {
     const contactNameSafe = outputs.capture === false || typeof recordedContactName === 'string'
       // path-contract-allow: portable-logical-path -- contact-sheet filenames are serialized logical basenames.
       && path.basename(recordedContactName) === recordedContactName;
-    if (!path.isAbsolute(recordedDirectory) || !receiptNameSafe || !contactNameSafe
+    if (!path.isAbsolute(recordedDirectory) || !receiptNameSafe || typeof recordedReceiptName !== 'string' || !contactNameSafe
       || sameLocation(path.join(recordedDirectory, recordedReceiptName), outputs.receipt).status !== 'match'
-      || (outputs.capture !== false && sameLocation(path.join(recordedDirectory, recordedContactName), outputs.contactSheet).status !== 'match')) {
+      || (outputs.capture !== false && sameLocation(path.join(recordedDirectory, String(recordedContactName)), outputs.contactSheet).status !== 'match')) {
       return evidencePathConflict(artifactPath, outputs, outputs.receipt, {
         code: 'ownership-sidecar-path-mismatch',
       });
@@ -719,7 +1251,7 @@ function beginVisualEvidenceWrite(artifactPath, artifactBytes, outputs) {
     }
 
     const existingEvidence = visualEvidencePaths(outputs).filter((file) => (
-      capturedTargets.get(file).snapshot.requestedEntry.kind === 'existing'
+      requiredEntry(capturedTargets, file).snapshot.requestedEntry.kind === 'existing'
     ));
     const recordedEvidence = previous?.sidecars?.files;
     if (existingEvidence.length && !Array.isArray(recordedEvidence)) {
@@ -729,7 +1261,7 @@ function beginVisualEvidenceWrite(artifactPath, artifactBytes, outputs) {
     }
     if (Array.isArray(recordedEvidence)) {
       const allowed = new Map(visualEvidencePaths(outputs).map((file) => [path.basename(file), file]));
-      const recorded = new Map();
+      const recorded = new Map<string, { file: string; sha256?: unknown; bytes?: unknown }>();
       for (const item of recordedEvidence) {
         if (!item || typeof item.file !== 'string' || recorded.has(item.file) || !allowed.has(item.file)) {
           return evidencePathConflict(artifactPath, outputs, outputs.receipt, {
@@ -748,8 +1280,8 @@ function beginVisualEvidenceWrite(artifactPath, artifactBytes, outputs) {
         const actual = regularFileEvidence(file);
         const expected = recorded.get(path.basename(file));
         if (!actual.ok
-          || actual.evidence.sha256 !== expected.sha256
-          || actual.evidence.bytes !== expected.bytes) {
+          || actual.evidence.sha256 !== expected?.sha256
+          || actual.evidence.bytes !== expected?.bytes) {
           return evidencePathConflict(artifactPath, outputs, file, {
             code: actual.ok ? 'ownership-evidence-digest-mismatch' : actual.reason.code,
             ...(!actual.ok && actual.reason.systemCode
@@ -766,14 +1298,14 @@ function beginVisualEvidenceWrite(artifactPath, artifactBytes, outputs) {
   }
 
   for (const target of targets) {
-    const verification = verifyAtomicOutput(capturedTargets.get(target.path).snapshot);
+    const verification = verifyAtomicOutput(requiredEntry(capturedTargets, target.path).snapshot);
     if (verification.status !== 'match') {
       return evidencePathConflict(artifactPath, outputs, target.path, verification.reason);
     }
   }
 
-  let stagingDirectory;
-  let stagingStat;
+  let stagingDirectory: string;
+  let stagingStat: fs.BigIntStats;
   try {
     stagingDirectory = fs.mkdtempSync(path.toNamespacedPath(
       path.join(parent.parentPath, '.schematics-visual-check-'),
@@ -786,12 +1318,12 @@ function beginVisualEvidenceWrite(artifactPath, artifactBytes, outputs) {
     return evidenceWriteFailure(
       artifactPath,
       'visual-check could not create a private evidence staging directory.',
-      [{ file: parent.parentPath, reason: error.message }],
+      [{ file: parent.parentPath, reason: errorMessage(error) }],
     );
   }
 
   const staged = stagedOutputs(outputs, stagingDirectory);
-  const ownership = {
+  const ownership: EvidenceOwnership = {
     active: true,
     artifact: path.resolve(artifactPath),
     receipt: outputs.receipt,
@@ -799,10 +1331,10 @@ function beginVisualEvidenceWrite(artifactPath, artifactBytes, outputs) {
     stagingDirectory,
     stagingIdentity: fileIdentity(stagingStat),
     stagedOutputs: staged,
-    stagingPaths: new Map([
+    stagingPaths: new Map<string, string>([
       [outputs.receipt, staged.receipt],
       [outputs.contactSheet, staged.contactSheet],
-      ...outputs.screenshots.map((entry, index) => [entry.path, staged.screenshots[index].path]),
+      ...outputs.screenshots.map((entry, index): [string, string] => [entry.path, requiredScreenshot(staged, index).path]),
     ]),
     stagedEntries: new Map(),
     previousEvidence,
@@ -811,23 +1343,29 @@ function beginVisualEvidenceWrite(artifactPath, artifactBytes, outputs) {
   return { ok: true, ownership };
 }
 
-function recordVisualEvidenceFiles(receipt, outputs, ownership) {
-  const files = [];
+function requiredScreenshot(staged: StagedOutputs, index: number): ScreenshotTarget {
+  const screenshot = staged.screenshots[index];
+  if (!screenshot) throw new Error(`visual-check has no staged screenshot ${index}.`);
+  return screenshot;
+}
+
+function recordVisualEvidenceFiles(receipt: BrowserReceipt, outputs: EvidenceOutputs, ownership: EvidenceOwnership): void {
+  const files: Array<EvidenceDigest & { file: string }> = [];
   for (const file of visualEvidencePaths(outputs)) {
     const staged = ownership.stagedEntries.get(file);
-    if (!staged || !currentEvidenceMatches(staged.path, staged.identity, staged.evidence)) {
-      const error = new Error(`visual-check could not bind evidence file "${file}" to its receipt.`);
-      error.evidenceReason = { code: 'staged-evidence-content-mismatch' };
-      throw error;
+    if (!staged || !staged.evidence || !currentEvidenceMatches(staged.path, staged.identity, staged.evidence)) {
+      throw Object.assign(new Error(`visual-check could not bind evidence file "${file}" to its receipt.`), {
+        evidenceReason: { code: 'staged-evidence-content-mismatch' },
+      });
     }
     files.push({ ...staged.evidence, file: path.basename(file) });
   }
   receipt.sidecars.files = files;
 }
 
-function currentEvidenceMatches(file, identity, evidence, {
+function currentEvidenceMatches(file: string, identity: EvidenceIdentity, evidence: EvidenceDigest | undefined, {
   expectedLinks = identity.links ?? 1,
-} = {}) {
+}: { expectedLinks?: bigint | number } = {}): boolean {
   if (!evidence) return false;
   const current = regularFileEvidence(file, { expectedLinks: Number(expectedLinks) });
   return current.ok
@@ -836,10 +1374,10 @@ function currentEvidenceMatches(file, identity, evidence, {
     && current.evidence.bytes === evidence.bytes;
 }
 
-function restoreOwnedBackup(backup, errors) {
+function restoreOwnedBackup(backup: OwnedBackup, errors: CleanupError[]): void {
   const expectedLinks = backup.identity.links ?? 1n;
   const expectedLinkCount = Number(expectedLinks);
-  let backupStat;
+  let backupStat: fs.BigIntStats;
   try {
     backupStat = fs.lstatSync(backup.path, { bigint: true });
   } catch {
@@ -850,7 +1388,7 @@ function restoreOwnedBackup(backup, errors) {
     errors.push({ file: backup.path, reason: 'backup identity changed; it was preserved' });
     return;
   }
-  let captured = backup.evidence && Number.isSafeInteger(expectedLinkCount)
+  let captured: OutputFailure | CapturedRegularFile = backup.evidence && Number.isSafeInteger(expectedLinkCount)
     ? captureRegularFileBinding(backup.path, {
       subject: 'restore-backup',
       expectedIdentity: backup.identity,
@@ -879,7 +1417,8 @@ function restoreOwnedBackup(backup, errors) {
     });
     return;
   }
-  let released;
+  let released: OutputRelation;
+  const binding = captured.binding;
   try {
     const finalEntry = pathEntry(backup.finalPath);
     if (finalEntry.exists === true) {
@@ -890,23 +1429,23 @@ function restoreOwnedBackup(backup, errors) {
       return;
     }
     if (finalEntry.exists === null) {
-      errors.push({ file: backup.finalPath, reason: finalEntry.error?.message });
+      errors.push({ file: backup.finalPath, reason: errorMessage(finalEntry.error) });
       return;
     }
     try {
       fs.linkSync(backup.path, backup.finalPath);
       const linkedCount = expectedLinkCount + 1;
-      const staged = verifyRegularFileBinding(captured.binding, {
+      const staged = verifyRegularFileBinding(binding, {
         filePath: backup.path,
         expectedLinks: linkedCount,
       });
-      const published = verifyRegularFileBinding(captured.binding, {
+      const published = verifyRegularFileBinding(binding, {
         filePath: backup.finalPath,
         expectedLinks: linkedCount,
       });
       if (staged.status !== 'match' || published.status !== 'match') {
         const removed = quarantineRemoveRegularFileBinding(
-          captured.binding,
+          binding,
           backup.finalPath,
           { subject: 'restored-evidence', expectedLinks: linkedCount },
         );
@@ -927,7 +1466,7 @@ function restoreOwnedBackup(backup, errors) {
         evidence: captured.content,
         expectedLinks: linkedCount,
       });
-      const finalMatches = verifyRegularFileBinding(captured.binding, {
+      const finalMatches = verifyRegularFileBinding(binding, {
         filePath: backup.finalPath,
         expectedLinks: expectedLinkCount,
       }).status === 'match';
@@ -942,13 +1481,13 @@ function restoreOwnedBackup(backup, errors) {
     } catch (error) {
       errors.push({
         file: backup.path,
-        reason: error?.code === 'EEXIST'
+        reason: errorCode(error) === 'EEXIST'
           ? 'final path was claimed during restore; the owned backup was preserved'
-          : error.message,
+          : errorMessage(error),
       });
     }
   } finally {
-    released = releaseRegularFileBinding(captured.binding);
+    released = releaseRegularFileBinding(binding);
     if (released.status !== 'released') {
       errors.push({
         file: backup.path,
@@ -959,7 +1498,12 @@ function restoreOwnedBackup(backup, errors) {
   }
 }
 
-function commitVisualEvidence(artifactPath, outputs, ownership, desiredPaths) {
+function commitVisualEvidence(
+  artifactPath: string,
+  outputs: EvidenceOutputs,
+  ownership: EvidenceOwnership,
+  desiredPaths: string[],
+): PublicationFailure | EvidencePublication {
   const verification = verifyVisualEvidenceTargets(artifactPath, outputs, ownership);
   if (!verification.ok) {
     const cleanupErrors = cleanupStagedEvidence(ownership, { removeDirectory: true });
@@ -969,9 +1513,9 @@ function commitVisualEvidence(artifactPath, outputs, ownership, desiredPaths) {
   }
 
   const desired = new Set(desiredPaths);
-  const stagedBindings = new Map();
-  const releaseStagedBindings = () => {
-    const failures = [];
+  const stagedBindings = new Map<string, RegularFileBinding>();
+  const releaseStagedBindings = (): CleanupError[] => {
+    const failures: CleanupError[] = [];
     for (const [finalPath, binding] of stagedBindings) {
       const released = releaseRegularFileBinding(binding);
       if (released.status !== 'released') {
@@ -1003,7 +1547,7 @@ function commitVisualEvidence(artifactPath, outputs, ownership, desiredPaths) {
         'visual-check could not verify its staged evidence before publication.',
         [{
           file: staged?.path || stagedPathFor(ownership, finalPath),
-          reason: captured?.reason?.code || 'staged entry missing or changed',
+          reason: readField(readField(captured, 'reason'), 'code') || 'staged entry missing or changed',
         }],
       );
       failure.diagnostic.evidence.errors.push(
@@ -1016,18 +1560,19 @@ function commitVisualEvidence(artifactPath, outputs, ownership, desiredPaths) {
     stagedBindings.set(finalPath, captured.binding);
   }
 
-  const backups = [];
-  const published = [];
-  let conflict = null;
+  const backups: OwnedBackup[] = [];
+  const published: PublishedEntry[] = [];
+  let conflict: ConflictFailure | null = null;
   try {
     for (const [index, target] of visualEvidenceTargets(outputs).entries()) {
-      const captured = ownership.targets.get(target.path);
-      if (captured.snapshot.target.kind !== 'file') continue;
+      const captured = requiredEntry(ownership.targets, target.path);
+      const capturedTarget = captured.snapshot.target;
+      if (capturedTarget.kind !== 'file') continue;
       const backupPath = path.join(ownership.stagingDirectory, `previous-${index}`);
-      const identity = {
-        device: captured.snapshot.target.device,
-        inode: captured.snapshot.target.inode,
-        mode: captured.snapshot.target.mode,
+      const identity: EvidenceIdentity = {
+        device: capturedTarget.device,
+        inode: capturedTarget.inode,
+        mode: capturedTarget.mode,
         links: 1n,
       };
       const evidence = ownership.previousEvidence.get(target.path);
@@ -1037,7 +1582,7 @@ function commitVisualEvidence(artifactPath, outputs, ownership, desiredPaths) {
         });
         throw new Error(conflict.error);
       }
-      const backup = {
+      const backup: OwnedBackup = {
         targetPath: target.path,
         finalPath: captured.commitPath,
         path: backupPath,
@@ -1072,16 +1617,16 @@ function commitVisualEvidence(artifactPath, outputs, ownership, desiredPaths) {
       .filter((target) => desired.has(target.path))
       .sort((left, right) => Number(left.kind === 'receipt') - Number(right.kind === 'receipt'));
     for (const target of publicationOrder) {
-      const captured = ownership.targets.get(target.path);
-      const staged = ownership.stagedEntries.get(target.path);
-      const stagedBinding = stagedBindings.get(target.path);
+      const captured = requiredEntry(ownership.targets, target.path);
+      const staged = requiredEntry(ownership.stagedEntries, target.path);
+      const stagedBinding = requiredEntry(stagedBindings, target.path);
       const beforeLink = verifyRegularFileBinding(stagedBinding, {
         filePath: staged.path,
         expectedLinks: 1,
       });
       if (beforeLink.status !== 'match') {
         conflict = evidencePathConflict(artifactPath, outputs, target.path, {
-          code: beforeLink.reason?.code?.includes('content-changed')
+          code: String(beforeLink.reason?.code).includes('content-changed')
             ? 'staged-evidence-content-mismatch'
             : beforeLink.reason?.code || 'staged-evidence-content-mismatch',
         });
@@ -1090,7 +1635,7 @@ function commitVisualEvidence(artifactPath, outputs, ownership, desiredPaths) {
       try {
         fs.linkSync(staged.path, captured.commitPath);
       } catch (error) {
-        if (error?.code === 'EEXIST') {
+        if (errorCode(error) === 'EEXIST') {
           conflict = evidencePathConflict(artifactPath, outputs, target.path, {
             code: 'target-created-during-commit',
           });
@@ -1194,7 +1739,7 @@ function commitVisualEvidence(artifactPath, outputs, ownership, desiredPaths) {
     }
     cleanupErrors.push(...cleanupStagedEvidence(ownership, { removeDirectory: true }));
     ownership.active = false;
-    let recoveryDirectory;
+    let recoveryDirectory: unknown;
     if (cleanupErrors.length) {
       try {
         const retained = fs.lstatSync(ownership.stagingDirectory, { bigint: true });
@@ -1212,10 +1757,10 @@ function commitVisualEvidence(artifactPath, outputs, ownership, desiredPaths) {
       committedReceipt: outputs.receipt,
     };
   } catch (error) {
-    const rollbackErrors = [];
+    const rollbackErrors: CleanupError[] = [];
     for (const entry of [...published].reverse()) {
-      let removed;
-      let ownedMismatch;
+      let removed: OutputRelation | undefined;
+      let ownedMismatch: OutputRelation | undefined;
       for (const expectedLinks of [2, 1]) {
         const matches = verifyRegularFileBinding(entry.binding, {
           filePath: entry.finalPath,
@@ -1229,8 +1774,8 @@ function commitVisualEvidence(artifactPath, outputs, ownership, desiredPaths) {
           );
           break;
         }
-        if (matches.reason?.code?.includes('content-changed')
-          || matches.reason?.code?.includes('mode-changed')) {
+        if (String(matches.reason?.code).includes('content-changed')
+          || String(matches.reason?.code).includes('mode-changed')) {
           ownedMismatch = matches;
         } else {
           ownedMismatch ||= matches;
@@ -1262,8 +1807,8 @@ function commitVisualEvidence(artifactPath, outputs, ownership, desiredPaths) {
         );
         removed = claimantRemoval.status === 'removed' ? claimantRemoval : ownedMismatch;
       }
-      if (removed.status !== 'removed' && removed.status !== 'absent') {
-        rollbackErrors.push(publishedRemovalError(entry.finalPath, removed));
+      if (removed?.status !== 'removed' && removed?.status !== 'absent') {
+        rollbackErrors.push(publishedRemovalError(entry.finalPath, removed ?? { status: 'unknown', reason: { code: 'published-entry-state-unavailable' } }));
       }
     }
     for (const backup of [...backups].reverse()) restoreOwnedBackup(backup, rollbackErrors);
@@ -1277,14 +1822,16 @@ function commitVisualEvidence(artifactPath, outputs, ownership, desiredPaths) {
     return evidenceWriteFailure(
       artifactPath,
       'visual-check could not atomically publish its evidence set.',
-      [{ reason: error.message }, ...rollbackErrors],
+      [{ reason: errorMessage(error) }, ...rollbackErrors],
     );
   } finally {
     releaseStagedBindings();
   }
 }
 
-function executable(file, platform = process.platform) {
+type ExecutableResolver = (file: string | undefined, platform: string) => string | null;
+
+function executable(file: string | undefined, platform: string = process.platform): string | null {
   if (!file) return null;
   try {
     fs.accessSync(file, platform === 'win32' ? fs.constants.F_OK : fs.constants.X_OK);
@@ -1294,17 +1841,17 @@ function executable(file, platform = process.platform) {
   }
 }
 
-function executableProblem(file, platform = process.platform) {
+function executableProblem(file: string | undefined, platform: string = process.platform): unknown {
   if (!file) return null;
   try {
     fs.accessSync(file, platform === 'win32' ? fs.constants.F_OK : fs.constants.X_OK);
     return null;
   } catch (error) {
-    return error.code || 'access-failed';
+    return errorCode(error) || 'access-failed';
   }
 }
 
-function findOnPath(command, env, platform, resolveExecutable) {
+function findOnPath(command: string, env: NodeJS.ProcessEnv, platform: string, resolveExecutable: ExecutableResolver): string | null {
   // Use the target platform's path grammar, not the host's: these candidates
   // are checked through an injected platform (see the findChrome tests), and
   // the host `path` object on Windows would join POSIX directories with
@@ -1324,11 +1871,15 @@ function findOnPath(command, env, platform, resolveExecutable) {
   return null;
 }
 
+function presentRoots(roots: Array<string | undefined>): string[] {
+  return roots.filter((root): root is string => Boolean(root));
+}
+
 export function findChrome({
   env = process.env,
   platform = process.platform,
   resolveExecutable = executable,
-} = {}) {
+}: FindChromeOptions = {}): string | null {
   // Windows environment names are case-insensitive, including when callers
   // provide a plain object instead of the special process.env object.
   if (platform === 'win32') {
@@ -1338,8 +1889,8 @@ export function findChrome({
     return resolveExecutable(env.SCHEMATICS_CHROME, platform);
   }
 
-  const fixed = [];
-  const commands = [];
+  const fixed: string[] = [];
+  const commands: string[] = [];
   if (platform === 'darwin') {
     fixed.push(
       '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -1347,7 +1898,7 @@ export function findChrome({
     );
   } else if (platform === 'win32') {
     const pathApi = path.win32;
-    for (const root of [env.PROGRAMFILES, env['PROGRAMFILES(X86)'], env.LOCALAPPDATA].filter(Boolean)) {
+    for (const root of presentRoots([env.PROGRAMFILES, env['PROGRAMFILES(X86)'], env.LOCALAPPDATA])) {
       fixed.push(
         pathApi.join(root, 'Google', 'Chrome', 'Application', 'chrome.exe'),
         pathApi.join(root, 'Chromium', 'Application', 'chrome.exe'),
@@ -1369,7 +1920,7 @@ export function findChrome({
   // Preserve every Chrome/Chromium candidate's priority, including portable
   // PATH installations, before falling back to Windows' bundled browser.
   if (platform === 'win32') {
-    for (const root of [env['PROGRAMFILES(X86)'], env.PROGRAMFILES, env.LOCALAPPDATA].filter(Boolean)) {
+    for (const root of presentRoots([env['PROGRAMFILES(X86)'], env.PROGRAMFILES, env.LOCALAPPDATA])) {
       const candidate = path.win32.join(root, 'Microsoft', 'Edge', 'Application', 'msedge.exe');
       const resolved = resolveExecutable(candidate, platform);
       if (resolved) return resolved;
@@ -1392,7 +1943,21 @@ export function findChrome({
 }
 
 class PipeCdp {
-  constructor(child, { failureDetails = () => '' } = {}) {
+  child: ChildProcess;
+  failureDetails: () => string;
+  nextId: number;
+  buffer: string;
+  receivedBytes: number;
+  receivedMessages: number;
+  completedWrites: number;
+  writtenBytes: number;
+  pending: Map<number, CdpPending>;
+  waiters: CdpWaiter[];
+  subscribers: Set<(message: CdpMessage) => void>;
+  writePipe: Writable;
+  readPipe: Readable;
+
+  constructor(child: ChildProcess, { failureDetails = () => '' }: { failureDetails?: () => string } = {}) {
     this.child = child;
     this.failureDetails = failureDetails;
     this.nextId = 1;
@@ -1404,38 +1969,40 @@ class PipeCdp {
     this.pending = new Map();
     this.waiters = [];
     this.subscribers = new Set();
-    this.writePipe = child.stdio[3];
-    this.readPipe = child.stdio[4];
+    this.writePipe = writablePipe(child, 3);
+    this.readPipe = readablePipe(child, 4);
     this.readPipe.setEncoding('utf8');
-    this.readPipe.on('data', (chunk) => this.consume(chunk));
-    this.writePipe.on('error', (error) => this.failAll(this.failure('write pipe', error)));
-    this.readPipe.on('error', (error) => this.failAll(this.failure('read pipe', error)));
+    this.readPipe.on('data', (chunk: string) => this.consume(chunk));
+    this.writePipe.on('error', (error: Error) => this.failAll(this.failure('write pipe', error)));
+    this.readPipe.on('error', (error: Error) => this.failAll(this.failure('read pipe', error)));
     this.readPipe.once('end', () => this.failAll(this.failure('read pipe', new Error('stream ended'))));
     this.readPipe.once('close', () => this.failAll(this.failure('read pipe', new Error('stream closed'))));
     this.writePipe.once('close', () => this.failAll(this.failure('write pipe', new Error('stream closed'))));
-    child.once('error', (error) => this.failAll(this.failure('process launch', error)));
-    child.once('close', (code, signal) => {
+    child.once('error', (error: Error) => this.failAll(this.failure('process launch', error)));
+    child.once('close', (code: number | null, signal: NodeJS.Signals | null) => {
       const ending = signal ? `signal ${signal}` : `exit code ${code}`;
       this.failAll(this.failure('process exit', new Error(`Chrome closed with ${ending}`)));
     });
   }
 
-  failure(stage, error) {
-    const code = error?.code ? ` [${error.code}]` : '';
+  failure(stage: string, error: unknown): CdpError {
+    const errorCodeValue = errorCode(error);
+    const errorMethod = readField(error, 'method');
+    const code = errorCodeValue ? ` [${errorCodeValue}]` : '';
     const details = this.failureDetails();
-    const failure = new Error([
-      `Chrome DevTools ${stage} failed: ${error?.message || String(error)}${code}`,
+    const failure: CdpError = new Error([
+      `Chrome DevTools ${stage} failed: ${errorMessage(error) || String(error)}${code}`,
       details,
       `Chrome transport: Node ${process.version}, libuv ${process.versions.uv}, ${process.platform}; pid=${this.child.pid ?? 'unavailable'}, exitCode=${this.child.exitCode}, signalCode=${this.child.signalCode}.`,
       `Chrome read pipe: readable=${this.readPipe.readable}, ended=${this.readPipe.readableEnded}, destroyed=${this.readPipe.destroyed}, receivedBytes=${this.receivedBytes}, messages=${this.receivedMessages}, bufferedBytes=${Buffer.byteLength(this.buffer)}.`,
       `Chrome write pipe: writable=${this.writePipe.writable}, ended=${this.writePipe.writableEnded}, destroyed=${this.writePipe.destroyed}, completedWrites=${this.completedWrites}, writtenBytes=${this.writtenBytes}, bufferedBytes=${this.writePipe.writableLength}.`,
     ].filter(Boolean).join('\n'));
-    if (error?.code) failure.code = error.code;
-    if (error?.method) failure.method = error.method;
+    if (errorCodeValue) failure.code = errorCodeValue;
+    if (errorMethod) failure.method = errorMethod;
     return failure;
   }
 
-  consume(chunk) {
+  consume(chunk: string): void {
     this.receivedBytes += Buffer.byteLength(chunk);
     this.buffer += chunk;
     let boundary;
@@ -1443,11 +2010,11 @@ class PipeCdp {
       const raw = this.buffer.slice(0, boundary);
       this.buffer = this.buffer.slice(boundary + 1);
       if (!raw) continue;
-      let message;
+      let message: CdpMessage;
       try {
         message = JSON.parse(raw);
       } catch (error) {
-        this.failAll(new Error(`Chrome DevTools returned invalid JSON: ${error.message}`));
+        this.failAll(new Error(`Chrome DevTools returned invalid JSON: ${errorMessage(error)}`));
         continue;
       }
       this.receivedMessages += 1;
@@ -1456,7 +2023,7 @@ class PipeCdp {
         if (!pending) continue;
         clearTimeout(pending.timer);
         this.pending.delete(message.id);
-        if (message.error) pending.reject(new Error(`${pending.method}: ${message.error.message}`));
+        if (message.error) pending.reject(new Error(`${pending.method}: ${String(message.error.message)}`));
         else pending.resolve(message.result || {});
         continue;
       }
@@ -1464,26 +2031,26 @@ class PipeCdp {
       for (const waiter of [...this.waiters]) {
         if (waiter.method !== message.method) continue;
         if (waiter.sessionId && waiter.sessionId !== message.sessionId) continue;
-        clearTimeout(waiter.timer);
+        clearTimeout(waiter.timer ?? undefined);
         this.waiters.splice(this.waiters.indexOf(waiter), 1);
         waiter.resolve(message.params || {});
       }
     }
   }
 
-  subscribe(callback) {
+  subscribe(callback: (message: CdpMessage) => void): () => boolean {
     this.subscribers.add(callback);
     return () => this.subscribers.delete(callback);
   }
 
-  send(method, params = {}, sessionId = undefined, timeoutMs = 15000) {
+  send(method: string, params: JsonRecord = {}, sessionId: string | undefined = undefined, timeoutMs = 15000): Promise<CdpResult> {
     const id = this.nextId++;
-    const message = { id, method, params };
+    const message: { id: number; method: string; params: JsonRecord; sessionId?: string } = { id, method, params };
     if (sessionId) message.sessionId = sessionId;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        const error = new Error(`${method}: timed out after ${timeoutMs}ms`);
+        const error: CdpError = new Error(`${method}: timed out after ${timeoutMs}ms`);
         error.code = 'ERR_CHROME_CDP_TIMEOUT';
         error.method = method;
         reject(this.failure('protocol timeout', error));
@@ -1505,9 +2072,9 @@ class PipeCdp {
     });
   }
 
-  waitFor(method, sessionId, timeoutMs = 15000) {
+  waitFor(method: string, sessionId: string | undefined, timeoutMs = 15000): Promise<JsonRecord> {
     return new Promise((resolve, reject) => {
-      const waiter = { method, sessionId, resolve, reject, timer: null };
+      const waiter: CdpWaiter = { method, sessionId, resolve, reject, timer: null };
       waiter.timer = setTimeout(() => {
         this.waiters.splice(this.waiters.indexOf(waiter), 1);
         reject(this.failure('event timeout', new Error(`${method}: event timed out after ${timeoutMs}ms`)));
@@ -1516,13 +2083,13 @@ class PipeCdp {
     });
   }
 
-  failAll(error) {
+  failAll(error: unknown): void {
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timer);
       pending.reject(error);
     }
     for (const waiter of this.waiters) {
-      clearTimeout(waiter.timer);
+      if (waiter.timer !== null) clearTimeout(waiter.timer);
       waiter.reject(error);
     }
     this.pending.clear();
@@ -1530,10 +2097,10 @@ class PipeCdp {
   }
 }
 
-export function chromeVisualBrowserArgs(profileRoot, {
+export function chromeVisualBrowserArgs(profileRoot: string, {
   env = process.env,
-  getuid = typeof process.getuid === 'function' ? () => process.getuid() : null,
-} = {}) {
+  getuid = defaultGetuid(),
+}: { env?: NodeJS.ProcessEnv; getuid?: (() => number) | null } = {}): string[] {
   const args = [
     '--headless=new',
     '--remote-debugging-pipe',
@@ -1559,7 +2126,7 @@ export function chromeVisualBrowserArgs(profileRoot, {
   return args;
 }
 
-async function evaluate(cdp, sessionId, expression, awaitPromise = false) {
+async function evaluate(cdp: PipeCdp, sessionId: string | undefined, expression: string, awaitPromise = false): Promise<unknown> {
   const response = await cdp.send('Runtime.evaluate', {
     expression,
     awaitPromise,
@@ -1573,7 +2140,7 @@ async function evaluate(cdp, sessionId, expression, awaitPromise = false) {
   return response.result?.value;
 }
 
-function browserEnvironment(env, platform) {
+function browserEnvironment(env: NodeJS.ProcessEnv, platform: string): NodeJS.ProcessEnv {
   if (platform !== 'win32') return env;
   // Agent-launched Git Bash can inherit this app-health shim. Edge then
   // relaunches and loses the DevTools pipes (#790). Change the browser's copy
@@ -1584,15 +2151,25 @@ function browserEnvironment(env, platform) {
 }
 
 export class ChromeVisualBrowser {
-  #profile;
-  constructor(chromePath, {
+  #profile: ReturnType<typeof createOwnedTempDirectory>;
+  profileRoot: string;
+  shutdownTimeoutMs: number;
+  stderr: string;
+  child: ChildProcess;
+  cdp: PipeCdp;
+  startupTimeoutMs: number;
+  sessionPromise: Promise<string | undefined>;
+  targetId: string | undefined;
+  closePromise: Promise<void> | undefined;
+
+  constructor(chromePath: string, {
     platform = process.platform,
     env = process.env,
-    getuid = typeof process.getuid === 'function' ? () => process.getuid() : null,
+    getuid = defaultGetuid(),
     spawnImpl = spawn,
     startupTimeoutMs = CHROME_STARTUP_TIMEOUT_MS,
     shutdownTimeoutMs = 1500,
-  } = {}) {
+  }: ChromeVisualBrowserOptions = {}) {
     this.#profile = createOwnedTempDirectory('schematics-visual-check-profile-');
     this.profileRoot = this.#profile.path;
     this.shutdownTimeoutMs = shutdownTimeoutMs;
@@ -1602,11 +2179,12 @@ export class ChromeVisualBrowser {
       stdio: ['ignore', 'ignore', 'pipe', 'pipe', 'pipe'],
       env: browserEnvironment(env, platform),
     });
-    this.child.stderr.setEncoding('utf8');
-    this.child.stderr.on('data', (chunk) => {
+    const stderrPipe = readablePipe(this.child, 2);
+    stderrPipe.setEncoding('utf8');
+    stderrPipe.on('data', (chunk: string) => {
       this.stderr = `${this.stderr}${chunk}`.slice(-8000);
     });
-    this.child.stderr.on('error', (error) => {
+    stderrPipe.on('error', (error: Error) => {
       this.stderr = `${this.stderr}\nChrome stderr stream failed: ${error.message}`.trim().slice(-8000);
     });
     this.cdp = new PipeCdp(this.child, {
@@ -1630,7 +2208,7 @@ export class ChromeVisualBrowser {
     this.sessionPromise = this.attach();
   }
 
-  async attach() {
+  async attach(): Promise<string | undefined> {
     // Process launch can be delayed substantially on a busy desktop. Keep the
     // longer allowance inside one gate invocation so an authoring agent does
     // not turn startup jitter into repeated tool calls or candidate edits.
@@ -1652,7 +2230,7 @@ export class ChromeVisualBrowser {
     return attached.sessionId;
   }
 
-  async resetPage() {
+  async resetPage(): Promise<void> {
     await this.sessionPromise;
     const previousTarget = this.targetId;
     const created = await this.cdp.send('Target.createTarget', { url: 'about:blank' });
@@ -1666,7 +2244,7 @@ export class ChromeVisualBrowser {
     await this.cdp.send('Page.bringToFront', {}, attached.sessionId);
   }
 
-  async inspect({ artifactPath, width, height, theme, screenshotPath, writeScreenshot }) {
+  async inspect({ artifactPath, width, height, theme, screenshotPath, writeScreenshot }: InspectOptions): Promise<JsonRecord> {
     const sessionId = await this.sessionPromise;
     await this.cdp.send('Emulation.setDeviceMetricsOverride', {
       width,
@@ -1882,7 +2460,7 @@ export class ChromeVisualBrowser {
         viewerChromeActive: viewerChromeReceipt ? viewerChromeReceipt.active : false
       };
     })()`);
-    if (!metrics || !Number.isFinite(metrics.scrollWidth) || !Number.isFinite(metrics.scrollHeight)) {
+    if (!isRecord(metrics) || !Number.isFinite(metrics.scrollWidth) || !Number.isFinite(metrics.scrollHeight)) {
       throw new Error('Chrome returned incomplete containment metrics.');
     }
 
@@ -1900,18 +2478,18 @@ export class ChromeVisualBrowser {
     return metrics;
   }
 
-  close() {
+  close(): Promise<void> {
     if (!this.closePromise) this.closePromise = this.finishClose();
     return this.closePromise;
   }
 
-  async finishClose() {
+  async finishClose(): Promise<void> {
     this.cdp.failAll(new Error('visual-check finished'));
     try {
       if (this.child.exitCode === null && this.child.signalCode === null) {
         const exited = () => this.child.exitCode !== null || this.child.signalCode !== null;
-        const signalAndWait = (signal) => new Promise((resolve, reject) => {
-          let timer;
+        const signalAndWait = (signal: NodeJS.Signals) => new Promise<boolean>((resolve, reject) => {
+          let timer: ReturnType<typeof setTimeout> | undefined;
           const finish = () => {
             clearTimeout(timer);
             this.child.removeListener('exit', finish);
@@ -1931,10 +2509,10 @@ export class ChromeVisualBrowser {
           }
         });
         if (!await signalAndWait('SIGTERM') && !await signalAndWait('SIGKILL')) {
-          const error = new Error(`Chrome did not exit; retained temporary profile "${this.#profile.path}".`);
-          error.code = 'SCHEMATICS_TEMP_CLEANUP';
-          error.directory = this.#profile.path;
-          throw error;
+          throw Object.assign(new Error(`Chrome did not exit; retained temporary profile "${this.#profile.path}".`), {
+            code: 'SCHEMATICS_TEMP_CLEANUP',
+            directory: this.#profile.path,
+          });
         }
       }
     } finally {
@@ -1949,7 +2527,7 @@ export class ChromeVisualBrowser {
   }
 }
 
-function observation({ width, height, theme, metrics }) {
+function observation({ width, height, theme, metrics }: ObservationInput): BrowserObservation {
   const innerWidth = Number(metrics.innerWidth);
   const innerHeight = Number(metrics.innerHeight);
   const scrollWidth = Number(metrics.scrollWidth);
@@ -1988,9 +2566,10 @@ function observation({ width, height, theme, metrics }) {
   const receiptDockStageGap = metrics.viewerChromeRequiredGap == null
     ? null
     : Number(metrics.viewerChromeRequiredGap);
-  const requiredDockStageGap = Number.isFinite(receiptDockStageGap) ? receiptDockStageGap : 0;
+  const requiredDockStageGap = receiptDockStageGap !== null && Number.isFinite(receiptDockStageGap) ? receiptDockStageGap : 0;
   const viewerChromeStageOk = !metrics.hasNavigationDock || (
-    Number.isFinite(dockStageGap)
+    dockStageGap !== null
+    && Number.isFinite(dockStageGap)
     && dockStageIntersectionArea <= 0.5
     && dockStageGap >= requiredDockStageGap - 1
   );
@@ -2016,9 +2595,9 @@ function observation({ width, height, theme, metrics }) {
     ok: containmentOk,
     readerWidth: Number(metrics.readerWidth) || null,
     diagramWidth: Number(metrics.diagramWidth) || null,
-    ...(metrics.pageComposition ? { pageComposition: metrics.pageComposition } : {}),
+    ...(isPageComposition(metrics.pageComposition) ? { pageComposition: metrics.pageComposition } : {}),
     viewBoxWidth: Number(metrics.viewBoxWidth) || null,
-    ...(metrics.workflowLanes?.length ? { workflowLanes: metrics.workflowLanes } : {}),
+    ...(Array.isArray(metrics.workflowLanes) && metrics.workflowLanes.length ? { workflowLanes: metrics.workflowLanes } : {}),
     minimumProjectedNodeTextPx,
     minimumProjectedNonEdgeTextPx,
     minimumProjectedEdgeTextPx,
@@ -2041,7 +2620,11 @@ function observation({ width, height, theme, metrics }) {
   };
 }
 
-function contactSheetHtml({ artifactPath, receipt, screenshots }) {
+function contactSheetHtml({ artifactPath, receipt, screenshots }: {
+  artifactPath: string;
+  receipt: BrowserReceipt;
+  screenshots: CaptureEntry[];
+}): string {
   const cards = screenshots.map((entry) => `
       <figure>
         <img src="${htmlEscape(entry.file)}" alt="${htmlEscape(`${entry.theme} ${entry.width} by ${entry.height}`)}">
@@ -2066,13 +2649,13 @@ function contactSheetHtml({ artifactPath, receipt, screenshots }) {
 `;
 }
 
-const publishedBrowserEvidenceReceipts = new WeakSet();
+const publishedBrowserEvidenceReceipts = new WeakSet<object>();
 
 // Keep detailed observations in the bound receipt; expose every review image and
 // every failure without repeating the same viewport metrics in CLI context.
-export function summarizeBrowserEvidence(receipt) {
-  const directory = receipt.sidecars?.directory || path.dirname(receipt.artifact.path);
-  const evidencePath = (file) => file ? path.resolve(directory, file) : undefined;
+export function summarizeBrowserEvidence(receipt: BrowserFailureInput) {
+  const directory = receipt.sidecars?.directory || path.dirname(receiptArtifactPath(receipt));
+  const evidencePath = (file: string | null | undefined) => file ? path.resolve(directory, file) : undefined;
   const published = publishedBrowserEvidenceReceipts.has(receipt);
   return {
     schemaVersion: receipt.schemaVersion,
@@ -2086,9 +2669,9 @@ export function summarizeBrowserEvidence(receipt) {
     deliveryReceiptId: receipt.deliveryReceiptId,
     state: receipt.state,
     chrome: receipt.chrome,
-    checks: Object.fromEntries(['containment', 'readability', 'viewerChrome', 'themeStates', 'captures']
+    checks: Object.fromEntries((['containment', 'readability', 'viewerChrome', 'themeStates', 'captures'] satisfies ReceiptGroupKey[])
       .filter((key) => receipt[key])
-      .map((key) => [key, receipt[key].status])),
+      .map((key) => [key, receipt[key]?.status])),
     error: receipt.error,
     publication: receipt.publication,
     diagnostics: receipt.diagnostics || [],
@@ -2106,24 +2689,28 @@ export function summarizeBrowserEvidence(receipt) {
   };
 }
 
-function viewportSubject(artifact, entry) {
+function viewportSubject(artifact: string, entry: { width: number; height: number; theme: string }) {
   return {
     artifact,
     viewport: { width: entry.width, height: entry.height, theme: entry.theme },
   };
 }
 
-function failureDiagnostic({ code, message, subject, evidence, supportedFixes, severity = 'error' }) {
+function failureDiagnostic<E>({ code, message, subject, evidence, supportedFixes, severity = 'error' }: FailureDiagnosticInput<E>): BrowserDiagnostic<E> {
   return { code, severity, message, subject, evidence, supportedFixes };
 }
 
-function resolveSidecarDirectory(artifactPath, outputs, compareParents) {
+function resolveSidecarDirectory(
+  artifactPath: string,
+  outputs: EvidenceOutputs,
+  compareParents: (left: string, right: string) => SemanticResult,
+): SidecarDirectory {
   const artifact = path.resolve(artifactPath);
   const artifactDirectory = path.dirname(artifact);
   const sidecarDirectory = path.dirname(outputs.receipt);
   const comparison = compareParents(outputs.receipt, artifact);
 
-  const sidecars = {
+  const sidecars: EvidenceSidecars = {
     ...(comparison?.status === 'different' ? { directory: sidecarDirectory } : {}),
     receipt: path.basename(outputs.receipt),
     ...(outputs.capture === false ? {} : { contactSheet: path.basename(outputs.contactSheet) }),
@@ -2152,11 +2739,11 @@ function resolveSidecarDirectory(artifactPath, outputs, compareParents) {
 
 // Turn a measured vertical overflow into the pixel budget an author can act on:
 // which stacked block holds the height, and what the SVG or cards must shrink to.
-export function verticalBudgetFixes(entry) {
+export function verticalBudgetFixes(entry: BudgetEntry): string[] {
   const page = entry.pageComposition;
   if (!entry.overflowY || !page) return [];
   const excess = entry.scrollHeight - entry.innerHeight;
-  const fixes = [];
+  const fixes: string[] = [];
   const stacked = `${page.bodyPaddingPx}px body padding + ${page.headerPx}px header + ${page.diagramChromePx}px diagram chrome + ${page.svgPx}px SVG + ${page.cardsPx}px cards = ${entry.scrollHeight}px against ${entry.innerHeight}px`;
   if (page.svgPx > 0 && page.viewBoxHeight > 0) {
     const targetSvg = page.svgPx - excess;
@@ -2175,8 +2762,13 @@ export function verticalBudgetFixes(entry) {
   return fixes;
 }
 
-function observationDiagnostics({ artifact, allObservations, readabilityObservations, command }) {
-  const diagnostics = [];
+function observationDiagnostics({ artifact, allObservations, readabilityObservations, command }: {
+  artifact: string;
+  allObservations: BrowserObservation[];
+  readabilityObservations: BrowserObservation[];
+  command: string;
+}): BrowserDiagnostic[] {
+  const diagnostics: BrowserDiagnostic[] = [];
   for (const entry of allObservations) {
     if (entry.resolvedTheme !== entry.theme) {
       diagnostics.push(failureDiagnostic({
@@ -2279,14 +2871,22 @@ function observationDiagnostics({ artifact, allObservations, readabilityObservat
         minimumRequiredNodeTextPx: entry.minimumRequiredNodeTextPx,
       },
       supportedFixes: [
-        `increase projected ${entry.minimumProjectedNodeTextOwner?.kind === 'edge' ? 'relationship label' : entry.minimumProjectedNodeTextOwner?.kind === 'boundary' ? 'boundary label' : 'node text'} to at least ${entry.minimumRequiredNodeTextPx}px at ${entry.width}x${entry.height}, then rerun ${command}`,
+        `increase projected ${readField(entry.minimumProjectedNodeTextOwner, 'kind') === 'edge' ? 'relationship label' : readField(entry.minimumProjectedNodeTextOwner, 'kind') === 'boundary' ? 'boundary label' : 'node text'} to at least ${entry.minimumRequiredNodeTextPx}px at ${entry.width}x${entry.height}, then rerun ${command}`,
       ],
     }));
   }
   return diagnostics;
 }
 
-function baseReceipt({ artifactPath, artifact, sidecars, chrome, deliveryProvenance, command, capture }) {
+function baseReceipt({ artifactPath, artifact, sidecars, chrome, deliveryProvenance, command, capture }: {
+  artifactPath: string;
+  artifact: Buffer;
+  sidecars: EvidenceSidecars;
+  chrome: { status: string; executable: string | null };
+  deliveryProvenance?: DeliveryProvenance;
+  command: string;
+  capture: boolean;
+}): BrowserReceipt {
   return {
     schemaVersion: 1,
     ok: false,
@@ -2319,15 +2919,15 @@ function baseReceipt({ artifactPath, artifact, sidecars, chrome, deliveryProvena
   };
 }
 
-function appendEvidencePublicationFailure(receipt, failure) {
+function appendEvidencePublicationFailure(receipt: BrowserFailureReceipt, failure: PublicationFailure | EvidencePublication): void {
   if (!failure?.ok) {
     if (!receipt.error) receipt.error = failure.error;
     receipt.diagnostics = [...(receipt.diagnostics || []), failure.diagnostic];
   }
 }
 
-function appendEvidenceCleanupWarning(receipt, publication) {
-  if (publication?.status !== 'committed-with-warning') return false;
+function appendEvidenceCleanupWarning(receipt: BrowserFailureReceipt, publication: PublicationFailure | EvidencePublication): boolean {
+  if (!publication.ok || publication.status !== 'committed-with-warning') return false;
   const committedStatus = receipt.status;
   const cleanupErrors = publication.cleanupErrors || [];
   const cleanupMessage = publication.recoveryDirectory
@@ -2365,7 +2965,12 @@ function appendEvidenceCleanupWarning(receipt, publication) {
   return true;
 }
 
-function publishReceiptOnly(artifactPath, outputs, receipt, ownership) {
+function publishReceiptOnly(
+  artifactPath: string,
+  outputs: EvidenceOutputs,
+  receipt: BrowserFailureReceipt,
+  ownership: EvidenceOwnership,
+): PublicationFailure | EvidencePublication {
   const cleanupErrors = cleanupStagedEvidence(ownership);
   if (cleanupErrors.length) {
     const failure = evidenceWriteFailure(
@@ -2383,7 +2988,7 @@ function publishReceiptOnly(artifactPath, outputs, receipt, ownership) {
     const failure = evidenceWriteFailure(
       artifactPath,
       'visual-check could not stage its evidence receipt.',
-      [{ file: stagedPathFor(ownership, outputs.receipt), reason: error.message }],
+      [{ file: stagedPathFor(ownership, outputs.receipt), reason: errorMessage(error) }],
     );
     cleanupStagedEvidence(ownership, { removeDirectory: true });
     ownership.active = false;
@@ -2393,17 +2998,17 @@ function publishReceiptOnly(artifactPath, outputs, receipt, ownership) {
 }
 
 function persistBrowserEvidenceFailure(
-  artifactPath,
-  failure,
-  { outDir, compareSidecarParents = sameParent, ownership, command = 'visual-check', capture = true, captureViewports = CAPTURE_VIEWPORTS } = {},
-) {
+  artifactPath: string,
+  failure: BrowserFailureInput,
+  { outDir, compareSidecarParents = sameParent, ownership, command = 'visual-check', capture = true, captureViewports = CAPTURE_VIEWPORTS }: PersistFailureOptions = {},
+): BrowserFailureReceipt {
   const outputs = evidenceSidecarPaths(artifactPath, { outDir, command, capture, captureViewports });
   const directory = resolveSidecarDirectory(artifactPath, outputs, compareSidecarParents);
   const capturedArtifact = readRegularFileContents(artifactPath, {
     subject: 'failure-artifact',
   });
   const artifactBytes = capturedArtifact.ok ? capturedArtifact.bytes : null;
-  const receipt = {
+  const receipt: BrowserFailureReceipt = {
     ...failure,
     ok: false, status: 'fail',
     ...(artifactBytes ? {
@@ -2457,12 +3062,12 @@ async function runBrowserEvidence({
   chromePath,
   resolveChrome = findChrome,
   chromeOverride = process.env.SCHEMATICS_CHROME,
-  browserFactory = async (resolvedChrome) => new ChromeVisualBrowser(resolvedChrome),
+  browserFactory = async (resolvedChrome: string) => new ChromeVisualBrowser(resolvedChrome),
   deliveryProvenance,
   verifyArtifact,
   compareSidecarParents = sameParent,
   command, capture,
-} = {}) {
+}: RunBrowserEvidenceOptions): Promise<BrowserEvidenceResult> {
   if (!artifactPath) throw new Error(`${command} requires one delivered HTML artifact.`);
   const artifact = path.resolve(artifactPath);
   if (!/\.html?$/i.test(artifact)) throw new Error(`${command} requires an .html artifact.`);
@@ -2475,10 +3080,10 @@ async function runBrowserEvidence({
     throw regularFileCaptureError('The visual-check artifact', capturedArtifact);
   }
   const artifactBytes = capturedArtifact.content.buffer;
+  if (!artifactBytes) throw regularFileCaptureError('The visual-check artifact', undefined);
   const explainer = isExplainerHtml(artifactBytes.toString('utf8'));
-  const inspectionViewports = explainer ? EXPLAINER_VIEWPORTS : VISUAL_CHECK_VIEWPORTS;
-  const captureViewports = explainer ? EXPLAINER_VIEWPORTS : CAPTURE_VIEWPORTS;
-  const observe = explainer ? explainerObservation : observation;
+  const inspectionViewports: readonly Viewport[] = explainer ? EXPLAINER_VIEWPORTS : VISUAL_CHECK_VIEWPORTS;
+  const captureViewports: readonly Viewport[] = explainer ? EXPLAINER_VIEWPORTS : CAPTURE_VIEWPORTS;
   try {
   const outputs = evidenceSidecarPaths(artifact, { outDir, command, capture, captureViewports });
   const directory = resolveSidecarDirectory(artifact, outputs, compareSidecarParents);
@@ -2506,7 +3111,7 @@ async function runBrowserEvidence({
     return { exitCode: EXIT.fail, receipt };
   }
   const ownership = preflight.ownership;
-  let inspectionArtifact;
+  let inspectionArtifact: string;
   try {
     // Chrome's file loader cannot reliably open long Windows/UNC paths. Keep
     // the one inspected snapshot local; publish evidence on its target volume.
@@ -2526,12 +3131,12 @@ async function runBrowserEvidence({
       ...receipt,
       status: 'fail',
       ok: false,
-      error: `visual-check could not stage its private artifact snapshot: ${error.message}`,
+      error: `visual-check could not stage its private artifact snapshot: ${errorMessage(error)}`,
       diagnostics: [failureDiagnostic({
         code: 'viewer/artifact-snapshot',
         message: 'visual-check could not bind a private artifact snapshot.',
         subject: { artifact },
-        evidence: { reason: error.message },
+        evidence: { reason: errorMessage(error) },
         supportedFixes: ['retry after resolving the reported staging filesystem error'],
       })],
     }, { outDir, compareSidecarParents, ownership, command, capture, captureViewports }) };
@@ -2548,8 +3153,8 @@ async function runBrowserEvidence({
     return { exitCode: EXIT.fail, receipt: persistBrowserEvidenceFailure(artifact, {
       schemaVersion: 1, command, evidenceKind: 'automated-browser', visualReview: capture ? 'pending' : 'not-requested',
       artifact: { path: artifact, sha256: sha256(artifactBytes), bytes: artifactBytes.byteLength },
-      provenance: error.deliveryProvenance?.status, error: error.message,
-      diagnostics: error.schematicsDiagnostics || [],
+      provenance: readField(readField(error, 'deliveryProvenance'), 'status'), error: errorMessage(error),
+      diagnostics: diagnosticsOf(error) || [],
     }, { outDir, compareSidecarParents, ownership, command, capture, captureViewports }) };
   }
 
@@ -2566,13 +3171,14 @@ async function runBrowserEvidence({
     receipt.themeStates.status = 'skipped';
     if (capture) receipt.captures.status = 'skipped';
     const overrideProblem = executableProblem(chromeOverride);
-    receipt.error = overrideProblem
+    const unavailableMessage = overrideProblem
       ? `SCHEMATICS_CHROME is set to ${chromeOverride}, which cannot be run (${overrideProblem}).`
       : 'No supported browser found. Install Chrome/Chromium (or Microsoft Edge), or set SCHEMATICS_CHROME to its executable path.';
+    receipt.error = unavailableMessage;
     receipt.diagnostics = [failureDiagnostic({
       code: 'viewer/chrome-unavailable',
       severity: 'warning',
-      message: receipt.error,
+      message: unavailableMessage,
       subject: { artifact },
       evidence: { executable: null, ...(overrideProblem ? { override: chromeOverride, reason: overrideProblem } : {}) },
       supportedFixes: [`set SCHEMATICS_CHROME to a Chrome/Chromium executable (or Microsoft Edge) and rerun ${command}`],
@@ -2589,27 +3195,38 @@ async function runBrowserEvidence({
     return { exitCode: EXIT.skipped, receipt };
   }
 
-  let browser;
+  let browser: EvidenceBrowser | undefined;
   try {
-    browser = await browserFactory(resolvedChrome);
-    const observations = new Map();
-    const screenshotsByKey = new Map(outputs.screenshots.map((entry, index) => [
+    const activeBrowser = await browserFactory(resolvedChrome);
+    browser = activeBrowser;
+    const diagramObservations = new Map<string, BrowserObservation>();
+    const explainerObservations = new Map<string, ExplainerObservation>();
+    const observations: Map<string, EvidenceObservation> = explainer ? explainerObservations : diagramObservations;
+    const screenshotsByKey = new Map(outputs.screenshots.map((entry, index): [string, ScreenshotTarget & { stagedPath: string }] => [
       screenshotKey(entry.width, entry.height, entry.theme),
-      { ...entry, stagedPath: ownership.stagedOutputs.screenshots[index].path },
+      { ...entry, stagedPath: requiredScreenshot(ownership.stagedOutputs, index).path },
     ]));
 
     try {
-      const inspect = (options) => explainer ? inspectExplainerBrowser(browser, options) : browser.inspect(options);
+      const inspect = async (options: InspectOptions): Promise<(key: string) => void> => {
+        const { width, height, theme } = options;
+        if (explainer) {
+          const metrics = await inspectExplainerBrowser(explainerBrowser(activeBrowser), options);
+          return (key) => { explainerObservations.set(key, explainerObservation({ width, height, theme, metrics })); };
+        }
+        const metrics = await activeBrowser.inspect(options);
+        return (key) => { diagramObservations.set(key, observation({ width, height, theme, metrics })); };
+      };
       for (const viewport of inspectionViewports) {
         const key = screenshotKey(viewport.width, viewport.height, 'light');
         const screenshot = screenshotsByKey.get(key);
-        const metrics = await inspect({
+        const recordObservation = await inspect({
           artifactPath: inspectionArtifact,
           ...viewport,
           theme: 'light',
           ...(screenshot ? {
             screenshotPath: screenshot.stagedPath,
-            writeScreenshot: (bytes) => writeStagedEvidence(ownership, screenshot.path, bytes),
+            writeScreenshot: (bytes: Buffer) => writeStagedEvidence(ownership, screenshot.path, bytes),
           } : {}),
         });
         verifyInspectionArtifact();
@@ -2617,36 +3234,36 @@ async function runBrowserEvidence({
           if (screenshot && !ownership.stagedEntries.has(screenshot.path)) {
             registerStagedEvidence(ownership, screenshot.path);
           } else {
-            const staged = ownership.stagedEntries.get(screenshot.path);
+            const staged = requiredEntry(ownership.stagedEntries, screenshot.path);
             if (!currentEvidenceMatches(staged.path, staged.identity, staged.evidence)) {
               throw new Error('The staged visual-check screenshot changed after capture.');
             }
           }
         }
-        observations.set(key, observe({ ...viewport, theme: 'light', metrics }));
+        recordObservation(key);
       }
       for (const viewport of captureViewports) {
         const key = screenshotKey(viewport.width, viewport.height, 'dark');
         const screenshot = screenshotsByKey.get(key);
-        const metrics = await inspect({
+        const recordObservation = await inspect({
           artifactPath: inspectionArtifact,
           ...viewport,
           theme: 'dark',
           ...(screenshot ? {
             screenshotPath: screenshot.stagedPath,
-            writeScreenshot: (bytes) => writeStagedEvidence(ownership, screenshot.path, bytes),
+            writeScreenshot: (bytes: Buffer) => writeStagedEvidence(ownership, screenshot.path, bytes),
           } : {}),
         });
         verifyInspectionArtifact();
         if (screenshot && !ownership.stagedEntries.has(screenshot.path)) {
           registerStagedEvidence(ownership, screenshot.path);
         } else if (screenshot) {
-          const staged = ownership.stagedEntries.get(screenshot.path);
+          const staged = requiredEntry(ownership.stagedEntries, screenshot.path);
           if (!currentEvidenceMatches(staged.path, staged.identity, staged.evidence)) {
             throw new Error('The staged visual-check screenshot changed after capture.');
           }
         }
-        observations.set(key, observe({ ...viewport, theme: 'dark', metrics }));
+        recordObservation(key);
       }
 
     } finally {
@@ -2664,12 +3281,12 @@ async function runBrowserEvidence({
     }
 
     receipt.containment.viewports = inspectionViewports.map(({ width, height }) => (
-      observations.get(screenshotKey(width, height, 'light'))
+      requiredEntry(observations, screenshotKey(width, height, 'light'))
     ));
     receipt.readability.viewports = receipt.containment.viewports.map((entry) => ({ ...entry }));
     receipt.viewerChrome.viewports = receipt.containment.viewports.map((entry) => ({ ...entry }));
     receipt.captures.screenshots = outputs.screenshots.map((entry) => ({
-      ...observations.get(screenshotKey(entry.width, entry.height, entry.theme)),
+      ...requiredEntry(observations, screenshotKey(entry.width, entry.height, entry.theme)),
       file: path.basename(entry.path),
     }));
     const allObservations = [...observations.values()];
@@ -2684,11 +3301,15 @@ async function runBrowserEvidence({
     const containmentPass = allObservations.every((entry) => entry.ok);
     const readabilityPass = receipt.readability.viewports.every((entry) => entry.readabilityOk);
     const viewerChromePass = allObservations.every((entry) => entry.viewerChromeOk);
-    receipt.diagnostics = (explainer ? explainerObservationDiagnostics : observationDiagnostics)({
-      artifact,
-      allObservations,
-      readabilityObservations: receipt.readability.viewports, command,
-    });
+    receipt.diagnostics = explainer
+      ? explainerObservationDiagnostics({ artifact, allObservations: [...explainerObservations.values()] })
+      : observationDiagnostics({
+        artifact,
+        allObservations: [...diagramObservations.values()],
+        readabilityObservations: inspectionViewports.map(({ width, height }) => ({
+          ...requiredEntry(diagramObservations, screenshotKey(width, height, 'light')),
+        })), command,
+      });
     receipt.themeStates.status = themeStatePass ? 'pass' : 'fail';
     receipt.containment.status = containmentPass ? 'pass' : 'fail';
     receipt.readability.status = readabilityPass ? 'pass' : 'fail';
@@ -2698,14 +3319,15 @@ async function runBrowserEvidence({
       receipt.captures.contactSheet = path.basename(outputs.contactSheet);
     }
     if (explainer) {
+      const explainerEntries = allObservations.map(explainerEvidence);
       receipt.containment.viewports = allObservations.map(entry => ({ ...entry }));
       receipt.readability.viewports = allObservations.map(entry => ({ ...entry }));
       receipt.viewerChrome.viewports = allObservations.map(entry => ({ ...entry }));
-      receipt.commonQa = { status: allObservations.every(e => e.consoleErrors.length === 0 && e.duplicateIds.length === 0 && e.keyboardIssues.length === 0 && e.keyboardTraversal?.ok) ? 'pass' : 'fail', observations: allObservations.map(e => ({width:e.width,theme:e.theme,ok:e.consoleErrors.length===0&&e.duplicateIds.length===0&&e.keyboardIssues.length===0&&e.keyboardTraversal?.ok===true})) };
-      receipt.interactions = { status: allObservations.every(e => e.interactionFailures.length === 0) ? 'pass' : 'fail', observations: allObservations.map(e => ({width:e.width,theme:e.theme,ok:e.interactionFailures.length===0,failures:e.interactionFailures})) };
-      receipt.references = { status: allObservations.every(e => e.references.length === 0) ? 'pass' : 'fail', observations: allObservations.map(e => ({width:e.width,theme:e.theme,ok:e.references.length===0,failures:e.references})) };
-      receipt.noJavaScript = { status: allObservations.every(e => e.noJavaScript.every(n => n.ok)) ? 'pass' : 'fail', observations: allObservations.map(e => ({width:e.width,theme:e.theme,ok:e.noJavaScript.every(n=>n.ok),states:e.noJavaScript})) };
-      receipt.print = { status: allObservations.every(e => e.print.ok) ? 'pass' : 'fail', observations: allObservations.map(e => ({width:e.width,...e.print})) };
+      receipt.commonQa = { status: explainerEntries.every(e => e.consoleErrors.length === 0 && e.duplicateIds.length === 0 && e.keyboardIssues.length === 0 && e.keyboardTraversal?.ok) ? 'pass' : 'fail', observations: explainerEntries.map(e => ({width:e.width,theme:e.theme,ok:e.consoleErrors.length===0&&e.duplicateIds.length===0&&e.keyboardIssues.length===0&&e.keyboardTraversal?.ok===true})) };
+      receipt.interactions = { status: explainerEntries.every(e => e.interactionFailures.length === 0) ? 'pass' : 'fail', observations: explainerEntries.map(e => ({width:e.width,theme:e.theme,ok:e.interactionFailures.length===0,failures:e.interactionFailures})) };
+      receipt.references = { status: explainerEntries.every(e => e.references.length === 0) ? 'pass' : 'fail', observations: explainerEntries.map(e => ({width:e.width,theme:e.theme,ok:e.references.length===0,failures:e.references})) };
+      receipt.noJavaScript = { status: explainerEntries.every(e => e.noJavaScript.every(n => n.ok)) ? 'pass' : 'fail', observations: explainerEntries.map(e => ({width:e.width,theme:e.theme,ok:e.noJavaScript.every(n=>n.ok),states:e.noJavaScript})) };
+      receipt.print = { status: explainerEntries.every(e => e.print.ok) ? 'pass' : 'fail', observations: explainerEntries.map(e => ({width:e.width,...e.print})) };
     }
     receipt.ok = containmentPass && themeStatePass && readabilityPass && viewerChromePass && (!explainer || receipt.diagnostics.length === 0);
     receipt.status = receipt.ok ? 'pass' : 'fail';
@@ -2734,11 +3356,15 @@ async function runBrowserEvidence({
     }
     return { exitCode: receipt.ok ? EXIT.pass : EXIT.fail, receipt };
   } catch (error) {
-    const startupTimeout = error.code === 'ERR_CHROME_CDP_TIMEOUT'
-      && error.method === 'Target.getTargets';
+    const failureCode = errorCode(error);
+    const failureReason = errorMessage(error);
+    const retainedDirectory = readField(error, 'directory');
+    const failedProvenance = readField(error, 'deliveryProvenance');
+    const startupTimeout = failureCode === 'ERR_CHROME_CDP_TIMEOUT'
+      && readField(error, 'method') === 'Target.getTargets';
     receipt.status = 'fail';
     receipt.ok = false;
-    receipt.error = error.message;
+    receipt.error = failureReason;
     receipt.containment.status = 'fail';
     receipt.readability.status = 'fail';
     receipt.viewerChrome.status = 'fail';
@@ -2746,18 +3372,18 @@ async function runBrowserEvidence({
     receipt.captures.status = capture ? 'fail' : 'not-requested';
     receipt.captures.screenshots = [];
     receipt.captures.contactSheet = null;
-    if (error.deliveryProvenance) receipt.provenance = error.deliveryProvenance.status;
-    receipt.diagnostics = error.schematicsDiagnostics || [failureDiagnostic({
-      code: error.code === 'SCHEMATICS_TEMP_CLEANUP' ? 'viewer/temp-cleanup-incomplete'
+    if (failedProvenance) receipt.provenance = readField(failedProvenance, 'status');
+    receipt.diagnostics = diagnosticsOf(error) || [failureDiagnostic({
+      code: failureCode === 'SCHEMATICS_TEMP_CLEANUP' ? 'viewer/temp-cleanup-incomplete'
         : startupTimeout ? 'viewer/chrome-startup-timeout' : `viewer/${command}-runtime`,
-      message: error.code === 'SCHEMATICS_TEMP_CLEANUP'
+      message: failureCode === 'SCHEMATICS_TEMP_CLEANUP'
         ? 'Browser cleanup could not safely finish; inspect the reported retained path.'
         : startupTimeout
         ? 'Chrome did not finish its initial DevTools handshake within the startup window.'
         : `${command} could not complete its Chrome inspection.`,
       subject: { artifact },
-      evidence: { reason: error.message, ...(error.directory ? { retainedDirectory: error.directory } : {}) },
-      supportedFixes: error.code === 'SCHEMATICS_TEMP_CLEANUP'
+      evidence: { reason: failureReason, ...(retainedDirectory ? { retainedDirectory } : {}) },
+      supportedFixes: failureCode === 'SCHEMATICS_TEMP_CLEANUP'
         ? ['resolve the reported process or filesystem failure; verify directory ownership before manual cleanup']
         : startupTimeout
         ? [
@@ -2780,15 +3406,15 @@ async function runBrowserEvidence({
   }
 }
 
-export function persistVisualCheckFailure(artifactPath, failure, options = {}) {
+export function persistVisualCheckFailure(artifactPath: string, failure: BrowserFailureInput, options: PersistFailureOptions = {}): BrowserFailureReceipt {
   return persistBrowserEvidenceFailure(artifactPath, failure, { ...options, command: 'visual-check', capture: true });
 }
-export function persistBrowserCheckFailure(artifactPath, failure, options = {}) {
+export function persistBrowserCheckFailure(artifactPath: string, failure: BrowserFailureInput, options: PersistFailureOptions = {}): BrowserFailureReceipt {
   return persistBrowserEvidenceFailure(artifactPath, failure, { ...options, command: 'browser-check', capture: false });
 }
-export function runVisualCheck(options = {}) {
+export function runVisualCheck(options: BrowserEvidenceOptions = {}): Promise<BrowserEvidenceResult> {
   return runBrowserEvidence({ ...options, command: 'visual-check', capture: true });
 }
-export function runBrowserCheck(options = {}) {
+export function runBrowserCheck(options: BrowserEvidenceOptions = {}): Promise<BrowserEvidenceResult> {
   return runBrowserEvidence({ ...options, command: 'browser-check', capture: false });
 }

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.ts';
 import { createViewerClick } from './helpers/viewer-click.mjs';
 import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
@@ -665,7 +665,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
         const input = path.join(scratch, `${name}.json`);
         const output = path.join(scratch, `${name}.html`);
         fs.writeFileSync(input, JSON.stringify(doc));
-        execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'render', 'sequence', input, output]);
+        execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'render', 'sequence', input, output]);
         return output;
       }
       async function stage(label) {
@@ -845,7 +845,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
         const input = path.join(scratch, `${mode}-automatic.json`);
         const output = path.join(scratch, `${mode}-automatic.html`);
         fs.writeFileSync(input, JSON.stringify(doc));
-        execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'render', mode, input, output]);
+        execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'render', mode, input, output]);
         const html = fs.readFileSync(output, 'utf8');
         assert.match(html.match(/<svg\b[^>]*>/)[0], /data-reader-fit="width-first"/);
         await load(output);

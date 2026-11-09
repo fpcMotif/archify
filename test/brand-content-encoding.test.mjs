@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { gzipSync, brotliCompressSync, deflateSync } from 'node:zlib';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 const icon = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 const digest = createHash('sha256').update(icon).digest('hex');
 const compressors = { gzip: gzipSync, br: brotliCompressSync, deflate: deflateSync };

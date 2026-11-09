@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
@@ -24,7 +24,7 @@ test('Radar follows page scrolling and navigates long diagrams vertically', {
   }));
   const input = path.join(scratch, 'sequence.json'), output = path.join(scratch, 'sequence.html');
   fs.writeFileSync(input, JSON.stringify(data));
-  execFileSync(process.execPath, [path.join(root, 'schematics/bin/schematics.mjs'), 'render', 'sequence', input, output]);
+  execFileSync(process.execPath, [path.join(root, 'schematics/bin/schematics.ts'), 'render', 'sequence', input, output]);
   const browser = new ChromeVisualBrowser(chrome);
   t.after(() => browser.close());
   const session = await browser.sessionPromise;

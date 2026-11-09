@@ -196,13 +196,13 @@ that need the same cross-platform acceptance boundary should use that wrapper.
 
 ## Runtime validation
 
-At development time, `scripts/generate-validators.mjs` compiles every diagram
+At development time, `scripts/generate-validators.ts` compiles every diagram
 schema with ajv's draft 2020-12 standalone generator using `strict: true` and
 `allErrors: true`. It writes one validator per diagram type to
 `packages/validation/generated-validators/<type>.js`, and
-`packages/validation/generated-validators.mjs` loads only the one a render needs.
+`packages/validation/generated-validators.ts` loads only the one a render needs.
 Both are committed and shipped with the skill, so runtime validation has no npm
-or network dependency. `packages/validation/validator.mjs` applies the matching
+or network dependency. `packages/validation/validator.ts` applies the matching
 standalone validator before the renderer's own layout checks.
 The shared loader then checks cross-collection facts that JSON Schema cannot
 express cleanly here: duplicate view IDs, duplicate focus IDs, focus IDs that do

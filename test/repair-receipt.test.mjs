@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..', 'schematics');
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-repair-receipt-'));
 
 function run(args) {

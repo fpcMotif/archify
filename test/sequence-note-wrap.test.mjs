@@ -10,7 +10,7 @@ import { minimumNodeTextWidth } from '../schematics/packages/svg/text-fit.ts';
 // Sequence message notes wrap inside one gap between neighbouring lifelines and
 // keep every character (#676).
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 const LONG_NOTE = 'this note explains the whole retry and backoff policy in a lot of detail so it is very long';
 const URL_NOTE = 'see https://api.example.com/v2/users/profile/settings/notifications/email-preferences';
 

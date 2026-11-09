@@ -20,7 +20,7 @@ function renderOutcome(doc, publicCli = false) {
   fs.writeFileSync(input, JSON.stringify(renderDoc));
   try {
     execFileSync(process.execPath, publicCli
-      ? [path.join(skillRoot, 'bin/schematics.mjs'), 'render', 'sequence', input, output]
+      ? [path.join(skillRoot, 'bin/schematics.ts'), 'render', 'sequence', input, output]
       : [path.join(skillRoot, 'packages/sequence/render-sequence.ts'), input, output], { stdio: ['ignore', 'ignore', 'pipe'] });
     return { code: 0, stderr: '', html: fs.readFileSync(output, 'utf8') };
   } catch (err) {
@@ -482,7 +482,7 @@ test('a widened automatic canvas reports sublabels at the size that stays readab
   try {
     const input = path.join(tmp, 'input.json');
     fs.writeFileSync(input, JSON.stringify({ ...doc, meta: { ...doc.meta, output: 'sequence.html' } }));
-    const result = spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'validate', 'sequence', input, '--json'], { encoding: 'utf8' });
+    const result = spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'validate', 'sequence', input, '--json'], { encoding: 'utf8' });
     assert.notEqual(result.status, 0);
     const diagnostic = JSON.parse(result.stdout).diagnostics.find(entry => entry.code === 'sequence/participant-sublabel-overflow');
     assert.equal(diagnostic.subject.nodeId, 'g');

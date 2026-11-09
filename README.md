@@ -29,11 +29,11 @@ Install Bun 1.4 or newer, then:
 
 ```bash
 cd schematics
-bun bin/schematics.mjs doctor
-bun bin/schematics.mjs guide "Show an API request with Redis cache miss"
-bun bin/schematics.mjs validate workflow examples/agent-tool-call.workflow.json --quality showcase --json
-bun bin/schematics.mjs finalize workflow examples/agent-tool-call.workflow.json /tmp/workflow.html --quality showcase --json
-bun bin/schematics.mjs preview workflow examples/agent-tool-call.workflow.json /tmp/workflow.html --no-open
+bun bin/schematics.ts doctor
+bun bin/schematics.ts guide "Show an API request with Redis cache miss"
+bun bin/schematics.ts validate workflow examples/agent-tool-call.workflow.json --quality showcase --json
+bun bin/schematics.ts finalize workflow examples/agent-tool-call.workflow.json /tmp/workflow.html --quality showcase --json
+bun bin/schematics.ts preview workflow examples/agent-tool-call.workflow.json /tmp/workflow.html --no-open
 ```
 
 - `finalize` runs four gates in order: validate, deliver, a strict artifact check and a real-browser check. Only a passing artifact replaces the target file.

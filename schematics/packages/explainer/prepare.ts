@@ -135,7 +135,7 @@ export function readPreparedBundle(file: string, sourceText: string, inputPath: 
   if (checkDependencies) assertPreparedDependencies(bundle);
   return bundle;
 }
-export function rebindPreparedBundle(bundle: PreparedBundle, parsed: ValidatedExplainer): PreparedBundle {
+export function rebindPreparedBundle(bundle: PreparedBundle, parsed: Pick<PreparedBundle, keyof ValidatedExplainer>): PreparedBundle {
   const next: PreparedBundle = { ...bundle, ...parsed, source: identity(Buffer.from(parsed.sourceText)) };
   next.digest = digest(next);
   return next;

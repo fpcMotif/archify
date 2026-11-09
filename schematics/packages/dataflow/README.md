@@ -4,7 +4,7 @@ Render `diagram_type: "dataflow"` JSON files into the standard Schematics HTML
 template.
 
 ```bash
-node schematics/packages/dataflow/render-dataflow.mjs input.dataflow.json output.html
+bun schematics/packages/dataflow/render-dataflow.ts input.dataflow.json output.html
 ```
 
 The renderer validates input against `schematics/schemas/dataflow.schema.json`

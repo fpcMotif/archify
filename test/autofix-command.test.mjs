@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { createOwnedTempDirectory } from '../schematics/packages/output/owned-temp-directory.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const schematicsBin = path.resolve(__dirname, '../schematics/bin/schematics.mjs');
+const schematicsBin = path.resolve(__dirname, '../schematics/bin/schematics.ts');
 
 test('schematics chart compiles Mermaid pie chart to static SVG via Pele', () => {
   const chartInput = `pie title "Market Share"

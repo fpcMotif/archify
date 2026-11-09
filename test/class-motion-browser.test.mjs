@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { findChrome } from '../schematics/bin/visual-check.mjs';
+import { findChrome } from '../schematics/bin/visual-check.ts';
 import { desktopBrowser } from './helpers/desktop-browser.mjs';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
@@ -98,7 +98,7 @@ test('class: mixed hierarchy fallback keeps dependency notation in focus and SVG
       { id: 'client_uses', from: 'client', to: 'base', kind: 'dependency' },
     ],
   }));
-  execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'render', 'class', input, output, '--quality', 'showcase'], { timeout: 20000 });
+  execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'render', 'class', input, output, '--quality', 'showcase'], { timeout: 20000 });
   const browser = desktopBrowser(chrome);
   t.after(() => browser.close());
   const session = await browser.sessionPromise;

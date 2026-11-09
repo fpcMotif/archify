@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 // bound it is attached to.
 
 const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 
 function workspace(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-vertical-extent-'));

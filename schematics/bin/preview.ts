@@ -1,14 +1,16 @@
 import { softwareNoticesHtml } from '../packages/output/software-notices.ts';
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcessByStdio } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
+import type { Socket } from 'node:net';
 import path from 'node:path';
+import type { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 
-import { openLoopbackUrl } from './open-artifact.mjs';
-import { resolveOutputPath } from '../packages/output/output-path.ts';
-import { sameLocation } from '../packages/output/path-semantics.ts';
+import { openLoopbackUrl, type LaunchReceipt } from './open-artifact.ts';
+import { resolveOutputPath, type ResolveOutputPathOptions } from '../packages/output/output-path.ts';
+import { errorCode, errorMessage, readField, sameLocation } from '../packages/output/path-semantics.ts';
 import {
   captureAtomicOutput,
   captureRegularFileBinding,
@@ -17,10 +19,136 @@ import {
   removeEmptyDirectoryWithRetry,
   removeOwnedRegularFile,
   verifyAtomicOutput,
+  type CapturedAtomicOutput,
+  type FileIdentity,
+  type OutputRelation,
+  type RegularFileBinding,
 } from '../packages/output/atomic-output.ts';
 
+export interface PreviewOptions {
+  type: string;
+  input: string;
+  output?: string;
+  quality?: string;
+  cwd?: string;
+  repoRoot?: string;
+  deliveryCli?: string;
+  debounceMs?: number;
+  pollMs?: number;
+  stopGraceMs?: number;
+  stopKillMs?: number;
+  open?: boolean;
+  watch?: boolean;
+}
+
+interface SourceDigest {
+  hash: string;
+  bytes: Buffer | null;
+  missing: boolean;
+}
+
+interface PreviewFailure {
+  code: string;
+  message: string;
+  evidence: { relation: unknown };
+}
+
+interface DeliveryDiagnostic {
+  code?: unknown;
+  message?: unknown;
+  supportedFixes?: unknown[];
+}
+
+interface DeliveryCheck {
+  ok?: unknown;
+  details?: unknown[];
+}
+
+interface DeliveryReceipt {
+  ok?: unknown;
+  stage?: unknown;
+  code?: unknown;
+  evidence?: unknown;
+  error?: unknown;
+  receiptId?: unknown;
+  artifact?: { sha256?: string; bytes?: number };
+  validation: {
+    checksPassed?: unknown;
+    checkCount?: unknown;
+    compositionProfile?: unknown;
+    compositionStatus?: unknown;
+  };
+  diagnostics?: DeliveryDiagnostic[];
+  checker?: { checks?: DeliveryCheck[] };
+}
+
+type FailureReceipt = Partial<DeliveryReceipt>;
+
+interface DeliverySidecar {
+  schemaVersion?: unknown;
+  command?: unknown;
+  output?: unknown;
+  input?: unknown;
+  receiptId?: unknown;
+  status?: unknown;
+  artifact?: { sha256?: unknown };
+}
+
+interface OwnedSidecar {
+  path: string;
+  identity: FileIdentity;
+}
+
+interface VerifiedSummary {
+  sha256: string;
+  bytes: number;
+  checksPassed: unknown;
+  checkCount: unknown;
+  compositionProfile: unknown;
+  compositionStatus: unknown;
+}
+
+interface StateFailure {
+  stage: unknown;
+  code?: unknown;
+  evidence?: unknown;
+  message: string;
+}
+
+export interface PreviewState {
+  schemaVersion: 1;
+  status: 'checking' | 'verified' | 'needs-fix';
+  generation: number;
+  revision: number;
+  lastVerified: VerifiedSummary | null;
+  failure: StateFailure | null;
+}
+
+interface CommitOutcome {
+  committed: boolean;
+  supersededBy: SourceDigest | null;
+  candidateIdentity: FileIdentity | undefined;
+}
+
+export interface StopOptions {
+  force?: boolean;
+}
+
+export interface PreviewHandle {
+  url: string;
+  input: string;
+  output: string;
+  opener: LaunchReceipt | null;
+  state: () => PreviewState;
+  stop: (options?: StopOptions) => Promise<void>;
+  closed: Promise<void>;
+}
+
+type RedactionPath = readonly [absolutePath: string | undefined, replacement: string];
+type DeliveryChild = ChildProcessByStdio<null, Readable, Readable>;
+
 const here = path.dirname(fileURLToPath(import.meta.url));
-const cliPath = path.join(here, 'schematics.mjs');
+const cliPath = path.join(here, 'schematics.ts');
 const loopbackHost = '127.0.0.1';
 const defaultDebounceMs = 400;
 const defaultPollMs = 800;
@@ -29,24 +157,29 @@ const defaultStopKillMs = 750;
 const diagramTypes = new Set(['architecture', 'workflow', 'sequence', 'dataflow', 'lifecycle', 'erd', 'tree', 'class', 'timeline', 'waterfall']);
 let previewCommitSequence = 0;
 
-function sha256(value) {
+function finiteOr(value: number | undefined, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function sha256(value: Buffer): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function sourceDigest(inputPath) {
+function sourceDigest(inputPath: string): SourceDigest {
   try {
     const bytes = fs.readFileSync(inputPath);
     return { hash: sha256(bytes), bytes, missing: false };
   } catch (error) {
-    return { hash: `unreadable:${error.code || 'unknown'}`, bytes: null, missing: true };
+    return { hash: `unreadable:${errorCode(error) || 'unknown'}`, bytes: null, missing: true };
   }
 }
 
-function initialAuthoredOutput(inputPath) {
+function initialAuthoredOutput(inputPath: string): string | undefined {
   try {
-    const source = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
-    if (typeof source?.meta?.output === 'string') {
-      return source.meta.output;
+    const source: unknown = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
+    const output = readField(readField(source, 'meta'), 'output');
+    if (typeof output === 'string') {
+      return output;
     }
   } catch {
     // An invalid initial source still gets a status shell. Its output target is
@@ -55,7 +188,7 @@ function initialAuthoredOutput(inputPath) {
   return undefined;
 }
 
-function previewPage() {
+function previewPage(): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -147,7 +280,7 @@ function previewPage() {
 </html>`;
 }
 
-function compactMessage(value) {
+function compactMessage(value: unknown): string {
   let text = String(value || 'Preview build failed without a diagnostic.').trim();
   const lines = text.split(/\r?\n/);
   const errorLine = lines.findIndex((line) => /^Error:\s/.test(line));
@@ -158,7 +291,7 @@ function compactMessage(value) {
   return text.length > 6000 ? `${text.slice(0, 6000)}\n… diagnostic truncated` : text;
 }
 
-function redactDiagnostic(value, paths) {
+function redactDiagnostic(value: unknown, paths: readonly RedactionPath[]): string {
   let text = compactMessage(value);
   for (const [absolutePath, replacement] of paths) {
     if (!absolutePath) continue;
@@ -167,11 +300,11 @@ function redactDiagnostic(value, paths) {
   return text;
 }
 
-function safeJson(value) {
+function safeJson(value: unknown): string {
   return JSON.stringify(value).replace(/</g, '\\u003c');
 }
 
-function responseHeaders(contentType) {
+function responseHeaders(contentType: string): Record<string, string> {
   return {
     'Cache-Control': 'no-store',
     'Content-Type': contentType,
@@ -182,7 +315,7 @@ function responseHeaders(contentType) {
   };
 }
 
-function parseReceipt(stdout) {
+function parseReceipt(stdout: string): DeliveryReceipt | null {
   try {
     return JSON.parse(stdout);
   } catch {
@@ -190,10 +323,10 @@ function parseReceipt(stdout) {
   }
 }
 
-function atomicOutputFailure(result) {
+function atomicOutputFailure(result: OutputRelation): PreviewFailure {
   const code = result?.reason?.code || 'unclassified';
   let diagnosticCode = 'output/target-indeterminate';
-  let message;
+  let message: string;
   if (code === 'target-hardlinked' || code === 'candidate-hardlinked') {
     diagnosticCode = 'output/target-hardlinked';
     message = code === 'candidate-hardlinked'
@@ -217,20 +350,40 @@ function atomicOutputFailure(result) {
   };
 }
 
-function atomicOutputError(result) {
+function atomicOutputError(result: OutputRelation): Error & { previewFailure: PreviewFailure } {
   const failure = atomicOutputFailure(result);
   return Object.assign(new Error(failure.message), { previewFailure: failure });
 }
 
-function stagePreviewCommit(commitPath, artifact, mode) {
+function previewFailureOf(error: unknown): object {
+  const failure = readField(error, 'previewFailure');
+  return typeof failure === 'object' && failure !== null ? failure : {};
+}
+
+function capturedBuffer(content: { buffer?: Buffer }): Buffer {
+  if (!content.buffer) throw new Error('Captured file content is unavailable.');
+  return content.buffer;
+}
+
+function listeningPort(server: http.Server): number {
+  const address = server.address();
+  if (!address || typeof address === 'string') throw new Error('Preview server has no TCP address.');
+  return address.port;
+}
+
+function stagePreviewCommit(
+  commitPath: string,
+  artifact: Buffer,
+  mode: number | null,
+): { candidatePath: string; identity: FileIdentity } {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     previewCommitSequence += 1;
     const candidatePath = path.join(
       path.dirname(commitPath),
       `.schematics-preview-commit-${process.pid}-${Date.now().toString(36)}-${previewCommitSequence}.tmp`,
     );
-    let descriptor;
-    let identity;
+    let descriptor: number | undefined;
+    let identity: FileIdentity | undefined;
     try {
       const noFollow = process.platform === 'win32' ? 0 : (fs.constants.O_NOFOLLOW || 0);
       descriptor = fs.openSync(
@@ -238,7 +391,7 @@ function stagePreviewCommit(commitPath, artifact, mode) {
         fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | noFollow,
         mode ?? 0o666,
       );
-      let metadata;
+      let metadata: fs.BigIntStats;
       try {
         metadata = fs.fstatSync(descriptor, { bigint: true });
       } catch (error) {
@@ -263,7 +416,7 @@ function stagePreviewCommit(commitPath, artifact, mode) {
       if (descriptor !== undefined) {
         try { fs.closeSync(descriptor); } catch {}
       }
-      if (error.code === 'EEXIST') continue;
+      if (errorCode(error) === 'EEXIST') continue;
       if (identity) removeOwnedRegularFile(candidatePath, identity);
       throw error;
     }
@@ -275,7 +428,7 @@ function stagePreviewCommit(commitPath, artifact, mode) {
   });
 }
 
-function captureOwnedDirectory(directoryPath) {
+function captureOwnedDirectory(directoryPath: string): FileIdentity {
   const metadata = fs.lstatSync(directoryPath, { bigint: true });
   if (!metadata.isDirectory() || metadata.ino === 0n) {
     throw new Error('Preview staging directory identity could not be verified safely.');
@@ -283,12 +436,12 @@ function captureOwnedDirectory(directoryPath) {
   return { device: metadata.dev, inode: metadata.ino };
 }
 
-function cleanupOwnedDirectory(directoryPath, identity) {
-  let current;
+function cleanupOwnedDirectory(directoryPath: string, identity: FileIdentity): void {
+  let current: fs.BigIntStats;
   try {
     current = fs.lstatSync(directoryPath, { bigint: true });
   } catch (error) {
-    if (error?.code === 'ENOENT' || error?.code === 'ENOTDIR') return;
+    if (errorCode(error) === 'ENOENT' || errorCode(error) === 'ENOTDIR') return;
     throw error;
   }
   // Preserve a replacement rather than recursively deleting a directory that
@@ -303,13 +456,17 @@ function cleanupOwnedDirectory(directoryPath, identity) {
     // An entry whose identity was never bound to this preview may be an
     // external claimant. Preserve the private directory as recovery material
     // instead of recursively deleting unknown contents.
-    if (error?.code !== 'ENOTEMPTY' && error?.code !== 'EEXIST') throw error;
+    if (errorCode(error) !== 'ENOTEMPTY' && errorCode(error) !== 'EEXIST') throw error;
   }
 }
 
-function captureOwnedDeliverySidecars(candidatePath, snapshotPath, receipt) {
+function captureOwnedDeliverySidecars(
+  candidatePath: string,
+  snapshotPath: string,
+  receipt: DeliveryReceipt | null,
+): OwnedSidecar[] {
   const suffixes = ['.delivery.json', '.delivery-pending.json'];
-  const capturedSidecars = [];
+  const capturedSidecars: OwnedSidecar[] = [];
   for (const suffix of suffixes) {
     const sidecarPath = candidatePath.replace(/\.html$/iu, suffix);
     const captured = captureRegularFileBinding(sidecarPath, {
@@ -319,7 +476,7 @@ function captureOwnedDeliverySidecars(candidatePath, snapshotPath, receipt) {
     });
     if (captured.status !== 'captured') continue;
     try {
-      const sidecar = JSON.parse(captured.content.buffer.toString('utf8'));
+      const sidecar: DeliverySidecar | null = JSON.parse(capturedBuffer(captured.content).toString('utf8'));
       const commonMatches = sidecar?.schemaVersion === 1
         && sidecar.command === 'deliver'
         && sameLocation(sidecar.output, candidatePath).status === 'match'
@@ -345,14 +502,14 @@ function captureOwnedDeliverySidecars(candidatePath, snapshotPath, receipt) {
   return capturedSidecars;
 }
 
-export async function startPreview(options) {
+export async function startPreview(options: PreviewOptions): Promise<PreviewHandle> {
   const type = options.type;
   if (!diagramTypes.has(type)) throw new Error(`Unknown diagram type "${type}".`);
   if (options.quality && !['standard', 'showcase'].includes(options.quality)) {
     throw new Error(`Unknown quality profile "${options.quality}".`);
   }
   const inputPath = path.resolve(options.input);
-  const outputRequest = {
+  const outputRequest: ResolveOutputPathOptions = {
     requestedOutput: options.output,
     authoredOutput: initialAuthoredOutput(inputPath),
     defaultOutput: `${type}.html`,
@@ -362,10 +519,10 @@ export async function startPreview(options) {
   };
   const { outputPath } = resolveOutputPath(outputRequest);
   const outputDirectory = path.dirname(outputPath);
-  const debounceMs = Number.isFinite(options.debounceMs) ? options.debounceMs : defaultDebounceMs;
-  const pollMs = Number.isFinite(options.pollMs) ? options.pollMs : defaultPollMs;
-  const stopGraceMs = Number.isFinite(options.stopGraceMs) ? Math.max(0, options.stopGraceMs) : defaultStopGraceMs;
-  const stopKillMs = Number.isFinite(options.stopKillMs) ? Math.max(0, options.stopKillMs) : defaultStopKillMs;
+  const debounceMs = finiteOr(options.debounceMs, defaultDebounceMs);
+  const pollMs = finiteOr(options.pollMs, defaultPollMs);
+  const stopGraceMs = Math.max(0, finiteOr(options.stopGraceMs, defaultStopGraceMs));
+  const stopKillMs = Math.max(0, finiteOr(options.stopKillMs, defaultStopKillMs));
   const shouldOpen = options.open !== false;
 
   fs.mkdirSync(outputDirectory, { recursive: true });
@@ -376,7 +533,7 @@ export async function startPreview(options) {
   const stagingDirectory = fs.mkdtempSync(path.toNamespacedPath(
     path.join(physicalOutputDirectory, '.schematics-preview-'),
   ));
-  let stagingIdentity;
+  let stagingIdentity: FileIdentity;
   try {
     stagingIdentity = captureOwnedDirectory(stagingDirectory);
   } catch (error) {
@@ -385,27 +542,27 @@ export async function startPreview(options) {
   }
 
   let port = 0;
-  let watcher;
-  let debounceTimer;
-  let pollTimer;
-  let stopGraceTimer;
-  let stopKillTimer;
-  let child;
+  let watcher: fs.FSWatcher | undefined;
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+  let pollTimer: ReturnType<typeof setInterval> | undefined;
+  let stopGraceTimer: ReturnType<typeof setTimeout> | undefined;
+  let stopKillTimer: ReturnType<typeof setTimeout> | undefined;
+  let child: DeliveryChild | null | undefined;
   let stopping = false;
   let forceStopping = false;
   let stopped = false;
   let serverClosing = false;
   let serverClosed = false;
-  let queuedHash = null;
-  let activeHash = null;
-  let lastGoodSourceHash = null;
+  let queuedHash: string | null = null;
+  let activeHash: string | null = null;
+  let lastGoodSourceHash: string | null = null;
   let sourceEpoch = 0;
   let activeEpoch = 0;
   let pendingBuild = false;
-  let artifactBuffer = null;
-  const clients = new Set();
-  const sockets = new Set();
-  const state = {
+  let artifactBuffer: Buffer | null = null;
+  const clients = new Set<http.ServerResponse>();
+  const sockets = new Set<Socket>();
+  const state: PreviewState = {
     schemaVersion: 1,
     status: 'checking',
     generation: 0,
@@ -414,18 +571,18 @@ export async function startPreview(options) {
     failure: null,
   };
 
-  let resolveClosed;
-  const closed = new Promise((resolve) => { resolveClosed = resolve; });
+  let resolveClosed: () => void = () => {};
+  const closed = new Promise<void>((resolve) => { resolveClosed = resolve; });
 
-  function publicState() {
+  function publicState(): PreviewState {
     return JSON.parse(JSON.stringify(state));
   }
 
-  function sendState(res) {
+  function sendState(res: http.ServerResponse): void {
     res.write(`event: state\ndata: ${safeJson(publicState())}\n\n`);
   }
 
-  function broadcast() {
+  function broadcast(): void {
     for (const res of clients) sendState(res);
   }
 
@@ -443,9 +600,9 @@ export async function startPreview(options) {
       return;
     }
 
-    let url;
+    let url: URL;
     try {
-      url = new URL(req.url, `http://${expectedHost}`);
+      url = new URL(String(req.url), `http://${expectedHost}`);
     } catch {
       res.writeHead(400, responseHeaders('text/plain; charset=utf-8'));
       res.end('Bad request');
@@ -505,11 +662,11 @@ export async function startPreview(options) {
   });
 
   try {
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
       server.listen(0, loopbackHost, () => {
         server.off('error', reject);
-        port = server.address().port;
+        port = listeningPort(server);
         resolve();
       });
     });
@@ -521,7 +678,7 @@ export async function startPreview(options) {
 
   const url = `http://${loopbackHost}:${port}/`;
 
-  function finishStop() {
+  function finishStop(): void {
     if (stopped || child || !serverClosed) return;
     stopped = true;
     clearTimeout(debounceTimer);
@@ -535,18 +692,18 @@ export async function startPreview(options) {
     }
   }
 
-  function signalActiveChild(signal) {
+  function signalActiveChild(signal: NodeJS.Signals): void {
     if (!child || child.exitCode !== null || child.signalCode !== null) return;
     try {
       if (process.platform !== 'win32' && child.pid) process.kill(-child.pid, signal);
       else child.kill(signal);
     } catch (error) {
-      if (error.code === 'ESRCH') return;
+      if (errorCode(error) === 'ESRCH') return;
       try { child.kill(signal); } catch {}
     }
   }
 
-  function closeServer() {
+  function closeServer(): void {
     if (serverClosing) return;
     serverClosing = true;
     for (const res of clients) res.end();
@@ -558,7 +715,7 @@ export async function startPreview(options) {
     server.closeIdleConnections?.();
   }
 
-  function startBoundedChildDrain() {
+  function startBoundedChildDrain(): void {
     if (!child || stopGraceTimer || stopKillTimer) return;
     stopGraceTimer = setTimeout(() => {
       stopGraceTimer = undefined;
@@ -571,7 +728,7 @@ export async function startPreview(options) {
     }, stopGraceMs);
   }
 
-  async function stop({ force = false } = {}) {
+  async function stop({ force = false }: StopOptions = {}): Promise<void> {
     if (force) forceStopping = true;
     if (!stopping) {
       stopping = true;
@@ -597,7 +754,13 @@ export async function startPreview(options) {
     return closed;
   }
 
-  function publishFailure(receipt, stdout, stderr, candidatePath, snapshotPath) {
+  function publishFailure(
+    receipt: FailureReceipt | null,
+    stdout: string,
+    stderr: string,
+    candidatePath: string,
+    snapshotPath?: string,
+  ): void {
     const repairDetails = receipt?.diagnostics
       ?.slice(0, 12)
       .map((entry) => {
@@ -628,20 +791,25 @@ export async function startPreview(options) {
           [stagingDirectory, '<preview-staging>'],
           [path.resolve(here, '..'), '<schematics-skill>'],
           [path.resolve(options.cwd || process.cwd()), '<working-directory>'],
-          ...(options.repoRoot ? [[path.resolve(options.repoRoot), '<repo-root>']] : []),
+          ...(options.repoRoot ? [[path.resolve(options.repoRoot), '<repo-root>'] as const] : []),
         ],
       ),
     };
     broadcast();
   }
 
-  function commitCandidate(candidatePath, receipt, generationHash, outputCapture) {
-    let candidate;
-    let sourceCandidateBinding;
-    let sourceCandidateIdentity;
-    let commitCandidatePath;
-    let commitCandidateIdentity;
-    let commitCandidateBinding;
+  function commitCandidate(
+    candidatePath: string,
+    receipt: DeliveryReceipt,
+    generationHash: string | null,
+    outputCapture: CapturedAtomicOutput,
+  ): CommitOutcome {
+    let candidate: Buffer;
+    let sourceCandidateBinding: RegularFileBinding | undefined;
+    let sourceCandidateIdentity: FileIdentity | undefined;
+    let commitCandidatePath: string | undefined;
+    let commitCandidateIdentity: FileIdentity | undefined;
+    let commitCandidateBinding: RegularFileBinding | undefined;
     try {
       const sourceCapture = captureRegularFileBinding(candidatePath, {
         subject: 'candidate',
@@ -652,7 +820,7 @@ export async function startPreview(options) {
       if (sourceCapture.status !== 'captured') throw atomicOutputError(sourceCapture);
       sourceCandidateBinding = sourceCapture.binding;
       sourceCandidateIdentity = sourceCapture.identity;
-      candidate = sourceCapture.content.buffer;
+      candidate = capturedBuffer(sourceCapture.content);
       const digest = sourceCapture.content.sha256;
       const releasedSource = releaseRegularFileBinding(sourceCandidateBinding);
       sourceCandidateBinding = undefined;
@@ -673,7 +841,8 @@ export async function startPreview(options) {
         candidatePath: commitCandidatePath,
         identity: commitCandidateIdentity,
       } = stagePreviewCommit(outputCapture.commitPath, candidate, outputCapture.mode));
-      const candidateCapture = captureRegularFileBinding(commitCandidatePath, {
+      const stagedCandidatePath = commitCandidatePath;
+      const candidateCapture = captureRegularFileBinding(stagedCandidatePath, {
         subject: 'candidate',
         expectedSha256: digest,
         expectedBytes: candidate.byteLength,
@@ -686,7 +855,7 @@ export async function startPreview(options) {
       if (beforeCommit.status !== 'match') throw atomicOutputError(beforeCommit);
       const publication = publishRegularFileBinding(
         commitCandidateBinding,
-        commitCandidatePath,
+        stagedCandidatePath,
         outputCapture.snapshot,
         { subject: 'candidate' },
       );
@@ -718,8 +887,8 @@ export async function startPreview(options) {
     } catch (error) {
       publishFailure({
         stage: 'commit',
-        error: `Could not publish the verified preview: ${error.message}`,
-        ...(error.previewFailure || {}),
+        error: `Could not publish the verified preview: ${errorMessage(error)}`,
+        ...previewFailureOf(error),
       }, '', '', candidatePath);
       return { committed: false, supersededBy: null, candidateIdentity: sourceCandidateIdentity };
     } finally {
@@ -731,7 +900,7 @@ export async function startPreview(options) {
     }
   }
 
-  function beginBuild(digest, epoch) {
+  function beginBuild(digest: SourceDigest, epoch: number): void {
     if (stopping || child) return;
     activeHash = digest.hash;
     activeEpoch = epoch;
@@ -742,7 +911,7 @@ export async function startPreview(options) {
 
     const candidatePath = path.join(stagingDirectory, `generation-${state.generation}.html`);
     const snapshotPath = path.join(stagingDirectory, `generation-${state.generation}.json`);
-    let snapshotIdentity;
+    let snapshotIdentity: FileIdentity | undefined;
     const outputCapture = captureAtomicOutput(outputPath);
     if (outputCapture.status !== 'captured') {
       const failure = atomicOutputFailure(outputCapture);
@@ -776,7 +945,7 @@ export async function startPreview(options) {
         }
       } catch (error) {
         publishFailure(
-          { stage: 'prepare', error: `Could not snapshot the observed input: ${error.message}` },
+          { stage: 'prepare', error: `Could not snapshot the observed input: ${errorMessage(error)}` },
           '',
           '',
           candidatePath,
@@ -790,24 +959,25 @@ export async function startPreview(options) {
     if (options.repoRoot) args.push('--repo-root', path.resolve(options.repoRoot));
     let stdout = '';
     let stderr = '';
-    child = spawn(process.execPath, args, {
+    const launched: DeliveryChild = spawn(process.execPath, args, {
       cwd: options.cwd || process.cwd(),
       env: process.env,
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: process.platform !== 'win32',
     });
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => { stdout += chunk; });
-    child.stderr.on('data', (chunk) => { stderr += chunk; });
-    child.on('error', (error) => { stderr += error.message; });
-    child.on('close', (code) => {
+    child = launched;
+    launched.stdout.setEncoding('utf8');
+    launched.stderr.setEncoding('utf8');
+    launched.stdout.on('data', (chunk: string) => { stdout += chunk; });
+    launched.stderr.on('data', (chunk: string) => { stderr += chunk; });
+    launched.on('error', (error) => { stderr += error.message; });
+    launched.on('close', (code) => {
       const receipt = parseReceipt(stdout);
       const generationEpoch = activeEpoch;
       const generationHash = activeHash;
       const stale = generationEpoch !== sourceEpoch;
-      let supersededBy = null;
-      let candidateIdentity;
+      let supersededBy: SourceDigest | null = null;
+      let candidateIdentity: FileIdentity | undefined;
       const deliverySidecars = captureOwnedDeliverySidecars(
         candidatePath,
         snapshotPath,
@@ -857,7 +1027,7 @@ export async function startPreview(options) {
     });
   }
 
-  function queueStableBuild(hash, immediate = false) {
+  function queueStableBuild(hash: string, immediate = false): void {
     queuedHash = hash;
     clearTimeout(debounceTimer);
     const launch = () => {
@@ -884,7 +1054,7 @@ export async function startPreview(options) {
     debounceTimer = setTimeout(launch, immediate ? 0 : debounceMs);
   }
 
-  function observeSource({ immediate = false } = {}) {
+  function observeSource({ immediate = false }: { immediate?: boolean } = {}): void {
     const digest = sourceDigest(inputPath);
     if (!immediate && digest.hash === queuedHash) return;
     sourceEpoch += 1;
@@ -915,12 +1085,12 @@ export async function startPreview(options) {
       });
     } catch (error) {
       await stop();
-      throw new Error(`Could not watch the input directory: ${error.message}`);
+      throw new Error(`Could not watch the input directory: ${errorMessage(error)}`);
     }
   }
   pollTimer = setInterval(() => observeSource(), pollMs);
 
-  let opener = null;
+  let opener: LaunchReceipt | null = null;
   if (shouldOpen) {
     try {
       opener = openLoopbackUrl(url);
@@ -942,7 +1112,7 @@ export async function startPreview(options) {
   };
 }
 
-export async function runPreview(options) {
+export async function runPreview(options: PreviewOptions): Promise<void> {
   const preview = await startPreview(options);
   console.log(`preview ${preview.url}`);
   console.log(`watching ${preview.input}`);

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 test('automatic architectures preserve primary reading size when fitting the full page would shrink text', async (t) => {
@@ -19,7 +19,7 @@ test('automatic architectures preserve primary reading size when fitting the ful
   const input = path.join(dir, 'input.json');
   const output = path.join(dir, 'output.html');
   fs.writeFileSync(input, JSON.stringify(spec));
-  execFileSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'render', 'architecture', input, output]);
+  execFileSync(process.execPath, [path.join(root, 'bin/schematics.ts'), 'render', 'architecture', input, output]);
   const browser = new ChromeVisualBrowser(chrome);
   try {
     const session = await browser.sessionPromise;
@@ -101,7 +101,7 @@ test('a narrow tall architecture fits the first screen without enlarging the oth
     ],
     connections: [{ from: 'client', to: 'api' }, { from: 'api', to: 'db' }],
   }));
-  execFileSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'render', 'architecture', input, output]);
+  execFileSync(process.execPath, [path.join(root, 'bin/schematics.ts'), 'render', 'architecture', input, output]);
   const browser = new ChromeVisualBrowser(findChrome());
   try {
     const metrics = await browser.inspect({ artifactPath: output, width: 1440, height: 900, theme: 'light' });
@@ -154,7 +154,7 @@ test('a first-screen fit never pushes relationship labels below the 6px floor', 
     ],
     connections: [{ from: 'client', to: 'api', label: 'request' }, { from: 'api', to: 'db', label: 'persist' }],
   }));
-  execFileSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'render', 'architecture', input, output]);
+  execFileSync(process.execPath, [path.join(root, 'bin/schematics.ts'), 'render', 'architecture', input, output]);
   const browser = new ChromeVisualBrowser(findChrome());
   try {
     await browser.inspect({ artifactPath: output, width: 1440, height: 900, theme: 'light' });

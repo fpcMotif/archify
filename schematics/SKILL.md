@@ -11,7 +11,7 @@ metadata:
 
 Create checked standalone HTML as a native diagram or a one-page explainer that answers a question.
 
-Run commands from your working directory. Unless the user names another location, give each new artifact request its own folder `.schematics/<type>-<slug>-<YYYYMMDD-HHMMSS>/` there (local time, chosen once): keep the candidate and `<slug>.html` in it and reuse it for repairs. Native diagrams use `candidate.json` with `meta.output` relative to the working directory; explainers may use `candidate.schematics.md` and a portable output filename. A later request gets a new folder. Replace `bin/schematics.mjs` in every command with the installed package's absolute path, or its path relative to your working directory; CLI input and output paths resolve from that directory.
+Run commands from your working directory. Unless the user names another location, give each new artifact request its own folder `.schematics/<type>-<slug>-<YYYYMMDD-HHMMSS>/` there (local time, chosen once): keep the candidate and `<slug>.html` in it and reuse it for repairs. Native diagrams use `candidate.json` with `meta.output` relative to the working directory; explainers may use `candidate.schematics.md` and a portable output filename. A later request gets a new folder. Replace `bin/schematics.ts` in every command with the installed package's absolute path, or its path relative to your working directory; CLI input and output paths resolve from that directory.
 
 For a native diagram of a real codebase, read [Repository authoring](references/repository-authoring.md) while tracing the requested behavior. A system description uses the native steps below; a frozen candidate uses the handoff path.
 
@@ -37,10 +37,10 @@ Use this path for ordinary generation. Read branch references only when their st
 4. Once the complete first candidate is written, run `finalize` directly. Its first gate is showcase validation; successful first drafts need no separate pre-validation. Keep the candidate unchanged while the command runs:
 
    ```bash
-   bun bin/schematics.mjs finalize <type> <candidate.json> <output.html> --quality showcase --json
+   bun bin/schematics.ts finalize <type> <candidate.json> <output.html> --quality showcase --json
    ```
 
-   For a repository-backed candidate, include evidence on the first draft and use the complete first command: `bun bin/schematics.mjs finalize <type> <candidate.json> <output.html> --repo-root <repo-root> --quality showcase --json`. Pass the `--quality` that matches `meta.quality_profile`, such as `standard` for a dense first ERD pass.
+   For a repository-backed candidate, include evidence on the first draft and use the complete first command: `bun bin/schematics.ts finalize <type> <candidate.json> <output.html> --repo-root <repo-root> --quality showcase --json`. Pass the `--quality` that matches `meta.quality_profile`, such as `standard` for a dense first ERD pass.
 
    A passing receipt proves the included `validate`, `deliver`, strict `check`, and real-browser `browser-check` gates passed. Use its compact summary; run standalone commands only for a separate request or focused failure diagnosis.
 
@@ -64,7 +64,7 @@ Before the first candidate, use the authoring references and relevant repository
 | `timeline` | When things happened: incident reviews, release histories, timestamped events on a proportional clock with source lanes | `schemas/timeline.schema.json` | `examples/payment-incident.timeline.json` |
 | `waterfall` | Where the time went: span durations, overlap, and nesting of one request or agent run on a common time axis | `schemas/waterfall.schema.json` | `examples/checkout-request.waterfall.json` |
 
-When choosing among native diagram types is ambiguous, run `bun bin/schematics.mjs guide "<scenario>" --json`. Scenario proof examples are structural references, not facts to copy.
+When choosing among native diagram types is ambiguous, run `bun bin/schematics.ts guide "<scenario>" --json`. Scenario proof examples are structural references, not facts to copy.
 
 For an everyday subject, keep the same diagram modes and semantic types, then name them for the reader: use everyday `icon` values and `meta.legend` labels as in [Node icons](references/authoring-contract.md#node-icons). Ask for missing personal facts instead of inventing dates, amounts, or rules.
 
@@ -73,7 +73,7 @@ For an everyday subject, keep the same diagram modes and semantic types, then na
 Draft the candidate with the importer, read its notes, then refine the JSON for meaning before `finalize`:
 
 ```bash
-bun bin/schematics.mjs import mermaid <input.mmd> <candidate.json> --title "<title>" --json
+bun bin/schematics.ts import mermaid <input.mmd> <candidate.json> --title "<title>" --json
 ```
 
 The importer keeps topology and meaning, not Mermaid styling:
@@ -118,8 +118,8 @@ Read `references/viewer-runtime.md` only when the user explicitly asks for Share
 No install is required inside the skill package. For setup diagnosis, verify with:
 
 ```bash
-bun bin/schematics.mjs doctor
-bun bin/schematics.mjs demo <output-directory>
+bun bin/schematics.ts doctor
+bun bin/schematics.ts demo <output-directory>
 ```
 
 For native diagrams, when shell access is unavailable, hand-place architecture SVG into `assets/template.html`, use CSS semantic classes rather than inline colors, and follow the visual review contract in `references/delivery-contract.md`. Explainers require their renderer and real delivery gates; if those are unavailable, report the limitation and give a text answer when useful, without claiming HTML delivery.

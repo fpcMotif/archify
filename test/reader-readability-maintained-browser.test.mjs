@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'SCHEMATICS_CHROME');
@@ -25,7 +25,7 @@ test('declared wide synthetic reader preserves geometry and reaches edge/node re
   const artifact = path.join(scratch, 'synthetic-wide.html');
   try {
     execFileSync(process.execPath, [
-      path.join(root, 'bin', 'schematics.mjs'), 'deliver', 'architecture', fixtureJson, artifact,
+      path.join(root, 'bin', 'schematics.ts'), 'deliver', 'architecture', fixtureJson, artifact,
       '--quality', 'showcase',
     ], { cwd: root, stdio: 'pipe' });
     const artifactSource = fs.readFileSync(artifact, 'utf8');

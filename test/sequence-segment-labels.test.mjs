@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const renderer = path.resolve(__dirname, '..', 'schematics', 'packages', 'sequence', 'render-sequence.ts');
-const cli = path.resolve(__dirname, '..', 'schematics', 'bin', 'schematics.mjs');
+const cli = path.resolve(__dirname, '..', 'schematics', 'bin', 'schematics.ts');
 // An unedited first draft with two abutting segments (140-300, 300-520). On
 // dev the first label climbed behind the participant headers and the second
 // climbed into the first segment, where it named the wrong phase.

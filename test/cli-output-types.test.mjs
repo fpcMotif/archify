@@ -5,10 +5,10 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { startPreview } from '../schematics/bin/preview.mjs';
+import { startPreview } from '../schematics/bin/preview.ts';
 
 const root = fileURLToPath(new URL('../schematics/', import.meta.url));
-const cli = path.join(root, 'bin/schematics.mjs');
+const cli = path.join(root, 'bin/schematics.ts');
 const workflow = path.join(root, 'examples/agent-tool-call.workflow.json');
 const architecture = path.join(root, 'examples/web-app.architecture.json');
 const base = path.join(root, 'examples/checkout-platform.base.architecture.json');

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.ts', import.meta.url));
 const epsilon = 0.0001;
 const attrs = (tag) => Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map((match) => [match[1], match[2]]));
 

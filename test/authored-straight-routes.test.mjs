@@ -36,7 +36,7 @@ const cases = {
 };
 
 function run(...args) {
-  return spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), ...args], { encoding: 'utf8' });
+  return spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), ...args], { encoding: 'utf8' });
 }
 function orthogonalCheck(result) {
   return JSON.parse(result.stdout).checks.find((check) => check.name === 'orthogonal_arrows');

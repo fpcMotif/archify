@@ -7,7 +7,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../schematics/', import.meta.url));
-const cli = path.join(root, 'bin/schematics.mjs');
+const cli = path.join(root, 'bin/schematics.ts');
 
 function component(id, pos, size = [120, 60]) {
   return { id, type: 'backend', label: id, pos, size };

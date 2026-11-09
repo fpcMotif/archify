@@ -3,7 +3,7 @@
 Render `diagram_type: "waterfall"` JSON files into the standard Schematics HTML template.
 
 ```bash
-node schematics/packages/waterfall/render-waterfall.mjs input.waterfall.json output.html
+bun schematics/packages/waterfall/render-waterfall.ts input.waterfall.json output.html
 ```
 
 `--layout-json` prints the axis, scale, ticks, and every row's timing and bar

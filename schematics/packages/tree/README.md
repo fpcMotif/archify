@@ -3,7 +3,7 @@
 Render `diagram_type: "tree"` JSON files into the standard Schematics HTML template.
 
 ```bash
-node schematics/packages/tree/render-tree.mjs input.tree.json output.html
+bun schematics/packages/tree/render-tree.ts input.tree.json output.html
 ```
 
 The renderer validates input against `schematics/schemas/tree.schema.json` with the

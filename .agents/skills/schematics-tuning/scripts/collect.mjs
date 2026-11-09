@@ -126,7 +126,7 @@ function isFinalizeCommand(type, command) {
     const quote = token[0];
     return (quote === '"' || quote === "'") && token.at(-1) === quote ? token.slice(1, -1) : token;
   });
-  return tokens.some((token, index) => /(?:^|\/)schematics\.mjs$/.test(logicalPath(token))
+  return tokens.some((token, index) => /(?:^|\/)schematics\.(?:ts|mjs)$/.test(logicalPath(token))
     && tokens[index + 1] === 'finalize' && tokens[index + 2] === type
     && /\.json$/.test(tokens[index + 3] || ''));
 }

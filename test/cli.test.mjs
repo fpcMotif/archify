@@ -12,7 +12,7 @@ import { bipartiteArchitectureSpec } from './helpers/dense-fixture.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-cli-'));
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 
 test.afterEach(() => {
   fs.rmSync(path.join(tmp, '.schematics-delivery-lock.json'), { force: true });
@@ -254,9 +254,9 @@ test('cli: doctor identifies an incomplete installation', () => {
   const incompleteRoot = path.join(tmp, 'incomplete-skill');
   const incompleteBin = path.join(incompleteRoot, 'bin');
   fs.mkdirSync(incompleteBin, { recursive: true });
-  fs.copyFileSync(cli, path.join(incompleteBin, 'schematics.mjs'));
+  fs.copyFileSync(cli, path.join(incompleteBin, 'schematics.ts'));
 
-  const result = spawnSync(process.execPath, [path.join(incompleteBin, 'schematics.mjs'), 'doctor'], {
+  const result = spawnSync(process.execPath, [path.join(incompleteBin, 'schematics.ts'), 'doctor'], {
     cwd: incompleteRoot,
     encoding: 'utf8',
   });
@@ -273,7 +273,7 @@ test('cli: doctor rejects a corrupt standalone validator', () => {
   copyInstalledSkill(corruptRoot);
   fs.writeFileSync(path.join(corruptRoot, 'packages/validation/generated-validators.ts'), 'export const workflow = ;\n');
 
-  const result = spawnSync(process.execPath, [path.join(corruptRoot, 'bin/schematics.mjs'), 'doctor'], {
+  const result = spawnSync(process.execPath, [path.join(corruptRoot, 'bin/schematics.ts'), 'doctor'], {
     cwd: corruptRoot,
     encoding: 'utf8',
   });
@@ -287,7 +287,7 @@ test('cli: examples renders from an installed skill', () => {
   const installedRoot = path.join(tmp, 'installed-skill');
   copyInstalledSkill(installedRoot);
 
-  const result = spawnSync(process.execPath, [path.join(installedRoot, 'bin/schematics.mjs'), 'examples'], {
+  const result = spawnSync(process.execPath, [path.join(installedRoot, 'bin/schematics.ts'), 'examples'], {
     cwd: installedRoot,
     encoding: 'utf8',
   });
@@ -351,7 +351,7 @@ test('cli: guide detects Chinese and explains the recommendation boundary', () =
 test('cli: guide works from an installed skill without node_modules', () => {
   const installedRoot = path.join(tmp, 'installed-guide-skill');
   copyInstalledSkill(installedRoot);
-  const installedCli = path.join(installedRoot, 'bin/schematics.mjs');
+  const installedCli = path.join(installedRoot, 'bin/schematics.ts');
 
   const result = spawnSync(process.execPath, [installedCli, 'guide', 'incident-runbook', '--json'], {
     cwd: installedRoot,
@@ -729,8 +729,8 @@ test('cli: deliver failure never invokes the optional opener', {
 test('cli: a missing optional opener module preserves verified delivery with a fallback receipt', () => {
   const installedRoot = path.join(tmp, 'missing-open-module-skill');
   copyInstalledSkill(installedRoot);
-  const installedCli = path.join(installedRoot, 'bin/schematics.mjs');
-  fs.rmSync(path.join(installedRoot, 'bin/open-artifact.mjs'));
+  const installedCli = path.join(installedRoot, 'bin/schematics.ts');
+  fs.rmSync(path.join(installedRoot, 'bin/open-artifact.ts'));
   const input = path.join(installedRoot, 'examples/agent-tool-call.workflow.json');
   const out = path.join(tmp, 'missing-open-module-delivery.html');
 
@@ -770,7 +770,7 @@ test('cli: deliver preserves the renderer default output contract', () => {
 test('cli: deliver works from an installed skill without node_modules', () => {
   const installedRoot = path.join(tmp, 'installed-deliver-skill');
   copyInstalledSkill(installedRoot);
-  const installedCli = path.join(installedRoot, 'bin/schematics.mjs');
+  const installedCli = path.join(installedRoot, 'bin/schematics.ts');
   const cases = [
     ['architecture-boundaries', 'architecture', 'production-deployment.architecture.json'],
     ['architecture-issue-110', 'architecture', 'brand-aware-delivery.architecture.json'],
@@ -817,7 +817,7 @@ test('cli: deliver XML guard parses markup instead of scanning attribute-like te
 test('cli: preview runs from an installed skill without node_modules and exits cleanly', { timeout: 30000 }, async () => {
   const installedRoot = path.join(tmp, 'installed-preview-skill');
   copyInstalledSkill(installedRoot);
-  const installedCli = path.join(installedRoot, 'bin/schematics.mjs');
+  const installedCli = path.join(installedRoot, 'bin/schematics.ts');
   const input = path.join(installedRoot, 'examples/web-app.architecture.json');
   const output = path.join(tmp, 'installed-preview.html');
   // Windows child.kill() terminates immediately, bypassing the signal handler.
@@ -866,7 +866,7 @@ test('cli: preview runs from an installed skill without node_modules and exits c
 test('cli: deliver preserves the previous artifact when the final check fails', () => {
   const installedRoot = path.join(tmp, 'broken-deliver-skill');
   copyInstalledSkill(installedRoot);
-  const installedCli = path.join(installedRoot, 'bin/schematics.mjs');
+  const installedCli = path.join(installedRoot, 'bin/schematics.ts');
   const templatePath = path.join(installedRoot, 'assets/template.html');
   const template = fs.readFileSync(templatePath, 'utf8');
   fs.writeFileSync(templatePath, template.replace('</body>', '<svg aria-label="accidental second svg"></svg>\n</body>'));

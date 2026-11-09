@@ -256,7 +256,7 @@ Prefer a specific question as each panel title. `{#id}` gives a stable ID for li
 ## Delivery
 
 ```sh
-bun schematics/bin/schematics.mjs finalize explainer candidate.schematics.md answer.html --json
+bun schematics/bin/schematics.ts finalize explainer candidate.schematics.md answer.html --json
 ```
 
 After a pass, reply in two or three lines: the conclusion, then a Markdown link to the page with a descriptive title. Do not list gates. When the user asked for this page and no `[schematics explainer: ...]` rules line is in context, end with the one-line mode offer from the Skill's Output section.
@@ -268,7 +268,7 @@ Writing warnings apply the [Writing](#writing) rules: sentences over 50 Chinese 
 ## Panel replacement
 
 ```sh
-bun schematics/bin/schematics.mjs patch explainer answer.html next replacement.md revised.html --json
+bun schematics/bin/schematics.ts patch explainer answer.html next replacement.md revised.html --json
 ```
 
 The replacement holds one `##` panel with the same stable ID; untouched content and frozen assets are preserved. Rerun finalize on the full draft when changing shared sources, the conclusion or document-wide structure.

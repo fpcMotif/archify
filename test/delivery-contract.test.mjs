@@ -37,10 +37,10 @@ test('ordinary handoff uses one deterministic finalizer without image capability
   assert.ok(skill.indexOf('## Existing candidate handoff') < skill.indexOf('## Native diagram authoring'));
   assert.match(skill, /run `finalize` first as one CLI invocation/);
   assert.match(skill, /passing receipt completes the automated gates; follow any visual review recommendation/i);
-  assert.match(skill, /schematics\.mjs finalize <type> <candidate\.json> <output\.html> --quality showcase --json/);
+  assert.match(skill, /schematics\.ts finalize <type> <candidate\.json> <output\.html> --quality showcase --json/);
   assert.match(skill, /When the user supplies a frozen candidate[\s\S]*?run `finalize` first as one CLI invocation/);
   assert.match(skill, /Once the complete first candidate is written, run `finalize` directly\. Its first gate is showcase validation/);
-  assert.doesNotMatch(skill, /node bin\/schematics\.mjs deliver <type> <candidate\.json> <output\.html>/);
+  assert.doesNotMatch(skill, /bun bin\/schematics\.ts deliver <type> <candidate\.json> <output\.html>/);
 
   assert.match(finalizeSection, /`browser-check --require-provenance`/);
   assert.match(finalizeSection, /stops at the first failed or skipped stage/i);
@@ -123,7 +123,7 @@ test('visual evidence replacement is ownership-bound and fails closed on slot ch
 });
 
 test('skill uses recoverable verified delivery for the final artifact', () => {
-  assert.match(delivery, /schematics\.mjs deliver <type>/);
+  assert.match(delivery, /schematics\.ts deliver <type>/);
   assert.match(delivery, /same-directory candidate/i);
   assert.match(delivery, /only replaces the target after.*artifact checks pass/i);
   assert.match(delivery, /journal[\s\S]*checkers then fail closed/i);

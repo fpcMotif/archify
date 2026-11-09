@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
-import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.ts';
 import { git, fixture, run } from './helpers/repository-evidence-fixture.mjs';
 
 test('browser renders local-only sources as searchable text and web sources as links', {

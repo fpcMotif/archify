@@ -22,7 +22,7 @@ function deliver(type, doc, quality = 'standard') {
   doc.meta = { ...doc.meta, output: `case-${id}.html`, quality_profile: quality };
   const input = path.join(tmp, `case-${id}.json`), output = path.join(tmp, `case-${id}.html`);
   fs.writeFileSync(input, JSON.stringify(doc));
-  const receipt = JSON.parse(execFileSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'deliver', type, input, output, '--quality', quality, '--json'], { encoding: 'utf8' }));
+  const receipt = JSON.parse(execFileSync(process.execPath, [path.join(root, 'bin/schematics.ts'), 'deliver', type, input, output, '--quality', quality, '--json'], { encoding: 'utf8' }));
   assert.equal(receipt.ok, true);
   return parse(fs.readFileSync(output, 'utf8'));
 }

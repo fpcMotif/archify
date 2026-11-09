@@ -5,9 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.ts';
 
-const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.ts', import.meta.url));
 const fixture = fileURLToPath(new URL('./fixtures/lifecycle-dense-exit-notes.json', import.meta.url));
 
 test('Lifecycle notes retain their content and reading depth with readable Full-detail ink', async (t) => {

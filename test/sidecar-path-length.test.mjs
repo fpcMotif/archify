@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { sidecarPaths } from '../schematics/bin/visual-check.mjs';
+import { sidecarPaths } from '../schematics/bin/visual-check.ts';
 import { sidecarNamespaceComponentKey } from '../schematics/packages/output/path-semantics.ts';
 
 function basenameFits(file) {

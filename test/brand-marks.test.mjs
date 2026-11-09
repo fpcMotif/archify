@@ -13,7 +13,7 @@ import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..', 'schematics');
-const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
+const cli = path.join(skillRoot, 'bin', 'schematics.ts');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-brand-marks-'));
 const cases = {
   architecture: ['web-app.architecture.json', 'components'],

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath,pathToFileURL} from 'node:url';
-import {ChromeVisualBrowser,findChrome} from '../schematics/bin/visual-check.mjs';
+import {ChromeVisualBrowser,findChrome} from '../schematics/bin/visual-check.ts';
 import {fittedNodeFontSize} from '../schematics/packages/svg/text-fit.ts';
 
 const testDir=path.dirname(fileURLToPath(import.meta.url));
@@ -24,7 +24,7 @@ test('sequence headers reserve an icon/brand rail without shrinking or changing 
   ],messages:[{id:'request',from:'transfer',to:'without-context',y:200,label:'Exact request'},{id:'reply',from:'without-context',to:'transfer',y:250,label:'Exact reply',variant:'return'}]};
   const input=path.join(dir,'input.json'),output=path.join(dir,'output.html');
   fs.writeFileSync(input,JSON.stringify(spec));
-  const rendered=spawnSync(process.execPath,[path.resolve(testDir,'../schematics/bin/schematics.mjs'),'deliver','sequence',input,output,'--quality','standard','--json'],{encoding:'utf8',maxBuffer:16*1024*1024});
+  const rendered=spawnSync(process.execPath,[path.resolve(testDir,'../schematics/bin/schematics.ts'),'deliver','sequence',input,output,'--quality','standard','--json'],{encoding:'utf8',maxBuffer:16*1024*1024});
   assert.equal(rendered.status,0,rendered.stderr||rendered.stdout);
   const browser=new ChromeVisualBrowser(chrome);
   try{

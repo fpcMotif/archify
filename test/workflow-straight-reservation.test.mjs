@@ -10,7 +10,7 @@ import { labelPoint } from '../schematics/packages/geometry/geometry.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = path.join(root, 'test/fixtures/workflow-first-draft/automatic-fanout.workflow.json');
-const cli = path.join(root, 'schematics/bin/schematics.mjs');
+const cli = path.join(root, 'schematics/bin/schematics.ts');
 const load = () => JSON.parse(fs.readFileSync(fixture, 'utf8'));
 const length = points => points.slice(1).reduce((sum, point, index) => (
   sum + Math.hypot(point[0] - points[index][0], point[1] - points[index][1])

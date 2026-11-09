@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-edge-label-color-'));
 
 const PRESETS = ['classic', 'blueprint', 'editorial'];

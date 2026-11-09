@@ -5,13 +5,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { startPreview } from '../schematics/bin/preview.mjs';
+import { startPreview } from '../schematics/bin/preview.ts';
 import { loadDiagram, writeDiagram } from '../schematics/packages/svg/cli.ts';
 import { pathsAlias } from '../schematics/packages/output/output-path.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..', 'schematics');
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 const workflowFixture = path.join(skillRoot, 'examples/agent-tool-call.workflow.json');
 const baseFixture = path.join(skillRoot, 'examples/checkout-platform.base.architecture.json');
 const headFixture = path.join(skillRoot, 'examples/checkout-platform.head.architecture.json');
@@ -272,7 +272,7 @@ test('deliver rechecks aliases immediately before committing a verified candidat
   fs.mkdirSync(installedShared, { recursive: true });
   fs.mkdirSync(installedRenderer, { recursive: true });
   fs.mkdirSync(installedScripts, { recursive: true });
-  fs.copyFileSync(cli, path.join(installedBin, 'schematics.mjs'));
+  fs.copyFileSync(cli, path.join(installedBin, 'schematics.ts'));
   fs.copyFileSync(
     path.join(skillRoot, 'packages/output/output-path.ts'),
     path.join(installedShared, 'output-path.ts'),
@@ -293,7 +293,7 @@ test('deliver rechecks aliases immediately before committing a verified candidat
     path.join(skillRoot, 'packages/output/sidecar-path.ts'),
     path.join(installedShared, 'sidecar-path.ts'),
   );
-  fs.writeFileSync(path.join(installedRenderer, 'render-workflow.mjs'), `
+  fs.writeFileSync(path.join(installedRenderer, 'render-workflow.ts'), `
 import fs from 'node:fs';
 const [, output] = process.argv.slice(2);
 fs.writeFileSync(process.env.SCHEMATICS_TEST_RENDER_STARTED, output);
@@ -331,7 +331,7 @@ export const checkArtifact = () => ({
   const release = path.join(cwd, 'renderer-release');
 
   const child = spawn(process.execPath, [
-    path.join(installedBin, 'schematics.mjs'),
+    path.join(installedBin, 'schematics.ts'),
     'deliver', 'workflow', input, output, '--json',
   ], {
     cwd,
@@ -999,7 +999,7 @@ test('compare rechecks every target immediately before committing the artifact p
   for (const directory of [installedBin, installedShared, installedRenderer, installedScripts, installedDelta]) {
     fs.mkdirSync(directory, { recursive: true });
   }
-  fs.copyFileSync(cli, path.join(installedBin, 'schematics.mjs'));
+  fs.copyFileSync(cli, path.join(installedBin, 'schematics.ts'));
   fs.copyFileSync(
     path.join(skillRoot, 'packages/output/output-path.ts'),
     path.join(installedShared, 'output-path.ts'),
@@ -1020,7 +1020,7 @@ test('compare rechecks every target immediately before committing the artifact p
     path.join(skillRoot, 'packages/output/sidecar-path.ts'),
     path.join(installedShared, 'sidecar-path.ts'),
   );
-  fs.writeFileSync(path.join(installedRenderer, 'render-architecture.mjs'), `
+  fs.writeFileSync(path.join(installedRenderer, 'render-architecture.ts'), `
 import fs from 'node:fs';
 import path from 'node:path';
 const [, output] = process.argv.slice(2);
@@ -1078,7 +1078,7 @@ export const validateArchitectureDeltaHtml = () => ({ checksPassed: 1, checkCoun
   const marker = path.join(cwd, 'renderer-started');
 
   const child = spawn(process.execPath, [
-    path.join(installedBin, 'schematics.mjs'),
+    path.join(installedBin, 'schematics.ts'),
     'compare', 'architecture', base, head, output, '--json',
   ], {
     cwd,
@@ -1117,7 +1117,7 @@ test('doctor reports a missing output-path safety runtime in an installed skill'
   copyInstalledSkill(installedRoot);
   fs.rmSync(path.join(installedRoot, 'packages/output/output-path.ts'));
 
-  const result = spawnSync(process.execPath, [path.join(installedRoot, 'bin/schematics.mjs'), 'doctor'], {
+  const result = spawnSync(process.execPath, [path.join(installedRoot, 'bin/schematics.ts'), 'doctor'], {
     cwd: installedRoot,
     encoding: 'utf8',
   });
@@ -1137,7 +1137,7 @@ for (const [relative, label] of [
     copyInstalledSkill(installedRoot);
     fs.rmSync(path.join(installedRoot, relative));
 
-    const result = spawnSync(process.execPath, [path.join(installedRoot, 'bin/schematics.mjs'), 'doctor'], {
+    const result = spawnSync(process.execPath, [path.join(installedRoot, 'bin/schematics.ts'), 'doctor'], {
       cwd: installedRoot,
       encoding: 'utf8',
     });

@@ -5,6 +5,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import type * as AtomicOutput from '../packages/output/atomic-output.ts';
+import type * as PathSemantics from '../packages/output/path-semantics.ts';
+import type * as SidecarPath from '../packages/output/sidecar-path.ts';
+import type { LaunchReceipt } from './open-artifact.ts';
+import type * as VisualCheck from './visual-check.ts';
+import type { WorkflowMigrationResult } from '../packages/migrations/workflow-v2.ts';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..');
 
@@ -16,13 +22,380 @@ const DELIVERY_SIDECAR_SUFFIXES = Object.freeze([
 ]);
 const COMPARE_SIDECAR_SUFFIXES = Object.freeze(['.receipt.json']);
 const DELIVERY_DIRECTORY_LOCK = '.schematics-delivery-lock.json';
-let sidecarNamespaceComponentKeyRuntime;
-let boundedSidecarStem;
-let isBoundedSidecarStem;
-let sidecarStemFromComponent;
-let sidecarStemNeedsBounding;
 
-async function loadSidecarPathRuntime() {
+type JsonRecord = Record<string, unknown>;
+
+interface Diagnostic {
+  code: string;
+  severity?: string;
+  message?: string;
+  subject?: { path?: string; [detail: string]: unknown };
+  evidence?: JsonRecord;
+  supportedFixes?: string[];
+  edits?: unknown[];
+  [detail: string]: unknown;
+}
+
+interface ReasonLike {
+  code?: string;
+  [detail: string]: unknown;
+}
+
+interface RelationLike {
+  status?: string;
+  reason?: ReasonLike;
+  recoveryFile?: string;
+  recoveryDirectory?: string;
+}
+
+interface RecoveryFile {
+  label?: string;
+  path?: unknown;
+  target?: unknown;
+  [detail: string]: unknown;
+}
+
+interface RecoveryInfo {
+  recoveryRequired?: boolean;
+  recoveryDirectory?: string;
+  recoveryFiles?: RecoveryFile[];
+  rollbackErrors?: Array<string | undefined>;
+  [detail: string]: unknown;
+}
+
+interface CommitDetails {
+  reason?: string;
+  recoveryRequired?: boolean;
+  recoveryDirectory?: string;
+  recoverableBackups?: unknown[];
+  rollbackErrors?: Array<string | undefined>;
+  [detail: string]: unknown;
+}
+
+interface DiagnosticInput {
+  code: string;
+  message?: string;
+  subject?: Diagnostic['subject'];
+  evidence?: JsonRecord;
+  supportedFixes?: string[];
+  edits?: unknown;
+  severity?: string;
+}
+
+type PathsAlias = (left: string, right: string) => boolean;
+
+type PathIdentityRuntime = FileBindingRuntime & {
+  sameEntry?: typeof PathSemantics.sameEntry;
+  error?: unknown;
+};
+
+interface SidecarBinding {
+  path: string;
+  identity: { device: bigint; inode: bigint };
+  content: { sha256: string; bytes: number };
+  mode: number;
+}
+
+interface ProvenanceInspection {
+  sidecar?: SidecarBinding;
+}
+
+interface RunNodeOptions {
+  cwd?: string;
+  stdio?: childProcess.StdioOptions;
+  maxBuffer?: number;
+  env?: Record<string, string | undefined>;
+}
+
+type NodeRunResult = childProcess.SpawnSyncReturns<string> & { schematicsRawStatus?: number | null };
+
+interface CheckerIssue {
+  code: string;
+  severity?: string;
+  relationship?: unknown;
+  nodeId?: unknown;
+  detail?: unknown;
+  sourceFontPx?: unknown;
+  availableDiagramWidth?: unknown;
+  minimumProjectedFontPx?: unknown;
+  viewBoxWidth?: unknown;
+  budgetBasis?: unknown;
+  budgetLimit?: unknown;
+}
+
+interface CheckerReceipt {
+  ok?: boolean;
+  family?: string;
+  diagnostics?: readonly DiagnosticInput[];
+  composition?: { issues?: readonly CheckerIssue[] };
+  checks?: ReadonlyArray<{ name: string; ok?: boolean; details?: string[] }>;
+}
+
+interface CompareFailureDetails {
+  side?: string;
+  path?: string;
+  supportedFixes?: string[];
+  recoveryFiles?: CompareRecoveryFile[];
+  [detail: string]: unknown;
+}
+
+interface CompareFailure {
+  stage: string;
+  code: string;
+  message: string;
+  details: CompareFailureDetails;
+}
+
+interface CompareTarget {
+  label: string;
+  capture: AtomicOutput.CapturedAtomicOutput;
+  candidate: string;
+  content: DeliveryContent;
+  backup: string;
+  candidateBinding?: AtomicOutput.RegularFileBinding;
+  candidatePresent?: boolean;
+  candidateIdentity?: { dev: bigint; ino: bigint };
+  candidateMode?: number;
+  previousBinding?: AtomicOutput.RegularFileBinding;
+  backupPresent?: boolean;
+  backupVerified?: boolean;
+  backupRecovery?: string;
+  committedIdentity?: { dev: bigint; ino: bigint };
+}
+
+interface CompareRecoveryFile {
+  backup: string | undefined;
+  target: string;
+  verifiedPrevious?: boolean;
+}
+
+interface ExplainerInputOptions {
+  quality?: string;
+  writingMode?: string;
+  repoRoot?: string;
+}
+
+function present<T>(value: T | undefined): T {
+  if (value === undefined) throw new TypeError('The regular-file binding runtime is unavailable.');
+  return value;
+}
+
+function contentBuffer(capture: AtomicOutput.CapturedRegularFile): Buffer {
+  const buffer = capture.content.buffer;
+  if (!buffer) throw new TypeError('The captured file content is unavailable.');
+  return buffer;
+}
+
+function truthy<T>(value: T): value is Exclude<T, null | undefined | false | 0 | ''> {
+  return Boolean(value);
+}
+
+type RequestedCapture = ReturnType<typeof AtomicOutput.captureAtomicOutput> & { requestedPath: string };
+
+interface DeliveryFailureOptions {
+  output?: string;
+  stage?: string;
+  input: string;
+  error?: unknown;
+  receiptId: string;
+  pathsAlias: PathsAlias;
+  ownership?: DeliveryOwnership;
+  releaseOwnership?: boolean;
+  legacyOutputPaths?: Array<string | undefined>;
+  captureAtomicOutput?: typeof AtomicOutput.captureAtomicOutput;
+  verifyAtomicOutput?: typeof AtomicOutput.verifyAtomicOutput;
+  fileBindingRuntime?: FileBindingRuntime;
+  recoveryDirectory?: string;
+}
+
+interface DeliveryRecord {
+  ok?: boolean;
+  status?: string;
+  diagnostic?: Diagnostic;
+  journalRecovery?: unknown;
+  provenanceRecovery?: unknown;
+  ownershipError?: unknown;
+  lockError?: unknown;
+  [detail: string]: unknown;
+}
+
+interface SchematicsFault {
+  message?: string;
+  cause?: unknown;
+  code?: string;
+  checker?: unknown;
+  compareCode?: string;
+  compareDetails?: CompareFailureDetails;
+  compareFailure?: CompareFailure;
+  compareStage?: string;
+  compareStatus?: number;
+  deliveryCommitDetails?: CommitDetails;
+  deliveryLockOwner?: JsonRecord;
+  deliveryFailureRecord?: DeliveryRecord;
+  deliveryJournalRecovery?: RecoveryInfo;
+  deliveryJournalRemovalState?: unknown;
+  deliveryJournalState?: RelationLike;
+  deliveryLockCode?: string;
+  deliveryLockPath?: string;
+  deliveryOwnershipCode?: string;
+  deliveryOwnershipDetails?: JsonRecord;
+  deliveryProvenance?: DeliveryProvenanceResult;
+  deliveryProvenanceRecovery?: RecoveryInfo;
+  deliveryTargetState?: RelationLike;
+  details?: JsonRecord;
+  diagnostics?: Diagnostic[];
+  finalizeCode?: string;
+  finalizeEvidence?: unknown;
+  lockCleanupError?: unknown;
+  schematicsArgument?: CliArgumentDetails;
+  schematicsDiagnostics?: Diagnostic[];
+  sidecarNamespaceReason?: ReasonLike;
+  stagingCapture?: unknown;
+}
+
+type SchematicsError = Error & SchematicsFault;
+
+interface CliArgumentDetails {
+  code?: string;
+  subject?: JsonRecord;
+  evidence?: JsonRecord;
+  supportedFixes?: string[];
+}
+
+interface ArtifactFailureReport {
+  command: string;
+  json?: boolean;
+  stage?: string;
+  type?: string;
+  input?: string;
+  output?: string;
+  error?: unknown;
+  diagnostics?: unknown[];
+  status?: number;
+  checker?: unknown;
+  receiptId?: string;
+  provenance?: unknown;
+}
+
+type DeliveryFailureReport = Omit<ArtifactFailureReport, 'command' | 'receiptId'>
+  & Omit<DeliveryFailureOptions, 'receiptId'>
+  & { receiptId?: string };
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === 'object' && value !== null;
+}
+
+function isFault(value: unknown): value is SchematicsFault {
+  return typeof value === 'object' && value !== null;
+}
+
+function fault(value: unknown): SchematicsFault {
+  return isFault(value) ? value : {};
+}
+
+function recordOrEmpty(value: unknown): JsonRecord {
+  return isRecord(value) ? value : {};
+}
+
+function field(value: unknown, key: string): unknown {
+  return isRecord(value) ? value[key] : undefined;
+}
+
+interface DeliveryContent {
+  sha256: string;
+  bytes: number;
+}
+
+interface OwnedDeliveryLock {
+  path: string;
+  identity: { dev: bigint; ino: bigint; mode: bigint };
+  content?: DeliveryContent;
+  descriptor?: number;
+}
+
+interface DeliveryOwnershipState {
+  output: string;
+  lockPath: string;
+  pendingPath: string;
+  provenancePath: string;
+  receiptId: string;
+  pid: number;
+  ownedLocks: OwnedDeliveryLock[];
+  fileBindingRuntime?: FileBindingRuntime;
+  phase: string;
+  pendingIdentity?: { dev: bigint; ino: bigint; mode: number };
+  pendingContent?: DeliveryContent;
+  verifyAtomicOutput?: typeof AtomicOutput.verifyAtomicOutput;
+  deliveryTargets?: { artifact: DeliveryTargetCapture; provenance: DeliveryTargetCapture };
+}
+
+type DeliveryTargetCapture = AtomicOutput.CapturedAtomicOutput & { requestedPath: string };
+
+interface DeliveryPairTarget {
+  label: string;
+  target: string;
+  candidate: string;
+  content: DeliveryContent;
+  backup: string;
+  capture: DeliveryTargetCapture;
+  candidateBinding?: AtomicOutput.RegularFileBinding;
+  candidatePresent?: boolean;
+  candidateIdentity?: { dev: bigint; ino: bigint };
+  candidateMode?: number;
+  previousBinding?: AtomicOutput.RegularFileBinding;
+  backupPresent?: boolean;
+  backupVerified?: boolean;
+  committedIdentity?: { dev: bigint; ino: bigint };
+}
+
+type DeliveryOwnership = object;
+
+type CaptureResult = ReturnType<typeof AtomicOutput.captureRegularFileBinding>;
+
+interface PublishedRegularFile {
+  identity: AtomicOutput.CapturedRegularFile['identity'];
+  content: AtomicOutput.CapturedRegularFile['content'];
+}
+
+const UNBOUND_FILE: AtomicOutput.RegularFileBinding = Object.freeze({});
+
+const INVALID_FILE_IDENTITY = Object.freeze({ device: 0n, inode: 0n });
+
+function bindingOf(capture: CaptureResult | undefined): AtomicOutput.RegularFileBinding {
+  return capture?.status === 'captured' ? capture.binding : UNBOUND_FILE;
+}
+
+function requiredPath(value: unknown): string {
+  if (typeof value !== 'string') throw new TypeError('A recovery path is unavailable.');
+  return value;
+}
+
+interface StagingEntry {
+  filePath: string;
+  binding: AtomicOutput.RegularFileBinding;
+  subject: string;
+  expectedLinks: number;
+}
+
+interface StagingIdentity {
+  device: bigint;
+  inode: bigint;
+}
+
+interface OwnedEntryIdentity {
+  dev: bigint;
+  ino: bigint;
+  mode: bigint | number;
+}
+type FileBindingRuntime = Partial<typeof AtomicOutput>;
+
+let sidecarNamespaceComponentKeyRuntime: typeof PathSemantics.sidecarNamespaceComponentKey | undefined;
+let boundedSidecarStem: typeof SidecarPath.boundedSidecarStem;
+let isBoundedSidecarStem: typeof SidecarPath.isBoundedSidecarStem;
+let sidecarStemFromComponent: typeof SidecarPath.sidecarStemFromComponent;
+let sidecarStemNeedsBounding: typeof SidecarPath.sidecarStemNeedsBounding;
+
+async function loadSidecarPathRuntime(): Promise<void> {
   ({
     boundedSidecarStem,
     isBoundedSidecarStem,
@@ -31,12 +404,12 @@ async function loadSidecarPathRuntime() {
   } = await import('../packages/output/sidecar-path.ts'));
 }
 
-function deliverySidecarNamespace(artifactPath) {
+function deliverySidecarNamespace(artifactPath: string) {
   let artifact = path.resolve(artifactPath);
   try {
     artifact = fs.realpathSync.native(artifact);
   } catch (error) {
-    if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR') throw error;
+    if (fault(error).code !== 'ENOENT' && fault(error).code !== 'ENOTDIR') throw error;
   }
   if (typeof sidecarNamespaceComponentKeyRuntime !== 'function') {
     throw new Error('The sidecar namespace runtime is unavailable.');
@@ -46,7 +419,7 @@ function deliverySidecarNamespace(artifactPath) {
     path.basename(artifact),
   );
   if (namespace.status !== 'resolved') {
-    const error = new Error(
+    const error: SchematicsError = new Error(
       `Could not establish a stable sidecar namespace (${namespace.reason?.code || 'unknown'}).`,
     );
     error.code = 'SCHEMATICS_SIDECAR_NAMESPACE_INDETERMINATE';
@@ -56,7 +429,7 @@ function deliverySidecarNamespace(artifactPath) {
   return { directory: namespace.directoryPath, ...sidecarStemFromComponent(namespace.componentKey) };
 }
 
-function deliverySidecarPath(artifactPath, suffix) {
+function deliverySidecarPath(artifactPath: string, suffix: string): string {
   const { directory, stem, options } = deliverySidecarNamespace(artifactPath);
   return path.join(
     directory,
@@ -64,15 +437,15 @@ function deliverySidecarPath(artifactPath, suffix) {
   );
 }
 
-function deliveryProvenancePath(artifactPath) {
+function deliveryProvenancePath(artifactPath: string): string {
   return deliverySidecarPath(artifactPath, '.delivery.json');
 }
 
-function deliveryPendingPath(artifactPath) {
+function deliveryPendingPath(artifactPath: string): string {
   return deliverySidecarPath(artifactPath, '.delivery-pending.json');
 }
 
-function rawHeadDeliverySidecarPath(artifactPath, suffix) {
+function rawHeadDeliverySidecarPath(artifactPath: string, suffix: string): string | undefined {
   const { directory, stem, options } = deliverySidecarNamespace(artifactPath);
   if (options?.force) return undefined;
   if (sidecarStemNeedsBounding(stem, DELIVERY_SIDECAR_SUFFIXES)
@@ -80,20 +453,20 @@ function rawHeadDeliverySidecarPath(artifactPath, suffix) {
   return path.join(directory, `${stem}${suffix}`);
 }
 
-function rawHeadDeliveryProvenancePath(artifactPath) {
+function rawHeadDeliveryProvenancePath(artifactPath: string): string | undefined {
   return rawHeadDeliverySidecarPath(artifactPath, '.delivery.json');
 }
 
-function rawHeadDeliveryPendingPath(artifactPath) {
+function rawHeadDeliveryPendingPath(artifactPath: string): string | undefined {
   return rawHeadDeliverySidecarPath(artifactPath, '.delivery-pending.json');
 }
 
-function legacyExtensionDeliverySidecarPath(artifactPath, suffix) {
+function legacyExtensionDeliverySidecarPath(artifactPath: string, suffix: string): string | undefined {
   let artifact = path.resolve(artifactPath);
   try {
     artifact = fs.realpathSync.native(artifact);
   } catch (error) {
-    if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR') throw error;
+    if (fault(error).code !== 'ENOENT' && fault(error).code !== 'ENOTDIR') throw error;
   }
   const component = path.basename(artifact);
   if (!/\.html$/iu.test(component) || component.endsWith('.html')) return undefined;
@@ -104,23 +477,23 @@ function legacyExtensionDeliverySidecarPath(artifactPath, suffix) {
   return path.join(path.dirname(artifact), legacyComponent);
 }
 
-function canonicalExistingDeliveryOutput(outputPath) {
+function canonicalExistingDeliveryOutput(outputPath: string): string {
   const output = path.resolve(outputPath);
   try {
     return fs.realpathSync.native(output);
   } catch (error) {
-    if (error?.code === 'ENOENT' || error?.code === 'ENOTDIR') return output;
+    if (fault(error).code === 'ENOENT' || fault(error).code === 'ENOTDIR') return output;
     throw error;
   }
 }
 
-function legacyDeliveryLockPath(artifactPath) {
+function legacyDeliveryLockPath(artifactPath: string): string {
   const artifact = path.resolve(artifactPath);
   return `${artifact.replace(/\.html?$/i, '')}.delivery-lock.json`;
 }
 
-function legacyDeliveryLockPaths(artifactPaths) {
-  const paths = [];
+function legacyDeliveryLockPaths(artifactPaths: readonly string[]): string[] {
+  const paths: string[] = [];
   for (const artifactPath of artifactPaths) {
     const lockPath = legacyDeliveryLockPath(artifactPath);
     const name = path.basename(lockPath);
@@ -132,7 +505,7 @@ function legacyDeliveryLockPaths(artifactPaths) {
   return paths;
 }
 
-function deliveryLockPath(artifactPath) {
+function deliveryLockPath(artifactPath: string): string {
   // A directory-wide mutex is deliberately conservative. Future 8.3, case,
   // and Unicode aliases cannot be assigned a sound canonical filename before
   // the artifact exists, so a per-artifact lock can split one delivery into
@@ -142,43 +515,43 @@ function deliveryLockPath(artifactPath) {
   try {
     directory = path.dirname(fs.realpathSync.native(artifact));
   } catch (error) {
-    if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR') throw error;
+    if (fault(error).code !== 'ENOENT' && fault(error).code !== 'ENOTDIR') throw error;
     const authoredDirectory = path.dirname(artifact);
     try {
       directory = fs.realpathSync.native(authoredDirectory);
     } catch (directoryError) {
-      if (directoryError?.code !== 'ENOENT' && directoryError?.code !== 'ENOTDIR') throw directoryError;
+      if (fault(directoryError).code !== 'ENOENT' && fault(directoryError).code !== 'ENOTDIR') throw directoryError;
       directory = authoredDirectory;
     }
   }
   return path.join(directory, DELIVERY_DIRECTORY_LOCK);
 }
 
-function deliveryLockInvalid(lockPath) {
+function deliveryLockInvalid(lockPath: string): Error {
   return Object.assign(new Error(`Unrecognized delivery lock at "${lockPath}"; inspect the existing entry before retrying.`), {
     deliveryLockCode: 'delivery/lock-invalid',
     deliveryLockPath: lockPath,
   });
 }
 
-function regularDeliveryLockExists(lockPath) {
+function regularDeliveryLockExists(lockPath: string): boolean {
   try {
     if (!fs.lstatSync(lockPath).isFile()) throw deliveryLockInvalid(lockPath);
     return true;
   } catch (error) {
-    if (error.deliveryLockCode) throw error;
-    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return false;
+    if (fault(error).deliveryLockCode) throw error;
+    if (fault(error).code === 'ENOENT' || fault(error).code === 'ENOTDIR') return false;
     throw deliveryLockInvalid(lockPath);
   }
 }
 
-function rejectExistingDeliveryLock(lockPath, output, fileBindingRuntime) {
+function rejectExistingDeliveryLock(lockPath: string, output: string, fileBindingRuntime: FileBindingRuntime | undefined): never {
   const {
     captureRegularFileBinding,
     releaseRegularFileBinding,
   } = fileBindingRuntime || {};
-  let lock;
-  let captured;
+  let lock: { schemaVersion?: unknown; pid: number; receiptId: string };
+  let captured: ReturnType<typeof AtomicOutput.captureRegularFileBinding> | undefined;
   try {
     if (typeof captureRegularFileBinding !== 'function'
       || typeof releaseRegularFileBinding !== 'function') {
@@ -190,7 +563,7 @@ function rejectExistingDeliveryLock(lockPath, output, fileBindingRuntime) {
       includeContent: true,
     });
     if (captured.status !== 'captured') throw new Error('Not a stable regular lock file.');
-    lock = JSON.parse(captured.content.buffer.toString('utf8'));
+    lock = JSON.parse(String(captured.content.buffer?.toString('utf8')));
     if (lock?.schemaVersion !== 1 || !Number.isSafeInteger(lock.pid) || lock.pid <= 0
       || typeof lock.receiptId !== 'string'
       || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(lock.receiptId)) {
@@ -199,7 +572,7 @@ function rejectExistingDeliveryLock(lockPath, output, fileBindingRuntime) {
   } catch {
     throw deliveryLockInvalid(lockPath);
   } finally {
-    if (captured?.binding) releaseRegularFileBinding(captured.binding);
+    if (captured?.status === 'captured') releaseRegularFileBinding?.(captured.binding);
   }
   if (processIsRunning(lock.pid)) {
     throw Object.assign(new Error(`Another delivery attempt owns "${output}" through lock "${lockPath}".`), {
@@ -214,20 +587,20 @@ function rejectExistingDeliveryLock(lockPath, output, fileBindingRuntime) {
   });
 }
 
-function processIsRunning(pid) {
+function processIsRunning(pid: number): boolean {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
     process.kill(pid, 0);
     return true;
   } catch (error) {
-    return error.code !== 'ESRCH';
+    return fault(error).code !== 'ESRCH';
   }
 }
 
-const deliveryOwnershipStates = new WeakMap();
+const deliveryOwnershipStates = new WeakMap<DeliveryOwnership, DeliveryOwnershipState>();
 
-function deliveryOwnershipFailure(state, operation, reason, evidence = {}) {
-  const error = new Error(`Delivery ownership was lost while attempting to ${operation}: ${reason}`);
+function deliveryOwnershipFailure(state: DeliveryOwnershipState | undefined, operation: string, reason: string, evidence: JsonRecord = {}): SchematicsError {
+  const error: SchematicsError = new Error(`Delivery ownership was lost while attempting to ${operation}: ${reason}`);
   error.deliveryOwnershipCode = 'delivery/ownership-lost';
   error.deliveryOwnershipDetails = {
     operation,
@@ -240,7 +613,7 @@ function deliveryOwnershipFailure(state, operation, reason, evidence = {}) {
   return error;
 }
 
-function deliveryOwnershipState(ownership, operation) {
+function deliveryOwnershipState(ownership: DeliveryOwnership, operation: string): DeliveryOwnershipState {
   const state = deliveryOwnershipStates.get(ownership);
   if (!state) throw deliveryOwnershipFailure(undefined, operation, 'the ownership capability is invalid');
   if (state.phase === 'lost' || state.phase === 'released') {
@@ -249,20 +622,30 @@ function deliveryOwnershipState(ownership, operation) {
   return state;
 }
 
-function sameFileIdentity(actual, expected) {
-  const hasIdentity = (entry) => entry?.ino !== undefined && entry.ino !== 0 && entry.ino !== 0n;
+interface ComparableIdentity {
+  dev: bigint | number;
+  ino: bigint | number;
+}
+
+function sameFileIdentity(actual: ComparableIdentity | undefined, expected: ComparableIdentity | undefined): boolean {
+  const hasIdentity = (entry: ComparableIdentity | undefined): entry is ComparableIdentity => entry?.ino !== undefined && entry.ino !== 0 && entry.ino !== 0n;
   return hasIdentity(actual)
     && hasIdentity(expected)
     && actual.dev === expected.dev
     && actual.ino === expected.ino;
 }
 
-function assertOwnedDeliveryLock(state, ownedLock, operation, { verifyReceipt = true } = {}) {
+function assertOwnedDeliveryLock(
+  state: DeliveryOwnershipState,
+  ownedLock: OwnedDeliveryLock,
+  operation: string,
+  { verifyReceipt = true }: { verifyReceipt?: boolean } = {},
+): void {
   const {
     captureRegularFileBinding,
     releaseRegularFileBinding,
   } = state?.fileBindingRuntime || {};
-  let captured;
+  let captured: ReturnType<typeof AtomicOutput.captureRegularFileBinding>;
   try {
     if (typeof captureRegularFileBinding !== 'function'
       || typeof releaseRegularFileBinding !== 'function') {
@@ -281,27 +664,27 @@ function assertOwnedDeliveryLock(state, ownedLock, operation, { verifyReceipt = 
   } catch (error) {
     throw deliveryOwnershipFailure(state, operation, 'an owned lock entry can no longer be inspected', {
       lock: ownedLock.path,
-      ...(error?.code ? { systemCode: error.code } : {}),
+      ...(fault(error).code ? { systemCode: fault(error).code } : {}),
     });
   }
   if (captured.status !== 'captured'
     || captured.identity.device !== ownedLock.identity.dev
     || captured.identity.inode !== ownedLock.identity.ino) {
-    if (captured?.binding) releaseRegularFileBinding(captured.binding);
+    if (captured.status === 'captured') releaseRegularFileBinding?.(captured.binding);
     throw deliveryOwnershipFailure(state, operation, 'an owned lock path no longer names the entry created by this attempt', {
       lock: ownedLock.path,
-      ...(captured?.reason ? { lockState: captured.reason } : {}),
+      ...(captured.status !== 'captured' && captured.reason ? { lockState: captured.reason } : {}),
     });
   }
   try {
     if (!verifyReceipt) return;
     let lock;
     try {
-      lock = JSON.parse(captured.content.buffer.toString('utf8'));
+      lock = JSON.parse(String(captured.content.buffer?.toString('utf8')));
     } catch (error) {
       throw deliveryOwnershipFailure(state, operation, 'an owned lock receipt can no longer be verified', {
         lock: ownedLock.path,
-        ...(error?.code ? { systemCode: error.code } : {}),
+        ...(fault(error).code ? { systemCode: fault(error).code } : {}),
       });
     }
     if (lock?.schemaVersion !== 1 || lock.receiptId !== state.receiptId || lock.pid !== state.pid) {
@@ -313,11 +696,15 @@ function assertOwnedDeliveryLock(state, ownedLock, operation, { verifyReceipt = 
   } catch (error) {
     throw error;
   } finally {
-    releaseRegularFileBinding(captured.binding);
+    releaseRegularFileBinding?.(captured.binding);
   }
 }
 
-function assertDeliveryOwnership(ownership, operation, { allowInitializing = false, pending = 'ignore' } = {}) {
+function assertDeliveryOwnership(
+  ownership: DeliveryOwnership,
+  operation: string,
+  { allowInitializing = false, pending = 'ignore' }: { allowInitializing?: boolean; pending?: string } = {},
+): DeliveryOwnershipState {
   const state = deliveryOwnershipState(ownership, operation);
   const verifyReceipt = !allowInitializing || !['acquiring', 'initializing'].includes(state.phase);
   for (const ownedLock of state.ownedLocks) {
@@ -329,10 +716,10 @@ function assertDeliveryOwnership(ownership, operation, { allowInitializing = fal
       try {
         fs.lstatSync(pendingPath);
       } catch (error) {
-        if (error.code === 'ENOENT') return state;
+        if (fault(error).code === 'ENOENT') return state;
         throw deliveryOwnershipFailure(state, operation, 'the finalized delivery journal can no longer be inspected', {
           journal: pendingPath,
-          ...(error?.code ? { systemCode: error.code } : {}),
+          ...(fault(error).code ? { systemCode: fault(error).code } : {}),
         });
       }
       throw deliveryOwnershipFailure(state, operation, 'the finalized delivery journal was recreated', { journal: pendingPath });
@@ -341,7 +728,7 @@ function assertDeliveryOwnership(ownership, operation, { allowInitializing = fal
       captureRegularFileBinding,
       releaseRegularFileBinding,
     } = state.fileBindingRuntime || {};
-    let captured;
+    let captured: ReturnType<typeof AtomicOutput.captureRegularFileBinding>;
     try {
       if (typeof captureRegularFileBinding !== 'function'
         || typeof releaseRegularFileBinding !== 'function') {
@@ -358,24 +745,24 @@ function assertDeliveryOwnership(ownership, operation, { allowInitializing = fal
     } catch (error) {
       throw deliveryOwnershipFailure(state, operation, 'the owned delivery journal can no longer be inspected', {
         journal: pendingPath,
-        ...(error?.code ? { systemCode: error.code } : {}),
+        ...(fault(error).code ? { systemCode: fault(error).code } : {}),
       });
     }
     if (captured.status !== 'captured'
       || !state.pendingIdentity
       || captured.identity.device !== state.pendingIdentity.dev
       || captured.identity.inode !== state.pendingIdentity.ino) {
-      if (captured?.binding) releaseRegularFileBinding(captured.binding);
+      if (captured.status === 'captured') releaseRegularFileBinding?.(captured.binding);
       throw deliveryOwnershipFailure(state, operation, 'the delivery journal no longer names the entry created by this attempt', {
         journal: pendingPath,
-        ...(captured?.reason ? { journalState: captured.reason } : {}),
+        ...(captured.status !== 'captured' && captured.reason ? { journalState: captured.reason } : {}),
       });
     }
     try {
       if (pending === 'owned') {
         let journal;
         try {
-          journal = JSON.parse(captured.content.buffer.toString('utf8'));
+          journal = JSON.parse(String(captured.content.buffer?.toString('utf8')));
         } catch {
           throw deliveryOwnershipFailure(state, operation, 'the delivery journal receipt is malformed', {
             journal: pendingPath,
@@ -389,26 +776,33 @@ function assertDeliveryOwnership(ownership, operation, { allowInitializing = fal
         }
       }
     } finally {
-      releaseRegularFileBinding(captured.binding);
+      releaseRegularFileBinding?.(captured.binding);
     }
   }
   return state;
 }
 
-function quarantineRemoveOwnedDeliveryEntry(state, {
+function quarantineRemoveOwnedDeliveryEntry(state: DeliveryOwnershipState, {
   filePath,
   identity,
   content,
   subject,
   operation,
   evidenceKey,
-}) {
+}: {
+  filePath: string;
+  identity: OwnedEntryIdentity | undefined;
+  content: DeliveryContent | undefined;
+  subject: string;
+  operation: string;
+  evidenceKey: string;
+}): void {
   const {
     captureRegularFileBinding,
     quarantineRemoveRegularFileBinding,
     releaseRegularFileBinding,
   } = state?.fileBindingRuntime || {};
-  let captured;
+  let captured: ReturnType<typeof AtomicOutput.captureRegularFileBinding>;
   try {
     if (typeof captureRegularFileBinding !== 'function'
       || typeof quarantineRemoveRegularFileBinding !== 'function'
@@ -424,16 +818,16 @@ function quarantineRemoveOwnedDeliveryEntry(state, {
       expectedMode: typeof identity?.mode === 'bigint'
         ? Number(identity.mode & 0o777n)
         : identity?.mode,
-      expectedIdentity: {
-        device: identity?.dev,
-        inode: identity?.ino,
-      },
+      expectedIdentity: identity ? {
+        device: identity.dev,
+        inode: identity.ino,
+      } : INVALID_FILE_IDENTITY,
       expectedLinks: 1,
     });
   } catch (error) {
     throw deliveryOwnershipFailure(state, operation, `the owned ${subject} can no longer be captured for removal`, {
       [evidenceKey]: filePath,
-      ...(error?.code ? { systemCode: error.code } : {}),
+      ...(fault(error).code ? { systemCode: fault(error).code } : {}),
     });
   }
   if (captured.status !== 'captured') {
@@ -443,6 +837,7 @@ function quarantineRemoveOwnedDeliveryEntry(state, {
     });
   }
   try {
+    if (!quarantineRemoveRegularFileBinding) throw new Error('The regular-file binding runtime is unavailable.');
     const removed = quarantineRemoveRegularFileBinding(captured.binding, filePath, {
       subject,
       expectedLinks: 1,
@@ -453,8 +848,8 @@ function quarantineRemoveOwnedDeliveryEntry(state, {
       && ['removal-quarantine-create-failed', `${subject}-quarantine-move-failed`]
         .includes(removalCode)) {
       const detail = removed.reason?.message ? `: ${removed.reason.message}` : '';
-      const error = new Error(`The owned ${subject} could not be moved into its private removal quarantine (${removalCode})${detail}.`);
-      if (removed.reason?.systemCode) error.code = removed.reason.systemCode;
+      const error: SchematicsError = new Error(`The owned ${subject} could not be moved into its private removal quarantine (${removalCode})${detail}.`);
+      if (removed.reason?.systemCode) error.code = String(removed.reason.systemCode);
       if (subject === 'delivery-lock') {
         error.deliveryOwnershipCode = 'delivery/lock-release';
         error.deliveryOwnershipDetails = {
@@ -489,11 +884,11 @@ function quarantineRemoveOwnedDeliveryEntry(state, {
       },
     );
   } finally {
-    releaseRegularFileBinding(captured.binding);
+    releaseRegularFileBinding?.(captured.binding);
   }
 }
 
-function releaseDeliveryOwnership(ownership, { allowInitializing = false } = {}) {
+function releaseDeliveryOwnership(ownership: DeliveryOwnership, { allowInitializing = false }: { allowInitializing?: boolean } = {}): void {
   const current = deliveryOwnershipState(ownership, 'release the delivery lock');
   const pending = current.phase === 'finalized'
     ? 'absent'
@@ -517,32 +912,32 @@ function releaseDeliveryOwnership(ownership, { allowInitializing = false } = {})
 }
 
 function acquireDeliveryLock(
-  output,
-  receiptId,
-  inputPath,
-  pathsAlias,
-  recordInitializationFailure,
-  legacyOutputPaths = [],
-  fileBindingRuntime,
-) {
+  output: string,
+  receiptId: string,
+  inputPath: string,
+  pathsAlias: (left: string, right: string) => boolean,
+  recordInitializationFailure: ((error: unknown, ownership: DeliveryOwnership) => DeliveryRecord | undefined) | undefined,
+  legacyOutputPaths: ReadonlyArray<string | undefined> = [],
+  fileBindingRuntime?: FileBindingRuntime,
+): DeliveryOwnership {
   const stableOutput = canonicalExistingDeliveryOutput(output);
   const lockPath = deliveryLockPath(stableOutput);
-  const comparableLockPath = (candidate) => {
+  const comparableLockPath = (candidate: string) => {
     const absolute = path.resolve(candidate);
     try {
       return path.join(fs.realpathSync.native(path.dirname(absolute)), path.basename(absolute));
     } catch (error) {
-      if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR') throw error;
+      if (fault(error).code !== 'ENOENT' && fault(error).code !== 'ENOTDIR') throw error;
       return absolute;
     }
   };
-  const lockPathsAlias = (left, right) => {
+  const lockPathsAlias = (left: string, right: string) => {
     const comparableLeft = comparableLockPath(left);
     const comparableRight = comparableLockPath(right);
     if (!pathsAlias(path.dirname(comparableLeft), path.dirname(comparableRight))) return false;
     return pathsAlias(comparableLeft, comparableRight);
   };
-  const legacyFencePathsAlias = (left, right) => {
+  const legacyFencePathsAlias = (left: string, right: string) => {
     const comparableLeft = comparableLockPath(left);
     const comparableRight = comparableLockPath(right);
     if (comparableLeft === comparableRight) return true;
@@ -555,9 +950,9 @@ function acquireDeliveryLock(
       return false;
     }
   };
-  const legacyLockPaths = [];
+  const legacyLockPaths: string[] = [];
   for (const candidate of legacyDeliveryLockPaths([
-    ...legacyOutputPaths.filter(Boolean),
+    ...legacyOutputPaths.filter((candidate): candidate is string => Boolean(candidate)),
     output,
     stableOutput,
   ])) {
@@ -578,12 +973,13 @@ function acquireDeliveryLock(
       deliveryLockPath: conflictingLockPath,
     });
   }
-  if (existingLegacyLocks.length) {
-    rejectExistingDeliveryLock(existingLegacyLocks[0], output, fileBindingRuntime);
+  const [existingLegacyLock] = existingLegacyLocks;
+  if (existingLegacyLock !== undefined) {
+    rejectExistingDeliveryLock(existingLegacyLock, output, fileBindingRuntime);
   }
-  const openedLocks = [];
+  const openedLocks: OwnedDeliveryLock[] = [];
   const ownership = Object.freeze({});
-  deliveryOwnershipStates.set(ownership, {
+  const acquiredState: DeliveryOwnershipState = {
     output: stableOutput,
     lockPath,
     pendingPath,
@@ -593,15 +989,16 @@ function acquireDeliveryLock(
     ownedLocks: openedLocks,
     fileBindingRuntime,
     phase: 'acquiring',
-  });
-  let collisionPath;
+  };
+  deliveryOwnershipStates.set(ownership, acquiredState);
+  let collisionPath: string | undefined;
   try {
-    const openOwnedLock = (ownedLockPath, { allowOwnedAlias = false } = {}) => {
-      let descriptor;
+    const openOwnedLock = (ownedLockPath: string, { allowOwnedAlias = false }: { allowOwnedAlias?: boolean } = {}) => {
+      let descriptor: number;
       try {
         descriptor = fs.openSync(ownedLockPath, 'wx', 0o600);
       } catch (error) {
-        if (error.code === 'EEXIST' && allowOwnedAlias) {
+        if (fault(error).code === 'EEXIST' && allowOwnedAlias) {
           try {
             const existingEntry = fs.lstatSync(ownedLockPath, { bigint: true });
             if (existingEntry.isFile()
@@ -612,11 +1009,11 @@ function acquireDeliveryLock(
             // Preserve the original EEXIST classification below.
           }
         }
-        if (error.code === 'EEXIST') collisionPath = ownedLockPath;
+        if (fault(error).code === 'EEXIST') collisionPath = ownedLockPath;
         throw error;
       }
-      let handleIdentity;
-      let handleIdentityError;
+      let handleIdentity: fs.BigIntStats;
+      let handleIdentityError: unknown;
       try {
         handleIdentity = fs.fstatSync(descriptor, { bigint: true });
       } catch (error) {
@@ -632,7 +1029,7 @@ function acquireDeliveryLock(
           // identity it needs after the original descriptor is closed.
           const recoveryReceipt = `${JSON.stringify({ schemaVersion: 1, receiptId, pid: process.pid })}\n`;
           const recoveryContent = artifactIdentity(Buffer.from(recoveryReceipt));
-          let captured;
+          let captured: ReturnType<typeof AtomicOutput.captureRegularFileBinding> | undefined;
           try {
             fs.writeFileSync(descriptor, recoveryReceipt);
             captured = fileBindingRuntime?.captureRegularFileBinding?.(ownedLockPath, {
@@ -643,7 +1040,7 @@ function acquireDeliveryLock(
             });
           } catch {}
           if (captured?.status === 'captured') {
-            fileBindingRuntime.releaseRegularFileBinding(captured.binding);
+            fileBindingRuntime?.releaseRegularFileBinding?.(captured.binding);
             openedLocks.push({
               path: ownedLockPath,
               identity: {
@@ -658,14 +1055,14 @@ function acquireDeliveryLock(
             try {
               fs.closeSync(descriptor);
             } catch (closeError) {
-              error.lockCleanupError = closeError.message;
+              fault(error).lockCleanupError = fault(closeError).message;
             }
           }
           throw error;
         }
         handleIdentityError = error;
       }
-      const ownedLock = {
+      const ownedLock: OwnedDeliveryLock = {
         path: ownedLockPath,
         identity: handleIdentity,
         descriptor,
@@ -688,7 +1085,7 @@ function acquireDeliveryLock(
     for (const legacyLockPath of legacyLockPaths) {
       openOwnedLock(legacyLockPath, { allowOwnedAlias: true });
     }
-    const state = deliveryOwnershipStates.get(ownership);
+    const state = acquiredState;
     if (rawHeadPendingPath && pathEntryExists(rawHeadPendingPath)) {
       throw Object.assign(new Error(`A pre-namespace delivery journal remains at "${rawHeadPendingPath}"; recover it before retrying.`), {
         deliveryLockCode: 'delivery/legacy-pending',
@@ -699,11 +1096,11 @@ function acquireDeliveryLock(
     const lockReceipt = `${JSON.stringify({ schemaVersion: 1, receiptId, pid: process.pid })}\n`;
     const lockContent = artifactIdentity(Buffer.from(lockReceipt));
     for (const ownedLock of openedLocks) {
-      fs.writeFileSync(ownedLock.descriptor, lockReceipt);
+      fs.writeFileSync(ownedDescriptor(ownedLock), lockReceipt);
       ownedLock.content = lockContent;
     }
     for (const ownedLock of openedLocks) {
-      fs.closeSync(ownedLock.descriptor);
+      fs.closeSync(ownedDescriptor(ownedLock));
       ownedLock.descriptor = undefined;
     }
     state.phase = 'owned';
@@ -715,21 +1112,23 @@ function acquireDeliveryLock(
         fs.closeSync(ownedLock.descriptor);
         ownedLock.descriptor = undefined;
       } catch (closeError) {
-        error.lockCleanupError = closeError.message;
+        fault(error).lockCleanupError = fault(closeError).message;
       }
     }
-    const state = deliveryOwnershipStates.get(ownership);
+    const state = acquiredState;
     let preserveOwnership = false;
     try {
       if (state.phase === 'initializing') {
         assertDeliveryOwnership(ownership, 'record a lock initialization failure', { allowInitializing: true });
-        error.deliveryFailureRecord = recordInitializationFailure?.(error, ownership);
-        if (error.deliveryFailureRecord?.journalRecovery) {
-          error.deliveryJournalRecovery = error.deliveryFailureRecord.journalRecovery.deliveryJournalRecovery;
+        fault(error).deliveryFailureRecord = recordInitializationFailure?.(error, ownership);
+        const journalRecovery = fault(error).deliveryFailureRecord?.journalRecovery;
+        if (journalRecovery) {
+          fault(error).deliveryJournalRecovery = fault(journalRecovery).deliveryJournalRecovery;
           preserveOwnership = true;
         }
-        if (error.deliveryFailureRecord?.provenanceRecovery) {
-          error.deliveryProvenanceRecovery = error.deliveryFailureRecord.provenanceRecovery.deliveryProvenanceRecovery;
+        const provenanceRecovery = fault(error).deliveryFailureRecord?.provenanceRecovery;
+        if (provenanceRecovery) {
+          fault(error).deliveryProvenanceRecovery = fault(provenanceRecovery).deliveryProvenanceRecovery;
           preserveOwnership = true;
         }
       }
@@ -737,39 +1136,44 @@ function acquireDeliveryLock(
         releaseDeliveryOwnership(ownership, { allowInitializing: true });
       }
     } catch (cleanupError) {
-      if (cleanupError.deliveryOwnershipCode) {
-        cleanupError.deliveryOwnershipDetails = {
-          ...(cleanupError.deliveryOwnershipDetails || {}),
-          initializationError: error.message,
-          ...(error?.code ? { initializationSystemCode: error.code } : {}),
+      if (fault(cleanupError).deliveryOwnershipCode) {
+        fault(cleanupError).deliveryOwnershipDetails = {
+          ...recordOrEmpty(fault(cleanupError).deliveryOwnershipDetails),
+          initializationError: fault(error).message,
+          ...(fault(error).code ? { initializationSystemCode: fault(error).code } : {}),
         };
-        if (cleanupError.deliveryOwnershipCode === 'delivery/lock-release' && error.deliveryFailureRecord) {
-          cleanupError.deliveryFailureRecord = error.deliveryFailureRecord;
+        if (fault(cleanupError).deliveryOwnershipCode === 'delivery/lock-release' && fault(error).deliveryFailureRecord) {
+          fault(cleanupError).deliveryFailureRecord = fault(error).deliveryFailureRecord;
         }
         throw cleanupError;
       }
-      error.lockCleanupError = cleanupError.message;
+      fault(error).lockCleanupError = fault(cleanupError).message;
     }
     if (collisionPath) rejectExistingDeliveryLock(collisionPath, output, fileBindingRuntime);
     throw error;
   }
 }
 
-function pathEntryExists(file) {
+function ownedDescriptor(ownedLock: OwnedDeliveryLock): number {
+  if (ownedLock.descriptor === undefined) throw new Error('Delivery lock descriptor is already closed.');
+  return ownedLock.descriptor;
+}
+
+function pathEntryExists(file: string): boolean {
   try {
     fs.lstatSync(file);
     return true;
   } catch (error) {
-    if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return false;
+    if (fault(error).code === 'ENOENT' || fault(error).code === 'ENOTDIR') return false;
     throw error;
   }
 }
 
-function captureOwnedStagingFile(registry, filePath, fileBindingRuntime, {
+function captureOwnedStagingFile(registry: StagingEntry[], filePath: string, fileBindingRuntime: FileBindingRuntime | undefined, {
   subject = 'private-staging-entry',
   content,
   expectedLinks = 1,
-} = {}) {
+}: { subject?: string; content?: DeliveryContent; expectedLinks?: number } = {}): AtomicOutput.CapturedRegularFile {
   const { captureRegularFileBinding } = fileBindingRuntime || {};
   if (typeof captureRegularFileBinding !== 'function') {
     throw new Error('The regular-file binding runtime is unavailable.');
@@ -785,7 +1189,7 @@ function captureOwnedStagingFile(registry, filePath, fileBindingRuntime, {
   if (captured.status === 'unsupported'
     && String(captured.reason?.code || '').endsWith('-hardlinked')
     && content) {
-    const observedLinks = Number(captured.reason?.links);
+    const observedLinks = Number(captured.reason.links);
     if (Number.isSafeInteger(observedLinks) && observedLinks > expectedLinks) {
       captured = captureRegularFileBinding(filePath, {
         subject,
@@ -797,7 +1201,7 @@ function captureOwnedStagingFile(registry, filePath, fileBindingRuntime, {
     }
   }
   if (captured.status !== 'captured') {
-    const error = new Error(`Could not bind the owned staging entry "${filePath}" (${captured.reason?.code || 'unknown state'}).`);
+    const error: SchematicsError = new Error(`Could not bind the owned staging entry "${filePath}" (${captured.reason?.code || 'unknown state'}).`);
     error.stagingCapture = captured;
     throw error;
   }
@@ -805,7 +1209,12 @@ function captureOwnedStagingFile(registry, filePath, fileBindingRuntime, {
   return captured;
 }
 
-function cleanupOwnedStagingDirectory(directory, identity, registry, fileBindingRuntime) {
+function cleanupOwnedStagingDirectory(
+  directory: string,
+  identity: StagingIdentity,
+  registry: StagingEntry[],
+  fileBindingRuntime: FileBindingRuntime | undefined,
+): void {
   const {
     quarantineRemoveRegularFileBinding,
     releaseRegularFileBinding,
@@ -814,7 +1223,7 @@ function cleanupOwnedStagingDirectory(directory, identity, registry, fileBinding
     || typeof releaseRegularFileBinding !== 'function') {
     throw new Error('The regular-file binding runtime is unavailable.');
   }
-  const failures = [];
+  const failures: string[] = [];
   for (const entry of [...registry].reverse()) {
     try {
       const removed = quarantineRemoveRegularFileBinding(entry.binding, entry.filePath, {
@@ -825,11 +1234,11 @@ function cleanupOwnedStagingDirectory(directory, identity, registry, fileBinding
       // owned inode. Every other non-removal result is deliberately preserved:
       // it may be a concurrent claimant rather than an entry we created.
       if (removed.status !== 'removed'
-        && !['ENOENT', 'ENOTDIR'].includes(removed.reason?.systemCode)) {
+        && !['ENOENT', 'ENOTDIR'].includes(String(removed.reason?.systemCode))) {
         failures.push(`${entry.filePath}: ${removed.reason?.code || removed.status}`);
       }
     } catch (error) {
-      failures.push(`${entry.filePath}: ${error.message}`);
+      failures.push(`${entry.filePath}: ${fault(error).message}`);
     } finally {
       const released = releaseRegularFileBinding(entry.binding);
       if (released.status !== 'released') {
@@ -843,12 +1252,12 @@ function cleanupOwnedStagingDirectory(directory, identity, registry, fileBinding
       failures.push(`${directory}: staging directory was retained because its identity changed`);
     }
   } catch (error) {
-    failures.push(`${directory}: ${error.message}`);
+    failures.push(`${directory}: ${fault(error).message}`);
   }
   if (failures.length) throw new Error(failures.join('; '));
 }
 
-function createOwnedEmptyStagingDirectory(prefix) {
+function createOwnedEmptyStagingDirectory(prefix: string): { directory: string; identity: StagingIdentity } {
   // Node's Windows mkdtemp binding does not consistently promote an ordinary
   // UNC prefix past MAX_PATH. Use the equivalent namespaced spelling for the
   // syscall while preserving the same physical directory identity.
@@ -863,14 +1272,14 @@ function createOwnedEmptyStagingDirectory(prefix) {
   };
 }
 
-function createStagingRetirementQuarantine(parent) {
+function createStagingRetirementQuarantine(parent: string): string | undefined {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const directory = path.join(parent, `.schematics-staging-remove-${crypto.randomUUID()}`);
     try {
       fs.mkdirSync(directory, { mode: 0o700 });
       return directory;
     } catch (error) {
-      if (error?.code !== 'EEXIST') return undefined;
+      if (fault(error).code !== 'EEXIST') return undefined;
     }
   }
   return undefined;
@@ -879,8 +1288,8 @@ function createStagingRetirementQuarantine(parent) {
 const stagingRemovalSignal = new Int32Array(new SharedArrayBuffer(4));
 const stagingRemovalAttempts = 10;
 
-function removeEmptyStagingDirectoryWithRetry(directory) {
-  let failure;
+function removeEmptyStagingDirectoryWithRetry(directory: string): void {
+  let failure: unknown;
   for (let attempt = 0; attempt < stagingRemovalAttempts; attempt += 1) {
     try {
       fs.rmdirSync(directory);
@@ -890,7 +1299,7 @@ function removeEmptyStagingDirectoryWithRetry(directory) {
       // SMB can acknowledge the last file removal before the directory view
       // catches up. Retrying an empty-directory removal is claimant-safe: any
       // real entry keeps returning ENOTEMPTY and is never removed recursively.
-      if (error?.code !== 'ENOTEMPTY' || attempt === stagingRemovalAttempts - 1) break;
+      if (fault(error).code !== 'ENOTEMPTY' || attempt === stagingRemovalAttempts - 1) break;
       Atomics.wait(
         stagingRemovalSignal,
         0,
@@ -902,7 +1311,7 @@ function removeEmptyStagingDirectoryWithRetry(directory) {
   throw failure;
 }
 
-function stagingDirectoryAppearsEmpty(directory) {
+function stagingDirectoryAppearsEmpty(directory: string): boolean {
   for (let attempt = 0; attempt < stagingRemovalAttempts; attempt += 1) {
     try {
       if (fs.readdirSync(directory).length === 0) return true;
@@ -920,12 +1329,16 @@ function stagingDirectoryAppearsEmpty(directory) {
   return false;
 }
 
-function removeOwnedEmptyStagingDirectory(directory, identity, { throwOnFailure = false } = {}) {
-  let current;
+function removeOwnedEmptyStagingDirectory(
+  directory: string,
+  identity: StagingIdentity,
+  { throwOnFailure = false }: { throwOnFailure?: boolean } = {},
+): boolean {
+  let current: fs.BigIntStats;
   try {
     current = fs.lstatSync(directory, { bigint: true });
   } catch (error) {
-    if (error?.code === 'ENOENT' || error?.code === 'ENOTDIR') return false;
+    if (fault(error).code === 'ENOENT' || fault(error).code === 'ENOTDIR') return false;
     throw error;
   }
   if (!current.isDirectory()
@@ -943,7 +1356,7 @@ function removeOwnedEmptyStagingDirectory(directory, identity, { throwOnFailure 
     if (throwOnFailure) throw error;
     return false;
   }
-  let moved;
+  let moved: fs.BigIntStats;
   try {
     moved = fs.lstatSync(movedPath, { bigint: true });
   } catch {
@@ -970,23 +1383,28 @@ function removeOwnedEmptyStagingDirectory(directory, identity, { throwOnFailure 
   }
 }
 
-function releaseOwnedStagingBindings(registry, fileBindingRuntime) {
+function releaseOwnedStagingBindings(registry: StagingEntry[], fileBindingRuntime: FileBindingRuntime | undefined): void {
   const { releaseRegularFileBinding } = fileBindingRuntime || {};
   if (typeof releaseRegularFileBinding !== 'function') return;
   for (const entry of registry) releaseRegularFileBinding(entry.binding);
   registry.length = 0;
 }
 
-function artifactIdentity(artifact) {
+function artifactIdentity(artifact: Buffer | Uint8Array): DeliveryContent {
   return { sha256: new Bun.CryptoHasher('sha256').update(artifact).digest('hex'), bytes: artifact.byteLength };
 }
 
-function beginDeliveryAttempt({ ownership, input, pathsAlias, fileBindingRuntime }) {
+function beginDeliveryAttempt({ ownership, input, pathsAlias, fileBindingRuntime }: {
+  ownership: DeliveryOwnership;
+  input: string;
+  pathsAlias: (left: string, right: string) => boolean;
+  fileBindingRuntime?: FileBindingRuntime;
+}): void {
   const state = assertDeliveryOwnership(ownership, 'begin the delivery journal', { allowInitializing: true });
   const {
     output, pendingPath: journal, provenancePath, receiptId,
   } = state;
-  for (const protectedPath of [input, output, provenancePath].filter(Boolean)) {
+  for (const protectedPath of [input, output, provenancePath].filter((entry): entry is string => Boolean(entry))) {
     if (pathsAlias(journal, protectedPath)) throw new Error('Delivery journal aliases an input or output.');
   }
   const published = writeDeliveryProvenance(journal, {
@@ -1005,7 +1423,10 @@ function beginDeliveryAttempt({ ownership, input, pathsAlias, fileBindingRuntime
   assertDeliveryOwnership(ownership, 'finish creating the delivery journal', { allowInitializing: true });
 }
 
-function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntime } = {}) {
+function writeDeliveryProvenance(file: string, value: unknown, { beforeReplace, fileBindingRuntime }: {
+  beforeReplace?: () => unknown;
+  fileBindingRuntime?: FileBindingRuntime;
+} = {}): PublishedRegularFile {
   const {
     backupPublicRegularFileBinding,
     captureRegularFileBinding,
@@ -1018,7 +1439,7 @@ function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntim
     || typeof quarantineRemoveRegularFileBinding !== 'function'
     || typeof verifyRegularFileBinding !== 'function'
     || typeof releaseRegularFileBinding !== 'function') {
-    const error = new Error('The regular-file binding runtime is unavailable.');
+    const error: SchematicsError = new Error('The regular-file binding runtime is unavailable.');
     error.deliveryJournalState = {
       status: 'unknown',
       reason: { code: 'atomic-output-runtime-unavailable' },
@@ -1033,15 +1454,15 @@ function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntim
   const backup = path.join(stagingDirectory, '.previous-journal');
   const serialized = Buffer.from(`${JSON.stringify(value, null, 2)}\n`);
   const expectedContent = artifactIdentity(serialized);
-  let candidateCapture;
-  let previousCapture;
+  let candidateCapture: ReturnType<typeof AtomicOutput.captureRegularFileBinding> | undefined;
+  let previousCapture: ReturnType<typeof AtomicOutput.captureRegularFileBinding> | undefined;
   let candidatePresent = false;
   let backupPresent = false;
   let backupVerified = false;
   let published = false;
   let retainStaging = false;
-  const bindingError = (result, action) => {
-    const error = new Error(`Could not ${action} delivery journal "${file}" safely (${result.reason?.code || 'unknown target state'}).`);
+  const bindingError = (result: RelationLike, action: string) => {
+    const error: SchematicsError = new Error(`Could not ${action} delivery journal "${file}" safely (${result.reason?.code || 'unknown target state'}).`);
     error.deliveryJournalState = result;
     return error;
   };
@@ -1061,7 +1482,7 @@ function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntim
       fs.lstatSync(file);
       existing = true;
     } catch (error) {
-      if (error?.code !== 'ENOENT' && error?.code !== 'ENOTDIR') throw error;
+      if (fault(error).code !== 'ENOENT' && fault(error).code !== 'ENOTDIR') throw error;
     }
     if (existing) {
       previousCapture = captureRegularFileBinding(file, {
@@ -1074,7 +1495,7 @@ function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntim
     }
     beforeReplace?.();
     if (previousCapture) {
-      const moved = backupPublicRegularFileBinding(previousCapture.binding, file, backup, {
+      const moved = backupPublicRegularFileBinding(bindingOf(previousCapture), file, backup, {
         subject: 'previous-delivery-journal',
       });
       backupPresent = moved.backupCreated === true;
@@ -1090,7 +1511,7 @@ function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntim
     try {
       fs.linkSync(temporary, file);
     } catch (error) {
-      if (error?.code === 'EEXIST') {
+      if (fault(error).code === 'EEXIST') {
         throw bindingError({
           status: 'different',
           reason: { code: 'target-claimed-during-publish', phase: 'journal-publish' },
@@ -1122,13 +1543,13 @@ function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntim
     });
     if (finalized.status !== 'match') throw bindingError(finalized, 'finalize the');
     if (backupPresent) {
-      const previous = verifyRegularFileBinding(previousCapture.binding, {
+      const previous = verifyRegularFileBinding(bindingOf(previousCapture), {
         filePath: backup,
         expectedLinks: 1,
       });
       if (previous.status !== 'match') throw bindingError(previous, 'verify the previous');
       const retiredBackup = quarantineRemoveRegularFileBinding(
-        previousCapture.binding,
+        bindingOf(previousCapture),
         backup,
         { subject: 'previous-delivery-journal', expectedLinks: 1 },
       );
@@ -1143,19 +1564,20 @@ function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntim
       content: candidateCapture.content,
     };
   } catch (cause) {
-    const rollbackErrors = [];
-    const publicRecoveryFiles = [];
-    if (cause.deliveryJournalState?.status === 'recovery-required'
-      && cause.deliveryJournalState.recoveryFile) {
+    const rollbackErrors: Array<string | undefined> = [];
+    const publicRecoveryFiles: Array<{ label: string; path: unknown; target: string }> = [];
+    const journalState = fault(cause).deliveryJournalState;
+    if (field(journalState, 'status') === 'recovery-required'
+      && field(journalState, 'recoveryFile')) {
       publicRecoveryFiles.push({
         label: 'preserved journal replacement',
-        path: cause.deliveryJournalState.recoveryFile,
+        path: field(journalState, 'recoveryFile'),
         target: file,
       });
     }
     if (published) {
       try {
-        const removed = quarantineRemoveRegularFileBinding(candidateCapture.binding, file, {
+        const removed = quarantineRemoveRegularFileBinding(bindingOf(candidateCapture), file, {
           subject: 'published-delivery-journal',
           expectedLinks: candidatePresent ? 2 : 1,
         });
@@ -1172,18 +1594,18 @@ function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntim
           }
         }
       } catch (error) {
-        if (error?.code !== 'ENOENT') rollbackErrors.push(`published journal cleanup failed (${error.message})`);
+        if (fault(error).code !== 'ENOENT') rollbackErrors.push(`published journal cleanup failed (${fault(error).message})`);
       }
     }
     if (candidatePresent) {
       try {
-        const current = verifyRegularFileBinding(candidateCapture.binding, {
+        const current = verifyRegularFileBinding(bindingOf(candidateCapture), {
           filePath: temporary,
           expectedLinks: published ? 2 : 1,
         });
         if (current.status === 'match') {
           const retiredCandidate = quarantineRemoveRegularFileBinding(
-            candidateCapture.binding,
+            bindingOf(candidateCapture),
             temporary,
             {
               subject: 'delivery-journal-candidate',
@@ -1199,7 +1621,7 @@ function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntim
           retainStaging = true;
         }
       } catch (error) {
-        if (error?.code !== 'ENOENT') rollbackErrors.push(`staged journal cleanup failed (${error.message})`);
+        if (fault(error).code !== 'ENOENT') rollbackErrors.push(`staged journal cleanup failed (${fault(error).message})`);
       }
     }
     if (backupPresent) {
@@ -1208,7 +1630,7 @@ function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntim
           throw new Error('the backup entry was never verified as the previous journal');
         }
         if (pathEntryExists(file)) throw new Error('a new journal claimant prevents restoring the previous journal');
-        const previous = verifyRegularFileBinding(previousCapture.binding, {
+        const previous = verifyRegularFileBinding(bindingOf(previousCapture), {
           filePath: backup,
           expectedLinks: 1,
         });
@@ -1219,20 +1641,20 @@ function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntim
         try {
           fs.linkSync(backup, file);
         } catch (error) {
-          if (error?.code === 'EEXIST') {
+          if (fault(error).code === 'EEXIST') {
             throw new Error('a new journal claimant prevents restoring the previous journal');
           }
           throw error;
         }
         for (const target of [backup, file]) {
-          const restored = verifyRegularFileBinding(previousCapture.binding, {
+          const restored = verifyRegularFileBinding(bindingOf(previousCapture), {
             filePath: target,
             expectedLinks: 2,
           });
           if (restored.status !== 'match') throw bindingError(restored, 'verify the restored');
         }
         const retiredBackup = quarantineRemoveRegularFileBinding(
-          previousCapture.binding,
+          bindingOf(previousCapture),
           backup,
           { subject: 'previous-delivery-journal', expectedLinks: 2 },
         );
@@ -1240,19 +1662,19 @@ function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntim
           throw bindingError(retiredBackup, 'retire the restored backup');
         }
         backupPresent = false;
-        const restored = verifyRegularFileBinding(previousCapture.binding, {
+        const restored = verifyRegularFileBinding(bindingOf(previousCapture), {
           filePath: file,
           expectedLinks: 1,
         });
         if (restored.status !== 'match') throw bindingError(restored, 'finalize the restored');
       } catch (error) {
-        rollbackErrors.push(`previous journal restore failed (${error.message})`);
+        rollbackErrors.push(`previous journal restore failed (${fault(error).message})`);
         retainStaging = backupPresent || candidatePresent;
       }
     }
-    const claimantConflict = cause.deliveryJournalState?.reason?.code === 'target-claimed-during-publish';
+    const claimantConflict = field(field(journalState, 'reason'), 'code') === 'target-claimed-during-publish';
     if (rollbackErrors.length || claimantConflict) {
-      cause.deliveryJournalRecovery = {
+      fault(cause).deliveryJournalRecovery = {
         recoveryRequired: true,
         journal: file,
         ...(claimantConflict ? { claimantConflict: true } : {}),
@@ -1260,7 +1682,7 @@ function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntim
         ...(retainStaging ? {
           recoveryDirectory: stagingDirectory,
         } : publicRecoveryFiles.length ? {
-          recoveryDirectory: path.dirname(publicRecoveryFiles[0].path),
+          recoveryDirectory: path.dirname(requiredPath(publicRecoveryFiles[0]?.path)),
         } : {}),
         ...(backupPresent || (candidatePresent && retainStaging) || publicRecoveryFiles.length ? {
           recoveryFiles: [
@@ -1280,18 +1702,23 @@ function writeDeliveryProvenance(file, value, { beforeReplace, fileBindingRuntim
     }
     throw cause;
   } finally {
-    if (candidateCapture?.binding) releaseRegularFileBinding(candidateCapture.binding);
-    if (previousCapture?.binding) releaseRegularFileBinding(previousCapture.binding);
+    if (candidateCapture?.status === 'captured') releaseRegularFileBinding(candidateCapture.binding);
+    if (previousCapture?.status === 'captured') releaseRegularFileBinding(previousCapture.binding);
     if (!retainStaging) removeOwnedEmptyStagingDirectory(stagingDirectory, staging.identity);
   }
 }
 
-function writeCapturedDeliveryProvenance(file, value, {
+function writeCapturedDeliveryProvenance(file: string, value: unknown, {
   beforeCommit,
   capture,
   verifyAtomicOutput,
   fileBindingRuntime,
-} = {}) {
+}: {
+  beforeCommit?: () => unknown;
+  capture?: AtomicOutput.CapturedAtomicOutput;
+  verifyAtomicOutput?: typeof AtomicOutput.verifyAtomicOutput;
+  fileBindingRuntime?: FileBindingRuntime;
+} = {}): void {
   const {
     backupPublicRegularFileBinding,
     captureRegularFileBinding,
@@ -1317,8 +1744,8 @@ function writeCapturedDeliveryProvenance(file, value, {
   const stagingDirectory = staging.directory;
   const candidate = path.join(stagingDirectory, path.basename(file));
   const backup = path.join(stagingDirectory, '.previous-provenance');
-  let candidateBinding;
-  let previousBinding;
+  let candidateBinding: AtomicOutput.RegularFileBinding | undefined;
+  let previousBinding: AtomicOutput.RegularFileBinding | undefined;
   let candidatePresent = false;
   let backupPresent = false;
   let backupVerified = false;
@@ -1380,7 +1807,7 @@ function writeCapturedDeliveryProvenance(file, value, {
     try {
       fs.linkSync(candidate, capture.commitPath);
     } catch (error) {
-      if (error?.code === 'EEXIST') {
+      if (fault(error).code === 'EEXIST') {
         throw deliveryTargetStateError(file, 'delivery provenance', {
           status: 'different',
           reason: { code: 'target-claimed-during-publish' },
@@ -1416,7 +1843,7 @@ function writeCapturedDeliveryProvenance(file, value, {
       throw deliveryTargetStateError(file, 'delivery provenance', finalized);
     }
     if (backupPresent) {
-      const currentBackup = verifyRegularFileBinding(previousBinding, {
+      const currentBackup = verifyRegularFileBinding(previousBinding ?? UNBOUND_FILE, {
         filePath: backup,
         expectedLinks: 1,
       });
@@ -1428,7 +1855,7 @@ function writeCapturedDeliveryProvenance(file, value, {
         });
       }
       const retiredBackup = quarantineRemoveRegularFileBinding(
-        previousBinding,
+        previousBinding ?? UNBOUND_FILE,
         backup,
         { subject: 'previous-delivery-provenance', expectedLinks: 1 },
       );
@@ -1441,17 +1868,17 @@ function writeCapturedDeliveryProvenance(file, value, {
   } catch (cause) {
     const rollbackErrors = [];
     const publicRecoveryFiles = [];
-    if (cause.deliveryTargetState?.status === 'recovery-required'
-      && cause.deliveryTargetState.recoveryFile) {
+    if (fault(cause).deliveryTargetState?.status === 'recovery-required'
+      && fault(cause).deliveryTargetState?.recoveryFile) {
       publicRecoveryFiles.push({
         label: 'preserved provenance replacement',
-        path: cause.deliveryTargetState.recoveryFile,
+        path: fault(cause).deliveryTargetState?.recoveryFile,
         target: capture.commitPath,
       });
     }
     if (published) {
       try {
-        const removed = quarantineRemoveRegularFileBinding(candidateBinding, capture.commitPath, {
+        const removed = quarantineRemoveRegularFileBinding(candidateBinding ?? UNBOUND_FILE, capture.commitPath, {
           subject: 'published-delivery-provenance',
           expectedLinks: candidatePresent ? 2 : 1,
         });
@@ -1468,18 +1895,18 @@ function writeCapturedDeliveryProvenance(file, value, {
           }
         }
       } catch (error) {
-        if (error?.code !== 'ENOENT') rollbackErrors.push(`published provenance cleanup failed (${error.message})`);
+        if (fault(error).code !== 'ENOENT') rollbackErrors.push(`published provenance cleanup failed (${fault(error).message})`);
       }
     }
     if (candidatePresent) {
       try {
-        const current = verifyRegularFileBinding(candidateBinding, {
+        const current = verifyRegularFileBinding(candidateBinding ?? UNBOUND_FILE, {
           filePath: candidate,
           expectedLinks: published ? 2 : 1,
         });
         if (current.status === 'match') {
           const retiredCandidate = quarantineRemoveRegularFileBinding(
-            candidateBinding,
+            candidateBinding ?? UNBOUND_FILE,
             candidate,
             {
               subject: 'delivery-provenance-candidate',
@@ -1499,8 +1926,8 @@ function writeCapturedDeliveryProvenance(file, value, {
           retainStaging = true;
         }
       } catch (error) {
-        if (error?.code !== 'ENOENT') {
-          rollbackErrors.push(`staged provenance cleanup failed (${error.message})`);
+        if (fault(error).code !== 'ENOENT') {
+          rollbackErrors.push(`staged provenance cleanup failed (${fault(error).message})`);
           retainStaging = true;
         }
       }
@@ -1513,7 +1940,7 @@ function writeCapturedDeliveryProvenance(file, value, {
         if (pathEntryExists(capture.commitPath)) {
           throw new Error('a new target claimant prevents restoring the previous provenance');
         }
-        const currentBackup = verifyRegularFileBinding(previousBinding, {
+        const currentBackup = verifyRegularFileBinding(previousBinding ?? UNBOUND_FILE, {
           filePath: backup,
           expectedLinks: 1,
         });
@@ -1523,7 +1950,7 @@ function writeCapturedDeliveryProvenance(file, value, {
         }
         fs.linkSync(backup, capture.commitPath);
         for (const target of [backup, capture.commitPath]) {
-          const restored = verifyRegularFileBinding(previousBinding, {
+          const restored = verifyRegularFileBinding(previousBinding ?? UNBOUND_FILE, {
             filePath: target,
             expectedLinks: 2,
           });
@@ -1532,7 +1959,7 @@ function writeCapturedDeliveryProvenance(file, value, {
           }
         }
         const retiredBackup = quarantineRemoveRegularFileBinding(
-          previousBinding,
+          previousBinding ?? UNBOUND_FILE,
           backup,
           { subject: 'previous-delivery-provenance', expectedLinks: 2 },
         );
@@ -1540,7 +1967,7 @@ function writeCapturedDeliveryProvenance(file, value, {
           throw deliveryTargetStateError(file, 'delivery provenance', retiredBackup);
         }
         backupPresent = false;
-        const restoredFinal = verifyRegularFileBinding(previousBinding, {
+        const restoredFinal = verifyRegularFileBinding(previousBinding ?? UNBOUND_FILE, {
           filePath: capture.commitPath,
           expectedLinks: 1,
         });
@@ -1548,7 +1975,7 @@ function writeCapturedDeliveryProvenance(file, value, {
           throw new Error('the restored provenance link count could not be verified');
         }
       } catch (error) {
-        rollbackErrors.push(`previous provenance restore failed (${error.message})`);
+        rollbackErrors.push(`previous provenance restore failed (${fault(error).message})`);
         retainStaging = true;
       }
     }
@@ -1565,27 +1992,27 @@ function writeCapturedDeliveryProvenance(file, value, {
       ...publicRecoveryFiles,
     ];
     if (rollbackErrors.length) {
-      cause.deliveryProvenanceRecovery = {
+      fault(cause).deliveryProvenanceRecovery = {
         recoveryRequired: true,
         rollbackErrors,
         ...(recoveryFiles.length ? {
           recoveryDirectory: retainStaging
             ? stagingDirectory
-            : path.dirname(recoveryFiles[0].path),
+            : path.dirname(requiredPath(recoveryFiles[0]?.path)),
           recoveryFiles,
         } : {}),
       };
     }
-    if (rollbackErrors.length && cause?.schematicsDiagnostics?.[0]) {
-      const [issue] = cause.schematicsDiagnostics;
+    const [issue] = fault(cause).schematicsDiagnostics ?? [];
+    if (rollbackErrors.length && issue) {
       issue.evidence = {
         ...(issue.evidence || {}),
         rollbackErrors,
         ...(recoveryFiles.length ? {
           recoveryDirectory: retainStaging
             ? stagingDirectory
-            : path.dirname(recoveryFiles[0].path),
-          recoveryFile: recoveryFiles[0].path,
+            : path.dirname(requiredPath(recoveryFiles[0]?.path)),
+          recoveryFile: recoveryFiles[0]?.path,
           recoveryFiles,
         } : {}),
       };
@@ -1598,7 +2025,7 @@ function writeCapturedDeliveryProvenance(file, value, {
   }
 }
 
-function recordDeliveryFailure(options) {
+function recordDeliveryFailure(options: DeliveryFailureOptions): DeliveryRecord | undefined {
   const {
     output, stage, input, error, receiptId, pathsAlias, ownership: suppliedOwnership,
     releaseOwnership: shouldReleaseSuppliedOwnership = false, legacyOutputPaths = [],
@@ -1616,7 +2043,7 @@ function recordDeliveryFailure(options) {
         pathsAlias,
         (lockError, initializingOwnership) => recordDeliveryFailure({
           ...options,
-          error: `Could not start delivery for "${output}": ${lockError.message}`,
+          error: `Could not start delivery for "${output}": ${fault(lockError).message}`,
           ownership: initializingOwnership,
           releaseOwnership: false,
         }),
@@ -1625,21 +2052,21 @@ function recordDeliveryFailure(options) {
       );
       acquiredHere = true;
     } catch (lockError) {
-      const reportedLockError = lockError?.code === 'SCHEMATICS_SIDECAR_NAMESPACE_INDETERMINATE'
-        && lockError.sidecarNamespaceReason?.code === 'sidecar-directory-missing'
+      const reportedLockError = fault(lockError).code === 'SCHEMATICS_SIDECAR_NAMESPACE_INDETERMINATE'
+        && fault(lockError).sidecarNamespaceReason?.code === 'sidecar-directory-missing'
         ? Object.assign(
           new Error(`Delivery lock parent directory does not exist for "${output}".`),
           { code: 'ENOENT', cause: lockError },
         )
         : lockError;
       return {
-        ...(lockError.deliveryFailureRecord || { ok: false, status: 'unrecorded' }),
+        ...(fault(lockError).deliveryFailureRecord || { ok: false, status: 'unrecorded' }),
         lockError: reportedLockError,
       };
     }
   }
   const state = deliveryOwnershipStates.get(ownership);
-  let recorded;
+  let recorded: DeliveryRecord | undefined;
   if (!state?.deliveryTargets) {
     try {
       captureDeliveryTargetState({
@@ -1653,11 +2080,11 @@ function recordDeliveryFailure(options) {
       recorded = {
         ok: false,
         status: 'unrecorded',
-        diagnostic: captureError.schematicsDiagnostics?.[0] || diagnostic({
+        diagnostic: fault(captureError).schematicsDiagnostics?.[0] || diagnostic({
           code: 'output/target-indeterminate',
-          message: captureError.message,
+          message: fault(captureError).message,
           subject: { output },
-          evidence: { ...(captureError?.code ? { systemCode: captureError.code } : {}) },
+          evidence: { ...(fault(captureError).code ? { systemCode: fault(captureError).code } : {}) },
           supportedFixes: ['use ordinary absent or regular-file delivery targets, then retry'],
         }),
       };
@@ -1666,14 +2093,14 @@ function recordDeliveryFailure(options) {
   const stableOutput = state?.output || canonicalExistingDeliveryOutput(output);
   // Keep independent evidence even when the artifact is unreadable or the
   // provenance target is locked, aliases the input, or cannot be replaced.
-  let journalError;
+  let journalError: unknown;
   if (!recorded && !state?.pendingIdentity) {
     try {
       beginDeliveryAttempt({ ownership, input, pathsAlias, fileBindingRuntime });
     } catch (cause) {
-      if (cause.deliveryOwnershipCode === 'delivery/ownership-lost') {
+      if (fault(cause).deliveryOwnershipCode === 'delivery/ownership-lost') {
         recorded = { ok: false, status: 'unrecorded', ownershipError: cause };
-      } else if (cause.deliveryJournalRecovery?.recoveryRequired) {
+      } else if (fault(cause).deliveryJournalRecovery?.recoveryRequired) {
         recorded = {
           ok: false,
           status: 'unrecorded',
@@ -1685,8 +2112,8 @@ function recordDeliveryFailure(options) {
     }
   }
   if (!recorded) {
-    let artifact;
-    let artifactBinding;
+    let artifact: Buffer | undefined;
+    let artifactBinding: AtomicOutput.RegularFileBinding | undefined;
     const {
       captureRegularFileBinding,
       verifyRegularFileBinding,
@@ -1702,7 +2129,7 @@ function recordDeliveryFailure(options) {
         if (artifactCapture.status === 'captured') {
           artifact = artifactCapture.content.buffer;
           artifactBinding = artifactCapture.binding;
-        } else if (['ENOENT', 'ENOTDIR'].includes(artifactCapture.reason?.systemCode)) {
+        } else if (['ENOENT', 'ENOTDIR'].includes(String(artifactCapture.reason?.systemCode))) {
           recorded = { ok: true, status: 'absent' };
         }
         // A failed marker does not need an artifact hash to invalidate old
@@ -1723,8 +2150,8 @@ function recordDeliveryFailure(options) {
             message: 'Delivery failure provenance could not resolve its target safely.',
             subject: { output: stableOutput, provenance: provenancePath },
             evidence: {
-              reason: aliasError.message,
-              ...(aliasError?.code ? { systemCode: aliasError.code } : {}),
+              reason: fault(aliasError).message,
+              ...(fault(aliasError).code ? { systemCode: fault(aliasError).code } : {}),
             },
             supportedFixes: ['remove the sidecar path conflict or symbolic-link cycle, then rerun deliver'],
           }),
@@ -1761,7 +2188,7 @@ function recordDeliveryFailure(options) {
                 allowInitializing: true,
                 pending: state?.pendingIdentity ? 'owned' : 'ignore',
               });
-              if (artifactBinding) {
+              if (artifactBinding && verifyRegularFileBinding) {
                 const verification = verifyRegularFileBinding(artifactBinding, {
                   filePath: stableOutput,
                   expectedLinks: 1,
@@ -1781,10 +2208,10 @@ function recordDeliveryFailure(options) {
           });
           recorded = { ok: true, status: 'failed' };
         } catch (writeError) {
-          if (writeError.deliveryOwnershipCode === 'delivery/ownership-lost') {
+          if (fault(writeError).deliveryOwnershipCode === 'delivery/ownership-lost') {
             recorded = { ok: false, status: 'unrecorded', ownershipError: writeError };
-          } else if (writeError.deliveryProvenanceRecovery?.recoveryRequired) {
-            const recovery = writeError.deliveryProvenanceRecovery;
+          } else if (fault(writeError).deliveryProvenanceRecovery?.recoveryRequired) {
+            const recovery: RecoveryInfo = fault(writeError).deliveryProvenanceRecovery ?? {};
             recorded = {
               ok: false,
               status: 'unrecorded',
@@ -1794,7 +2221,7 @@ function recordDeliveryFailure(options) {
                 message: 'Failed-delivery provenance could not be rolled back safely.',
                 subject: { output: stableOutput, provenance: provenancePath },
                 evidence: {
-                  reason: writeError.message,
+                  reason: fault(writeError).message,
                   recoveryRequired: true,
                   ...(recovery.recoveryDirectory ? { recoveryDirectory: recovery.recoveryDirectory } : {}),
                   ...(recovery.recoveryFiles?.length ? { recoveryFiles: recovery.recoveryFiles } : {}),
@@ -1803,11 +2230,11 @@ function recordDeliveryFailure(options) {
                 supportedFixes: ['leave the delivery lock and journal untouched, inspect the retained recovery files, then recover serially'],
               }),
             };
-          } else if (writeError.deliveryTargetState) {
+          } else if (fault(writeError).deliveryTargetState) {
             recorded = {
               ok: false,
               status: 'unrecorded',
-              diagnostic: writeError.schematicsDiagnostics?.[0],
+              diagnostic: fault(writeError).schematicsDiagnostics?.[0],
             };
           } else {
             recorded = {
@@ -1818,10 +2245,10 @@ function recordDeliveryFailure(options) {
                 message: 'The failed delivery could not persist its stale-artifact marker.',
                 subject: { output: stableOutput, provenance: provenancePath },
                 evidence: {
-                  reason: writeError.message,
-                  ...(writeError?.code ? { systemCode: writeError.code } : {}),
+                  reason: fault(writeError).message,
+                  ...(fault(writeError).code ? { systemCode: fault(writeError).code } : {}),
                   failureJournalRecorded: !journalError,
-                  ...(journalError ? { journalError: journalError.message } : {}),
+                  ...(journalError ? { journalError: fault(journalError).message } : {}),
                 },
                 supportedFixes: ['restore write access to the output directory, then rerun deliver before trusting the artifact'],
               }),
@@ -1841,11 +2268,11 @@ function recordDeliveryFailure(options) {
     try {
       releaseDeliveryOwnership(ownership, { allowInitializing: true });
     } catch (lockError) {
-      if (lockError.deliveryOwnershipCode === 'delivery/ownership-lost') {
-        const ownershipError = recorded.ownershipError || lockError;
+      if (fault(lockError).deliveryOwnershipCode === 'delivery/ownership-lost') {
+        const ownershipError = recorded?.ownershipError || lockError;
         if (options.recoveryDirectory) {
-          ownershipError.deliveryCommitDetails = {
-            ...(ownershipError.deliveryCommitDetails || {}),
+          fault(ownershipError).deliveryCommitDetails = {
+            ...(fault(ownershipError).deliveryCommitDetails || {}),
             recoveryRequired: true,
             recoveryDirectory: options.recoveryDirectory,
             recoverableBackups: [],
@@ -1859,7 +2286,7 @@ function recordDeliveryFailure(options) {
           lockError,
         };
       }
-      return { ...recorded, lockError: recorded.ownershipError || lockError };
+      return { ...recorded, lockError: recorded?.ownershipError || lockError };
     }
   }
   return recorded;
@@ -1868,7 +2295,7 @@ function recordDeliveryFailure(options) {
 // Locale warnings for a successfully rendered candidate. Diagnostic renderers
 // record them without printing text; validate/deliver disclose them before
 // checking the artifact and reuse the same diagnostics in successful receipts.
-async function specificationLocaleDiagnostics(type, specification) {
+async function specificationLocaleDiagnostics(type: string, specification: unknown) {
   let meta;
   try {
     meta = JSON.parse(String(specification)).meta;
@@ -1880,7 +2307,7 @@ async function specificationLocaleDiagnostics(type, specification) {
   return localeDiagnostics(type, meta);
 }
 
-function deliverySuccessProvenance(receipt) {
+function deliverySuccessProvenance(receipt: JsonRecord) {
   return {
     schemaVersion: 1,
     receiptId: receipt.receiptId,
@@ -1895,11 +2322,16 @@ function deliverySuccessProvenance(receipt) {
   };
 }
 
-function inspectDeliveryProvenance(artifactPath, artifact, {
+function inspectDeliveryProvenance(artifactPath: string, artifact: Buffer | undefined, {
   requireProvenance = false,
   pathIdentityRuntime,
   expectedSidecar,
   inspection,
+}: {
+  requireProvenance?: boolean;
+  pathIdentityRuntime?: PathIdentityRuntime;
+  expectedSidecar?: SidecarBinding;
+  inspection?: ProvenanceInspection;
 } = {}) {
   let sidecar = deliveryProvenancePath(artifactPath);
   const rawHeadSidecar = rawHeadDeliveryProvenancePath(artifactPath);
@@ -1924,7 +2356,7 @@ function inspectDeliveryProvenance(artifactPath, artifact, {
       pending,
       rawHeadPending,
       legacyExtensionPending,
-    ].filter(Boolean))]) {
+    ].filter(truthy))]) {
       if (pathEntryExists(candidate)) {
         foundPending = candidate;
         break;
@@ -1943,7 +2375,7 @@ function inspectDeliveryProvenance(artifactPath, artifact, {
       };
     }
   } catch (error) {
-    return invalidProvenance(artifactPath, foundPending || pending, error.message);
+    return invalidProvenance(artifactPath, foundPending || pending, fault(error).message);
   }
   for (const lock of locks) {
     try {
@@ -1960,21 +2392,21 @@ function inspectDeliveryProvenance(artifactPath, artifact, {
         };
       }
     } catch (error) {
-      return invalidProvenance(artifactPath, lock, error.message);
+      return invalidProvenance(artifactPath, lock, fault(error).message);
     }
   }
   let found;
   try {
     found = pathEntryExists(sidecar);
   } catch (error) {
-    return invalidProvenance(artifactPath, sidecar, error.message);
+    return invalidProvenance(artifactPath, sidecar, fault(error).message);
   }
   if (!found && rawHeadSidecar) {
     try {
       found = pathEntryExists(rawHeadSidecar);
       if (found) sidecar = rawHeadSidecar;
     } catch (error) {
-      return invalidProvenance(artifactPath, rawHeadSidecar, error.message);
+      return invalidProvenance(artifactPath, rawHeadSidecar, fault(error).message);
     }
   }
   if (!found && legacyExtensionSidecar) {
@@ -1982,7 +2414,7 @@ function inspectDeliveryProvenance(artifactPath, artifact, {
       found = pathEntryExists(legacyExtensionSidecar);
       if (found) sidecar = legacyExtensionSidecar;
     } catch (error) {
-      return invalidProvenance(artifactPath, legacyExtensionSidecar, error.message);
+      return invalidProvenance(artifactPath, legacyExtensionSidecar, fault(error).message);
     }
   }
   if (!found) {
@@ -2038,9 +2470,9 @@ function inspectDeliveryProvenance(artifactPath, artifact, {
       }
       throw new Error(`Delivery provenance is not a stable regular file (${sidecarCapture.reason?.code || 'unknown target state'}).`);
     }
-    receipt = JSON.parse(sidecarCapture.content.buffer.toString('utf8'));
-    const identityValid = (value) => value && typeof value.sha256 === 'string' && /^[0-9a-f]{64}$/.test(value.sha256)
-      && Number.isSafeInteger(value.bytes) && value.bytes >= 0;
+    receipt = JSON.parse(contentBuffer(sidecarCapture).toString('utf8'));
+    const identityValid = (value: { sha256?: unknown; bytes?: unknown } | null | undefined) => value && typeof value.sha256 === 'string' && /^[0-9a-f]{64}$/.test(value.sha256)
+      && Number.isSafeInteger(value.bytes) && Number(value.bytes) >= 0;
     if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)
       || receipt.schemaVersion !== 1 || receipt.command !== 'deliver'
       || typeof receipt.receiptId !== 'string'
@@ -2068,7 +2500,7 @@ function inspectDeliveryProvenance(artifactPath, artifact, {
       };
     }
   } catch (error) {
-    const message = `Could not read delivery provenance: ${error.message}`;
+    const message = `Could not read delivery provenance: ${fault(error).message}`;
     return {
       ok: false,
       status: 'invalid',
@@ -2076,13 +2508,13 @@ function inspectDeliveryProvenance(artifactPath, artifact, {
         code: 'delivery/provenance-invalid',
         message,
         subject: { artifact: path.resolve(artifactPath), provenance: sidecar },
-        evidence: { reason: error.message },
+        evidence: { reason: fault(error).message },
         supportedFixes: ['rerun deliver to replace the invalid provenance sidecar'],
       })],
     };
   } finally {
-    if (sidecarCapture?.binding) {
-      pathIdentityRuntime.releaseRegularFileBinding(sidecarCapture.binding);
+    if (sidecarCapture?.status === 'captured') {
+      pathIdentityRuntime?.releaseRegularFileBinding?.(sidecarCapture.binding);
     }
   }
   let outputIdentity;
@@ -2092,7 +2524,7 @@ function inspectDeliveryProvenance(artifactPath, artifact, {
       status: 'unknown',
       reason: {
         code: 'path-semantics-runtime-unavailable',
-        ...(typeof error?.code === 'string' ? { systemCode: error.code } : {}),
+        ...(typeof fault(error).code === 'string' ? { systemCode: fault(error).code } : {}),
       },
     };
   } else {
@@ -2103,7 +2535,7 @@ function inspectDeliveryProvenance(artifactPath, artifact, {
         status: 'unknown',
         reason: {
           code: 'path-identity-check-failed',
-          ...(typeof error?.code === 'string' ? { systemCode: error.code } : {}),
+          ...(typeof fault(error).code === 'string' ? { systemCode: fault(error).code } : {}),
         },
       };
     }
@@ -2133,6 +2565,7 @@ function inspectDeliveryProvenance(artifactPath, artifact, {
       { recordedOutput: receipt.output, pathIdentity: outputIdentity.reason },
     );
   }
+  if (!artifact) throw new TypeError('The artifact bytes are unavailable.');
   const actualSha256 = new Bun.CryptoHasher('sha256').update(artifact).digest('hex');
   if (receipt.status === 'failed') {
     const message = 'The artifact is stale because the latest delivery attempt failed.';
@@ -2172,7 +2605,7 @@ function inspectDeliveryProvenance(artifactPath, artifact, {
   return { ok: true, status: 'current', receiptId: receipt.receiptId, artifact: receipt.artifact, type: receipt.type };
 }
 
-function invalidProvenance(artifactPath, sidecar, reason, evidence = {}) {
+function invalidProvenance(artifactPath: string, sidecar: string | undefined, reason: unknown, evidence: JsonRecord = {}) {
   return {
     ok: false, status: 'invalid',
     diagnostics: [diagnostic({
@@ -2221,13 +2654,13 @@ Explainer writing checks (validate, deliver, finalize, patch):
 `;
 }
 
-function fail(message, code = 2) {
+function fail(message: string | undefined, code = 2): never {
   console.error(message);
   process.exit(code);
 }
 
-function rejectCliArgument(message, details = {}) {
-  const error = new Error(message);
+function rejectCliArgument(message: string, details: CliArgumentDetails = {}): never {
+  const error: SchematicsError = new Error(message);
   error.schematicsArgument = {
     code: details.code || 'cli/invalid-arguments',
     subject: details.subject || {},
@@ -2237,7 +2670,7 @@ function rejectCliArgument(message, details = {}) {
   throw error;
 }
 
-function rendererPath(type) {
+function rendererPath(type: string): string {
   if (!TYPES.has(type)) {
     rejectCliArgument(`Unknown diagram type "${type}". Expected one of: ${[...TYPES].join(', ')}`, {
       code: 'cli/unknown-diagram-type',
@@ -2246,20 +2679,17 @@ function rendererPath(type) {
       supportedFixes: [`use one of: ${[...TYPES].join(', ')}`],
     });
   }
-  return rendererFile(type);
-}
-
-function rendererFile(type) {
-  const typed = path.join(skillRoot, 'packages', type, `render-${type}.ts`);
-  return fs.existsSync(typed) ? typed : path.join(skillRoot, 'packages', type, `render-${type}.mjs`);
+  return type === 'explainer'
+    ? path.join(skillRoot, 'packages', 'explainer', 'render-explainer.ts')
+    : path.join(skillRoot, 'packages', type, `render-${type}.ts`);
 }
 
 // Default capture ceiling for piped child output. spawnSync's own default
 // is 1 MiB, which is below what a dense diagram's checker receipt reaches.
 const DEFAULT_MAX_BUFFER = 64 * 1024 * 1024;
 
-function runNode(args, options = {}) {
-  const result = childProcess.spawnSync(process.execPath, args, {
+function runNode(args: string[], options: RunNodeOptions = {}): NodeRunResult {
+  const result: NodeRunResult = childProcess.spawnSync(process.execPath, args, {
     cwd: options.cwd || process.cwd(),
     encoding: 'utf8',
     stdio: options.stdio || 'inherit',
@@ -2275,7 +2705,9 @@ function runNode(args, options = {}) {
   return result;
 }
 
-async function runArtifactCheck(file) {
+type ArtifactCheckReceipt = ReturnType<typeof import('../scripts/check-render-output.ts').checkArtifact>;
+
+async function runArtifactCheck(file: string): Promise<{ receipt: ArtifactCheckReceipt; error?: undefined } | { receipt?: undefined; error: unknown }> {
   try {
     const { checkArtifact } = await import('../scripts/check-render-output.ts');
     const resolved = path.resolve(file);
@@ -2285,11 +2717,11 @@ async function runArtifactCheck(file) {
   }
 }
 
-function extractQualityArgs(args) {
-  const rest = [];
-  let quality;
+function extractQualityArgs(args: string[]): { rest: string[]; quality: string | undefined } {
+  const rest: string[] = [];
+  let quality: string | undefined;
   for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
+    const arg = String(args[index]);
     if (arg === '--quality') {
       quality = args[index + 1];
       if (!quality || quality.startsWith('--')) rejectCliArgument('--quality requires standard or showcase.', {
@@ -2322,11 +2754,11 @@ function extractQualityArgs(args) {
   return { rest, quality };
 }
 
-function extractRepoRootArgs(args) {
-  const rest = [];
-  let repoRoot;
+function extractRepoRootArgs(args: string[]): { rest: string[]; repoRoot: string | undefined } {
+  const rest: string[] = [];
+  let repoRoot: string | undefined;
   for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
+    const arg = String(args[index]);
     if (arg === '--repo-root') {
       repoRoot = args[index + 1];
       if (!repoRoot || repoRoot.startsWith('--')) rejectCliArgument('--repo-root requires a repository path.', {
@@ -2351,11 +2783,11 @@ function extractRepoRootArgs(args) {
   return { rest, repoRoot: repoRoot ? path.resolve(repoRoot) : undefined };
 }
 
-function extractOutDirArgs(args) {
-  const rest = [];
-  let outDir;
+function extractOutDirArgs(args: string[]): { rest: string[]; outDir: string | undefined } {
+  const rest: string[] = [];
+  let outDir: string | undefined;
   for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
+    const arg = String(args[index]);
     if (arg === '--out-dir') {
       outDir = args[index + 1];
       if (!outDir || outDir.startsWith('--')) fail('--out-dir requires a directory path.');
@@ -2372,14 +2804,14 @@ function extractOutDirArgs(args) {
   return { rest, outDir };
 }
 
-function extractExplainerWritingArgs(args) {
-  const rest=[];
-  let writingMode;
+function extractExplainerWritingArgs(args: string[]): { rest: string[]; writingMode: string | undefined } {
+  const rest: string[]=[];
+  let writingMode: string | undefined;
   for(let index=0;index<args.length;index++) {
-    const argument=args[index];
+    const argument=String(args[index]);
     if(argument==='--writing' || argument.startsWith('--writing=')) {
       const value=argument==='--writing' ? args[++index] : argument.slice('--writing='.length);
-      if(writingMode!==undefined || !['warn','strict','off'].includes(value)) rejectCliArgument('--writing requires one of warn, strict or off.', {
+      if(writingMode!==undefined || value===undefined || !['warn','strict','off'].includes(value)) rejectCliArgument('--writing requires one of warn, strict or off.', {
         code:'cli/invalid-arguments',subject:{option:'--writing'},supportedFixes:['Use --writing warn, --writing strict or --writing off once.'],
       });
       writingMode=value;
@@ -2391,19 +2823,20 @@ function extractExplainerWritingArgs(args) {
   return {rest,writingMode};
 }
 
-async function prepareExplainerInput(specification, inputPath, options = {}) {
+async function prepareExplainerInput(specification: Buffer, inputPath: string, options: ExplainerInputOptions = {}) {
   const runtime = await import('../packages/explainer/prepare.ts');
   const text = specification.toString('utf8');
   if (!Buffer.from(text).equals(specification)) {
     const message='Explainer draft must contain valid UTF-8 bytes.';
     throw Object.assign(new Error(message),{schematicsDiagnostics:[diagnostic({code:'explainer/source-encoding',message,subject:{input:inputPath,line:1,component:'document'},evidence:{reason:'invalid-utf8',example:'Save the original draft as UTF-8 text.'},supportedFixes:['Save the original draft as UTF-8 text.']})]});
   }
+  const bundleOptions = { checkDependencies: true, quality: options.quality, writingMode: options.writingMode || 'warn' };
   return process.env.SCHEMATICS_EXPLAINER_PREPARED
-    ? runtime.readPreparedBundle(process.env.SCHEMATICS_EXPLAINER_PREPARED, text, inputPath, { quality: options.quality, writingMode: options.writingMode || 'warn' })
+    ? runtime.readPreparedBundle(process.env.SCHEMATICS_EXPLAINER_PREPARED, text, inputPath, bundleOptions)
     : runtime.prepareExplainer(text, { ...options, inputPath });
 }
 
-function rendererEnv(quality, repoRoot, diagnosticJson = false) {
+function rendererEnv(quality: string | undefined, repoRoot: string | undefined, diagnosticJson = false): Record<string, string> {
   return {
     ...(quality ? { SCHEMATICS_QUALITY_PROFILE: quality } : {}),
     ...(repoRoot ? { SCHEMATICS_REPO_ROOT: repoRoot } : {}),
@@ -2411,7 +2844,7 @@ function rendererEnv(quality, repoRoot, diagnosticJson = false) {
   };
 }
 
-function diagnostic({ code, message, subject = {}, evidence = {}, supportedFixes = [], edits, severity = 'error' }) {
+function diagnostic({ code, message, subject = {}, evidence = {}, supportedFixes = [], edits, severity = 'error' }: DiagnosticInput): Diagnostic {
   return {
     code,
     severity,
@@ -2423,35 +2856,35 @@ function diagnostic({ code, message, subject = {}, evidence = {}, supportedFixes
   };
 }
 
-function deliveryLockFailureDiagnostic(output, error) {
-  const code = error.deliveryOwnershipCode || error.deliveryLockCode || 'delivery/lock-acquire';
+function deliveryLockFailureDiagnostic(output: string | undefined, error: unknown): Diagnostic {
+  const code = fault(error).deliveryOwnershipCode || fault(error).deliveryLockCode || 'delivery/lock-acquire';
   if (code === 'delivery/legacy-pending') {
     return diagnostic({
       code,
       message: `A pre-namespace delivery journal blocks delivery for "${output}".`,
-      subject: { output, journal: error.deliveryLockPath },
-      evidence: { pendingJournal: error.deliveryLockPath, found: true },
+      subject: { output, journal: fault(error).deliveryLockPath },
+      evidence: { pendingJournal: fault(error).deliveryLockPath, found: true },
       supportedFixes: ['recover the unfinished delivery and remove only its journal after recovery succeeds'],
     });
   }
-  const lock = error.deliveryOwnershipDetails?.lock
-    || error.deliveryLockPath
-    || deliveryLockPath(output);
+  const lock = fault(error).deliveryOwnershipDetails?.lock
+    || fault(error).deliveryLockPath
+    || deliveryLockPath(requiredPath(output));
   return diagnostic({
     code,
     message: code === 'delivery/lock-release'
-      ? `Delivery lock could not be released for "${output}": ${error.message}`
+      ? `Delivery lock could not be released for "${output}": ${fault(error).message}`
       : code === 'delivery/ownership-lost'
-        ? `Delivery ownership was lost for "${output}": ${error.message}`
-        : `Could not start delivery for "${output}": ${error.message}`,
+        ? `Delivery ownership was lost for "${output}": ${fault(error).message}`
+        : `Could not start delivery for "${output}": ${fault(error).message}`,
     subject: { output, lock },
     evidence: {
-      reason: error.message,
-      ...(error.code ? { systemCode: error.code } : {}),
-      ...(error.lockCleanupError ? { cleanupError: error.lockCleanupError } : {}),
-      ...(error.deliveryLockOwner || {}),
-      ...(error.deliveryOwnershipDetails || {}),
-      ...(error.deliveryCommitDetails || {}),
+      reason: fault(error).message,
+      ...(fault(error).code ? { systemCode: fault(error).code } : {}),
+      ...(fault(error).lockCleanupError ? { cleanupError: fault(error).lockCleanupError } : {}),
+      ...(fault(error).deliveryLockOwner || {}),
+      ...(fault(error).deliveryOwnershipDetails || {}),
+      ...(fault(error).deliveryCommitDetails || {}),
     },
     supportedFixes: code === 'delivery/concurrent-attempt'
         ? ['wait for the active delivery to finish, then retry']
@@ -2472,8 +2905,8 @@ function deliveryLockFailureDiagnostic(output, error) {
   });
 }
 
-function deliveryJournalRecoveryDiagnostic(output, error) {
-  const recovery = error.deliveryJournalRecovery || {};
+function deliveryJournalRecoveryDiagnostic(output: string, error: unknown): Diagnostic {
+  const recovery: RecoveryInfo = fault(error).deliveryJournalRecovery || {};
   const location = recovery.recoveryDirectory
     ? ` Recovery material was retained at "${recovery.recoveryDirectory}".`
     : '';
@@ -2482,7 +2915,7 @@ function deliveryJournalRecoveryDiagnostic(output, error) {
     message: `Delivery journal publication could not be rolled back safely.${location}`,
     subject: { output, journal: recovery.journal || deliveryPendingPath(output) },
     evidence: {
-      reason: error.message,
+      reason: fault(error).message,
       recoveryRequired: true,
       ...(recovery.recoveryDirectory ? { recoveryDirectory: recovery.recoveryDirectory } : {}),
       ...(recovery.recoveryFiles?.length ? { recoveryFiles: recovery.recoveryFiles } : {}),
@@ -2497,14 +2930,14 @@ function deliveryJournalRecoveryDiagnostic(output, error) {
   });
 }
 
-function deliveryCommitRecoveryDiagnostic(output, error) {
-  const recovery = error.deliveryCommitDetails || {};
+function deliveryCommitRecoveryDiagnostic(output: string, error: unknown): Diagnostic {
+  const recovery: CommitDetails = fault(error).deliveryCommitDetails || {};
   return diagnostic({
     code: 'delivery/commit-recovery-required',
     message: `Delivery rollback could not safely restore the previous output pair for "${output}".`,
     subject: { output },
     evidence: {
-      reason: recovery.reason || error.message,
+      reason: recovery.reason || fault(error).message,
       recoveryRequired: true,
       ...(recovery.recoveryDirectory ? { recoveryDirectory: recovery.recoveryDirectory } : {}),
       ...(recovery.recoverableBackups?.length
@@ -2519,13 +2952,13 @@ function deliveryCommitRecoveryDiagnostic(output, error) {
   });
 }
 
-function deliveryTargetStateDiagnostic(output, role, result) {
-  const reason = result?.reason || { code: 'target-state-unavailable' };
+function deliveryTargetStateDiagnostic(output: string, role: string, result: RelationLike | undefined): Diagnostic {
+  const reason: ReasonLike = result?.reason || { code: 'target-state-unavailable' };
   const hardlinked = typeof reason.code === 'string' && reason.code.endsWith('-hardlinked');
   const provenanceTarget = /provenance/iu.test(role);
   const code = hardlinked
     ? provenanceTarget ? 'delivery/provenance-hardlink-unsupported' : 'output/target-hardlinked'
-    : ['target-not-regular-file', 'requested-entry-symbolic-link', 'requested-entry-not-regular-file'].includes(reason.code)
+    : ['target-not-regular-file', 'requested-entry-symbolic-link', 'requested-entry-not-regular-file'].includes(String(reason.code))
       ? 'output/target-not-regular-file'
       : result?.status === 'different'
         ? 'output/target-changed'
@@ -2552,9 +2985,9 @@ function deliveryTargetStateDiagnostic(output, role, result) {
   });
 }
 
-function deliveryTargetStateError(output, role, result) {
+function deliveryTargetStateError(output: string, role: string, result: RelationLike | undefined): SchematicsError {
   const issue = deliveryTargetStateDiagnostic(output, role, result);
-  const error = new Error(issue.message);
+  const error: SchematicsError = new Error(issue.message);
   error.schematicsDiagnostics = [issue];
   error.deliveryTargetState = result;
   return error;
@@ -2567,7 +3000,14 @@ function captureDeliveryTargetState({
   captureAtomicOutput,
   verifyAtomicOutput,
   preparedTargets,
-}) {
+}: {
+  state: DeliveryOwnershipState | undefined;
+  requestedOutput: string;
+  pathsAlias: PathsAlias;
+  captureAtomicOutput?: typeof AtomicOutput.captureAtomicOutput;
+  verifyAtomicOutput?: typeof AtomicOutput.verifyAtomicOutput;
+  preparedTargets?: { artifact?: RequestedCapture; provenance?: RequestedCapture };
+}): { artifact: AtomicOutput.CapturedAtomicOutput & { requestedPath: string }; provenance: AtomicOutput.CapturedAtomicOutput & { requestedPath: string } } {
   if (typeof captureAtomicOutput !== 'function' || typeof verifyAtomicOutput !== 'function') {
     throw deliveryTargetStateError(requestedOutput, 'delivery pair', {
       status: 'unknown',
@@ -2581,6 +3021,7 @@ function captureDeliveryTargetState({
   if (artifactTarget.status !== 'captured') {
     throw deliveryTargetStateError(requestedOutput, 'HTML artifact', artifactTarget);
   }
+  if (!state) throw new TypeError('The delivery ownership state is unavailable.');
   if (!pathsAlias(artifactTarget.commitPath, state.output)) {
     throw deliveryTargetStateError(requestedOutput, 'HTML artifact', {
       status: 'different',
@@ -2605,7 +3046,7 @@ function captureDeliveryTargetState({
   for (const [role, target] of [
     ['HTML artifact', artifactTarget],
     ['delivery provenance', provenanceTarget],
-  ]) {
+  ] as const) {
     const verification = verifyAtomicOutput(target.snapshot);
     if (verification.status !== 'match') {
       throw deliveryTargetStateError(target.requestedPath, role, verification);
@@ -2615,24 +3056,25 @@ function captureDeliveryTargetState({
   state.provenancePath = provenanceTarget.commitPath;
   state.pendingPath = deliveryPendingPath(artifactTarget.commitPath);
   state.verifyAtomicOutput = verifyAtomicOutput;
-  state.deliveryTargets = {
+  const deliveryTargets = {
     artifact: artifactTarget,
     provenance: provenanceTarget,
   };
-  return state.deliveryTargets;
+  state.deliveryTargets = deliveryTargets;
+  return deliveryTargets;
 }
 
-function inputDiagnostic(error, inputPath) {
+function inputDiagnostic(error: unknown, inputPath: string): Diagnostic {
   const isSyntax = error instanceof SyntaxError;
   return diagnostic({
     code: isSyntax ? 'input/json-parse' : 'input/read',
     message: isSyntax
-      ? `Input JSON could not be parsed: ${error.message}`
-      : `Input could not be read: ${error.message}`,
+      ? `Input JSON could not be parsed: ${fault(error).message}`
+      : `Input could not be read: ${fault(error).message}`,
     subject: { input: inputPath },
     evidence: {
-      ...(error?.code ? { systemCode: error.code } : {}),
-      reason: error.message,
+      ...(fault(error).code ? { systemCode: fault(error).code } : {}),
+      reason: fault(error).message,
     },
     supportedFixes: [isSyntax
       ? 'repair the JSON syntax and run validation again'
@@ -2640,7 +3082,7 @@ function inputDiagnostic(error, inputPath) {
   });
 }
 
-function rendererFailure(result) {
+function rendererFailure(result: NodeRunResult): { error: string; diagnostics: Diagnostic[] } {
   if (result.error) {
     return {
       error: 'Renderer process could not start.',
@@ -2681,14 +3123,14 @@ const COMPOSITION_CHECKS = new Set([
   'route_rhythm',
 ]);
 
-const CHECK_FIXES = {
+const CHECK_FIXES: Record<string, string[]> = {
   single_svg: ['remove additional SVG roots so the artifact contains exactly one diagram SVG'],
   finite_svg: ['replace non-finite coordinates before rendering again'],
   orthogonal_arrows: ['use renderer-supported orthogonal routing controls'],
   legend_clearance: ['move the route or enlarge the viewBox so relationships do not enter the legend'],
 };
 
-const COMPOSITION_FIXES = {
+const COMPOSITION_FIXES: Record<string, string[]> = {
   'composition/proper-crossing': ['if authored via/route/channelX/channelY controls exist and are not required by the user, remove them to let the renderer re-plan; otherwise preserve that intent and adjust route/via or channel coordinates so unrelated relationships use separate corridors'],
   'composition/ambiguous-corridor': ['if authored via/route/channelX/channelY controls exist and are not required by the user, remove them to let the renderer re-plan; otherwise preserve that intent and adjust route/via or channel coordinates so unrelated relationships do not visually merge'],
   'composition/container-border-run': ['if authored via/route/channelX/channelY controls exist and are not required by the user, remove them to let the renderer re-plan; otherwise preserve that intent and route across the frame perpendicularly through a clear opening'],
@@ -2698,9 +3140,9 @@ const COMPOSITION_FIXES = {
   'composition/short-interior-segment': ['if authored via/route/channelX/channelY controls exist and are not required by the user, remove them to let the renderer re-plan; otherwise preserve that intent and move the route/channel/via point so every interior turn has at least 16px'],
 };
 
-function checkerDiagnostics(checker) {
+function checkerDiagnostics(checker: CheckerReceipt | null | undefined): Diagnostic[] {
   if (checker?.family === 'explainer' && checker.diagnostics?.some(entry => entry.severity === 'error')) return checker.diagnostics.filter(entry => entry.severity === 'error').map(entry => diagnostic(entry));
-  const diagnostics = [];
+  const diagnostics: Diagnostic[] = [];
   for (const issue of checker?.composition?.issues || []) {
     if (issue.severity !== 'error') continue;
     const { severity, code, relationship, nodeId, ...evidence } = issue;
@@ -2716,7 +3158,7 @@ function checkerDiagnostics(checker) {
   for (const check of checker?.checks || []) {
     if (check.ok || COMPOSITION_CHECKS.has(check.name)) continue;
     if (check.name === 'svg_path_data') {
-      const pathDiagnostics = (checker.diagnostics || []).filter(item => (
+      const pathDiagnostics = (checker?.diagnostics || []).filter(item => (
         item?.severity === 'error'
         && ['artifact/svg-path-malformed', 'artifact/svg-path-unsupported'].includes(item.code)
       ));
@@ -2741,7 +3183,7 @@ function checkerDiagnostics(checker) {
   })];
 }
 
-function compositionFixes(issue) {
+function compositionFixes(issue: CheckerIssue): string[] {
   if (issue.code === 'composition/viewport-height') return [String(issue.detail || '').replace(/^\[[^\]]+\]\s*/, '')];
   if (issue.code !== 'composition/desktop-readability') return COMPOSITION_FIXES[issue.code] || [];
   const sourceFontPx = Number(issue.sourceFontPx);
@@ -2763,23 +3205,38 @@ function compositionFixes(issue) {
   return [`${preserveIntent} Compactly reflow automatic spacing and empty corridors so the complete viewBox width is at most ${maximumViewBoxWidth}px (current ${viewBoxWidth}px; ${sourceFontPx}px source text at ${actualBudgetPx}px desktop budget). If supplied geometry fixes that width, use a renderer-supported semantic text-size setting or renderer-level fix instead. Position-only label controls cannot repair its projection.${readerCap}`];
 }
 
-function formatDiagnostics(error, diagnostics = []) {
+interface FormattedDiagnostic {
+  code?: unknown;
+  message?: unknown;
+  supportedFixes?: unknown;
+}
+
+function formatDiagnostics(error: unknown, diagnostics: readonly unknown[] = []): unknown {
   if (!diagnostics.length) return error;
   return [
     error,
-    ...diagnostics.map((entry) => {
-      const fix = entry.supportedFixes?.length ? ` Fix: ${entry.supportedFixes.join('; ')}.` : '';
+    ...diagnostics.map((value) => {
+      const entry: FormattedDiagnostic = typeof value === 'object' && value !== null ? value : {};
+      const fixes = entry.supportedFixes;
+      const fix = Array.isArray(fixes) && fixes.length ? ` Fix: ${fixes.join('; ')}.` : '';
       return `[${entry.code}] ${entry.message}${fix}`;
     }),
   ].join('\n');
 }
 
-function exitFrom(result) {
+function exitFrom(result: { error?: Error; status: number | null }): never {
   if (result.error) fail(result.error.message, 1);
   process.exit(result.status ?? 1);
 }
 
-function reportCompareFailure({ json, stage, error, code = 'delta/internal', details = {}, status = 1 }) {
+function reportCompareFailure({ json, stage, error, code = 'delta/internal', details = {}, status = 1 }: {
+  json?: boolean;
+  stage: string | undefined;
+  error: string | undefined;
+  code?: string | undefined;
+  details?: CompareFailureDetails | undefined;
+  status?: number;
+}): void {
   const receipt = {
     schemaVersion: 1,
     ok: false,
@@ -2801,12 +3258,12 @@ function reportCompareFailure({ json, stage, error, code = 'delta/internal', det
   process.exitCode = status;
 }
 
-function extractCompareOptions(args) {
-  const positional = [];
-  let receipt;
+function extractCompareOptions(args: string[]): { positional: string[]; receipt: string | undefined; json: boolean } {
+  const positional: string[] = [];
+  let receipt: string | undefined;
   let json = false;
   for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
+    const arg = String(args[index]);
     if (arg === '--json') {
       json = true;
       continue;
@@ -2828,7 +3285,7 @@ function extractCompareOptions(args) {
   return { positional, receipt, json };
 }
 
-function compareReceiptPath(outputPath) {
+function compareReceiptPath(outputPath: string): string {
   const { directory, stem, options } = deliverySidecarNamespace(outputPath);
   return path.join(
     directory,
@@ -2836,16 +3293,16 @@ function compareReceiptPath(outputPath) {
   );
 }
 
-function compareCommitError(message, code, details = {}) {
-  const error = new Error(message);
+function compareCommitError(message: string | undefined, code: string, details: CompareFailureDetails = {}): SchematicsError {
+  const error: SchematicsError = new Error(message);
   error.compareStage = 'commit';
   error.compareCode = code;
   error.compareDetails = details;
   return error;
 }
 
-function compareAtomicOutputFailure(result, label, requestedPath, stage) {
-  const reason = result.reason || { code: 'atomic-output-unknown' };
+function compareAtomicOutputFailure(result: RelationLike, label: string, requestedPath: string, stage: string): CompareFailure {
+  const reason: ReasonLike = result.reason || { code: 'atomic-output-unknown' };
   let code = 'output/target-indeterminate';
   let message = `The compare ${label} target identity could not be verified safely.`;
   let supportedFixes = ['use an ordinary local filesystem path with stable file identity, then retry'];
@@ -2885,7 +3342,17 @@ function commitComparePair({
   stagingDirectory,
   verifyAtomicOutput,
   fileBindingRuntime,
-}) {
+}: {
+  htmlCandidate: string;
+  htmlContent: DeliveryContent;
+  receiptCandidate: string;
+  receiptContent: DeliveryContent;
+  outputCapture: AtomicOutput.CapturedAtomicOutput;
+  receiptCapture: AtomicOutput.CapturedAtomicOutput;
+  stagingDirectory: string;
+  verifyAtomicOutput: typeof AtomicOutput.verifyAtomicOutput;
+  fileBindingRuntime?: FileBindingRuntime;
+}): { ownedBackupEntries: StagingEntry[] } {
   const {
     backupPublicRegularFileBinding,
     captureRegularFileBinding,
@@ -2893,7 +3360,7 @@ function commitComparePair({
     verifyRegularFileBinding,
     releaseRegularFileBinding,
   } = fileBindingRuntime || {};
-  const targets = [
+  const targets: [CompareTarget, CompareTarget] = [
     {
       label: 'HTML artifact', capture: outputCapture, candidate: htmlCandidate, content: htmlContent, backup: path.join(stagingDirectory, '.previous-output'),
     },
@@ -2901,8 +3368,8 @@ function commitComparePair({
       label: 'receipt', capture: receiptCapture, candidate: receiptCandidate, content: receiptContent, backup: path.join(stagingDirectory, '.previous-receipt'),
     },
   ];
-  const targetChanged = (item, result) => {
-    const normalized = typeof result === 'string'
+  const targetChanged = (item: CompareTarget, result: RelationLike | string) => {
+    const normalized: RelationLike = typeof result === 'string'
       ? { status: 'different', reason: { code: result } }
       : result;
     const failure = compareAtomicOutputFailure(
@@ -2916,8 +3383,8 @@ function commitComparePair({
     return error;
   };
 
-  const backedUp = [];
-  const committed = [];
+  const backedUp: CompareTarget[] = [];
+  const committed: CompareTarget[] = [];
   let retainSuccessfulBackupBindings = false;
   try {
     if (typeof backupPublicRegularFileBinding !== 'function'
@@ -2967,7 +3434,7 @@ function commitComparePair({
     for (const item of targets) {
       if (item.capture.snapshot.target.kind !== 'file') continue;
       const moved = backupPublicRegularFileBinding(
-        item.previousBinding,
+        item.previousBinding ?? UNBOUND_FILE,
         item.capture.commitPath,
         item.backup,
         { subject: 'previous-compare-target' },
@@ -2981,7 +3448,7 @@ function commitComparePair({
       if (moved.status !== 'backed-up') throw targetChanged(item, moved);
     }
     for (const item of targets) {
-      const candidate = verifyRegularFileBinding(item.candidateBinding, {
+      const candidate = verifyRegularFileBinding(item.candidateBinding ?? UNBOUND_FILE, {
         filePath: item.candidate,
         expectedLinks: 1,
       });
@@ -2992,7 +3459,7 @@ function commitComparePair({
         // final snapshot verification.
         fs.linkSync(item.candidate, item.capture.commitPath);
       } catch (error) {
-        if (error?.code === 'EEXIST') {
+        if (fault(error).code === 'EEXIST') {
           throw targetChanged(
             item,
             'target-claimed-during-publish',
@@ -3002,14 +3469,14 @@ function commitComparePair({
       }
       item.committedIdentity = item.candidateIdentity;
       committed.push(item);
-      const linked = verifyRegularFileBinding(item.candidateBinding, {
+      const linked = verifyRegularFileBinding(item.candidateBinding ?? UNBOUND_FILE, {
         filePath: item.capture.commitPath,
         expectedLinks: 2,
       });
       if (linked.status !== 'match') throw targetChanged(item, linked);
     }
     for (const item of committed) {
-      const current = verifyRegularFileBinding(item.candidateBinding, {
+      const current = verifyRegularFileBinding(item.candidateBinding ?? UNBOUND_FILE, {
         filePath: item.capture.commitPath,
         expectedLinks: 2,
       });
@@ -3019,13 +3486,13 @@ function commitComparePair({
     // the transaction keeps successful outputs at nlink=1 even if the outer
     // best-effort staging-directory cleanup later fails.
     for (const item of committed) {
-      const staged = verifyRegularFileBinding(item.candidateBinding, {
+      const staged = verifyRegularFileBinding(item.candidateBinding ?? UNBOUND_FILE, {
         filePath: item.candidate,
         expectedLinks: 2,
       });
       if (staged.status !== 'match') throw targetChanged(item, staged);
       const retired = quarantineRemoveRegularFileBinding(
-        item.candidateBinding,
+        item.candidateBinding ?? UNBOUND_FILE,
         item.candidate,
         { subject: 'compare-candidate', expectedLinks: 2 },
       );
@@ -3033,7 +3500,7 @@ function commitComparePair({
       item.candidatePresent = false;
     }
     for (const item of committed) {
-      const finalized = verifyRegularFileBinding(item.candidateBinding, {
+      const finalized = verifyRegularFileBinding(item.candidateBinding ?? UNBOUND_FILE, {
         filePath: item.capture.commitPath,
         expectedLinks: 1,
       });
@@ -3045,14 +3512,14 @@ function commitComparePair({
         .filter((item) => item.backupPresent)
         .map((item) => ({
           filePath: item.backup,
-          binding: item.previousBinding,
+          binding: item.previousBinding ?? UNBOUND_FILE,
           subject: 'previous-compare-backup',
           expectedLinks: 1,
         })),
     };
   } catch (cause) {
-    const rollbackErrors = [];
-    const recoveryFiles = targets
+    const rollbackErrors: Array<string | undefined> = [];
+    const recoveryFiles: CompareRecoveryFile[] = targets
       .filter((item) => item.backupRecovery)
       .map((item) => ({
         backup: item.backupRecovery,
@@ -3061,8 +3528,8 @@ function commitComparePair({
       }));
     for (const item of [...committed].reverse()) {
       try {
-        const removed = quarantineRemoveRegularFileBinding(
-          item.candidateBinding,
+        const removed = present(quarantineRemoveRegularFileBinding)(
+          item.candidateBinding ?? UNBOUND_FILE,
           item.capture.commitPath,
           {
             subject: 'published-compare-target',
@@ -3079,14 +3546,14 @@ function commitComparePair({
           throw new Error(`the committed target could not be removed safely (${removed.reason?.code || 'unknown target state'})`);
         }
       } catch (error) {
-        rollbackErrors.push(`${item.label}: remove failed (${error.message})`);
+        rollbackErrors.push(`${item.label}: remove failed (${fault(error).message})`);
       }
     }
     for (const item of [...backedUp].reverse()) {
       try {
         if (pathEntryExists(item.capture.commitPath)) {
-          const current = item.candidateBinding
-            ? verifyRegularFileBinding(item.candidateBinding, {
+          const current: RelationLike = item.candidateBinding
+            ? present(verifyRegularFileBinding)(item.candidateBinding, {
               filePath: item.capture.commitPath,
               expectedLinks: item.candidatePresent ? 2 : 1,
             })
@@ -3094,8 +3561,8 @@ function commitComparePair({
           if (current.status !== 'match') {
             throw new Error(`a changed target claimant prevents restoring the previous file (${current.reason?.code || 'unknown target state'})`);
           }
-          const removed = quarantineRemoveRegularFileBinding(
-            item.candidateBinding,
+          const removed = present(quarantineRemoveRegularFileBinding)(
+            item.candidateBinding ?? UNBOUND_FILE,
             item.capture.commitPath,
             {
               subject: 'published-compare-target',
@@ -3115,7 +3582,7 @@ function commitComparePair({
         if (item.backupVerified !== true) {
           throw new Error('the backup entry was never verified as the previous file');
         }
-        const currentBackup = verifyRegularFileBinding(item.previousBinding, {
+        const currentBackup = present(verifyRegularFileBinding)(item.previousBinding ?? UNBOUND_FILE, {
           filePath: item.backup,
           expectedLinks: 1,
         });
@@ -3128,7 +3595,7 @@ function commitComparePair({
         // the restored hard link has been identity-verified.
         fs.linkSync(item.backup, item.capture.commitPath);
         for (const restoredPath of [item.capture.commitPath, item.backup]) {
-          const restored = verifyRegularFileBinding(item.previousBinding, {
+          const restored = present(verifyRegularFileBinding)(item.previousBinding ?? UNBOUND_FILE, {
             filePath: restoredPath,
             expectedLinks: 2,
           });
@@ -3136,8 +3603,8 @@ function commitComparePair({
             throw new Error('the restored target identity could not be verified');
           }
         }
-        const retired = quarantineRemoveRegularFileBinding(
-          item.previousBinding,
+        const retired = present(quarantineRemoveRegularFileBinding)(
+          item.previousBinding ?? UNBOUND_FILE,
           item.backup,
           { subject: 'previous-compare-target', expectedLinks: 2 },
         );
@@ -3145,7 +3612,7 @@ function commitComparePair({
           throw new Error(`the restored backup could not be retired safely (${retired.reason?.code || 'unknown target state'})`);
         }
         item.backupPresent = false;
-        const finalized = verifyRegularFileBinding(item.previousBinding, {
+        const finalized = present(verifyRegularFileBinding)(item.previousBinding ?? UNBOUND_FILE, {
           filePath: item.capture.commitPath,
           expectedLinks: 1,
         });
@@ -3153,7 +3620,7 @@ function commitComparePair({
           throw new Error('the restored target changed before rollback finalized');
         }
       } catch (error) {
-        rollbackErrors.push(`${item.label}: restore failed (${error.message})`);
+        rollbackErrors.push(`${item.label}: restore failed (${fault(error).message})`);
         // Track failed restoration rather than probing existence: a permission
         // error must not make cleanup discard a potentially recoverable backup.
         if (item.backupPresent !== false) {
@@ -3165,13 +3632,14 @@ function commitComparePair({
         }
       }
     }
-    if (!rollbackErrors.length && cause.compareFailure) {
+    const compareFailure = fault(cause).compareFailure;
+    if (!rollbackErrors.length && compareFailure) {
       throw compareCommitError(
-        cause.message,
-        cause.compareFailure.code,
+        fault(cause).message,
+        compareFailure.code,
         {
-          ...cause.compareFailure.details,
-          reason: cause.message,
+          ...compareFailure.details,
+          reason: fault(cause).message,
         },
       );
     }
@@ -3180,15 +3648,15 @@ function commitComparePair({
         ? 'Architecture Delta pair commit failed and its previous files could not be fully restored.'
         : 'Architecture Delta pair commit failed; the previous files were restored.')
         + (recoveryFiles.length
-          ? ` Recovery directory retained at ${path.dirname(recoveryFiles[0].backup)}.`
+          ? ` Recovery directory retained at ${path.dirname(requiredPath(recoveryFiles[0]?.backup))}.`
           : ''),
       rollbackErrors.length ? 'delta/commit-rollback-failed' : 'delta/commit-failed',
       {
-        reason: cause.message,
+        reason: fault(cause).message,
         ...(rollbackErrors.length ? { rollbackErrors } : {}),
         ...(recoveryFiles.length ? {
-          recoveryDirectory: path.dirname(recoveryFiles[0].backup),
-          recoveryDirectories: [...new Set(recoveryFiles.map(({ backup }) => path.dirname(backup)))],
+          recoveryDirectory: path.dirname(requiredPath(recoveryFiles[0]?.backup)),
+          recoveryDirectories: [...new Set(recoveryFiles.map(({ backup }) => path.dirname(requiredPath(backup))))],
           recoveryFiles,
         } : {}),
         supportedFixes: recoveryFiles.length
@@ -3203,10 +3671,10 @@ function commitComparePair({
     );
   } finally {
     for (const item of targets) {
-      if (item.candidateBinding) releaseRegularFileBinding(item.candidateBinding);
+      if (item.candidateBinding) present(releaseRegularFileBinding)(item.candidateBinding);
       if (item.previousBinding
         && !(retainSuccessfulBackupBindings && item.backupPresent)) {
-        releaseRegularFileBinding(item.previousBinding);
+        present(releaseRegularFileBinding)(item.previousBinding);
       }
     }
   }
@@ -3221,7 +3689,16 @@ function commitDeliveryPair({
   ownership,
   verifyAtomicOutput,
   fileBindingRuntime,
-}) {
+}: {
+  htmlCandidate: string;
+  htmlContent: DeliveryContent;
+  provenanceCandidate: string;
+  provenanceContent: DeliveryContent;
+  stagingDirectory: string;
+  ownership: DeliveryOwnership;
+  verifyAtomicOutput: typeof AtomicOutput.verifyAtomicOutput;
+  fileBindingRuntime?: FileBindingRuntime;
+}): { recoverableBackups: RecoveryFile[]; ownedBackupEntries: StagingEntry[] } {
   const {
     backupPublicRegularFileBinding,
     captureRegularFileBinding,
@@ -3237,7 +3714,7 @@ function commitDeliveryPair({
       reason: { code: 'target-snapshot-missing' },
     });
   }
-  const targets = [
+  const targets: [DeliveryPairTarget, DeliveryPairTarget] = [
     {
       label: 'HTML artifact',
       target: snapshots.artifact.commitPath,
@@ -3255,11 +3732,11 @@ function commitDeliveryPair({
       capture: snapshots.provenance,
     },
   ];
-  const backedUp = [];
-  const retainedBackups = new Set();
-  const publicRecoveryBackups = [];
+  const backedUp: DeliveryPairTarget[] = [];
+  const retainedBackups = new Set<DeliveryPairTarget>();
+  const publicRecoveryBackups: RecoveryFile[] = [];
   let retainSuccessfulBackupBindings = false;
-  const committed = [];
+  const committed: DeliveryPairTarget[] = [];
   try {
     if (typeof backupPublicRegularFileBinding !== 'function'
       || typeof captureRegularFileBinding !== 'function'
@@ -3312,7 +3789,7 @@ function commitDeliveryPair({
       if (item.capture.snapshot.target.kind !== 'file') continue;
       assertDeliveryOwnership(ownership, `back up the ${item.label}`, { pending: 'owned' });
       const moved = backupPublicRegularFileBinding(
-        item.previousBinding,
+        item.previousBinding ?? UNBOUND_FILE,
         item.target,
         item.backup,
         { subject: 'previous-delivery-target' },
@@ -3334,7 +3811,7 @@ function commitDeliveryPair({
     }
     for (const item of targets) {
       assertDeliveryOwnership(ownership, `commit the ${item.label}`, { pending: 'owned' });
-      const candidate = verifyRegularFileBinding(item.candidateBinding, {
+      const candidate = verifyRegularFileBinding(item.candidateBinding ?? UNBOUND_FILE, {
         filePath: item.candidate,
         expectedLinks: 1,
       });
@@ -3344,7 +3821,7 @@ function commitDeliveryPair({
       try {
         fs.linkSync(item.candidate, item.target);
       } catch (error) {
-        if (error?.code === 'EEXIST') {
+        if (fault(error).code === 'EEXIST') {
           throw deliveryTargetStateError(item.capture.requestedPath, item.label, {
             status: 'different',
             reason: { code: 'target-claimed-during-publish' },
@@ -3354,7 +3831,7 @@ function commitDeliveryPair({
       }
       item.committedIdentity = item.candidateIdentity;
       committed.push(item);
-      const linked = verifyRegularFileBinding(item.candidateBinding, {
+      const linked = verifyRegularFileBinding(item.candidateBinding ?? UNBOUND_FILE, {
         filePath: item.target,
         expectedLinks: 2,
       });
@@ -3364,7 +3841,7 @@ function commitDeliveryPair({
     }
     for (const item of committed) {
       assertDeliveryOwnership(ownership, `verify the committed ${item.label}`, { pending: 'owned' });
-      const current = verifyRegularFileBinding(item.candidateBinding, {
+      const current = verifyRegularFileBinding(item.candidateBinding ?? UNBOUND_FILE, {
         filePath: item.target,
         expectedLinks: 2,
       });
@@ -3373,7 +3850,7 @@ function commitDeliveryPair({
       }
     }
     for (const item of committed) {
-      const staged = verifyRegularFileBinding(item.candidateBinding, {
+      const staged = verifyRegularFileBinding(item.candidateBinding ?? UNBOUND_FILE, {
         filePath: item.candidate,
         expectedLinks: 2,
       });
@@ -3381,7 +3858,7 @@ function commitDeliveryPair({
         throw deliveryTargetStateError(item.capture.requestedPath, item.label, staged);
       }
       const retired = quarantineRemoveRegularFileBinding(
-        item.candidateBinding,
+        item.candidateBinding ?? UNBOUND_FILE,
         item.candidate,
         { subject: 'delivery-candidate', expectedLinks: 2 },
       );
@@ -3391,7 +3868,7 @@ function commitDeliveryPair({
       item.candidatePresent = false;
     }
     for (const item of committed) {
-      const finalized = verifyRegularFileBinding(item.candidateBinding, {
+      const finalized = verifyRegularFileBinding(item.candidateBinding ?? UNBOUND_FILE, {
         filePath: item.target,
         expectedLinks: 1,
       });
@@ -3424,7 +3901,7 @@ function commitDeliveryPair({
         .filter((item) => item.backupPresent)
         .map((item) => ({
           filePath: item.backup,
-          binding: item.previousBinding,
+          binding: item.previousBinding ?? UNBOUND_FILE,
           subject: 'previous-delivery-backup',
           expectedLinks: 1,
         })),
@@ -3438,17 +3915,17 @@ function commitDeliveryPair({
         ...publicRecoveryBackups,
       ],
     });
-    if (cause.deliveryOwnershipCode === 'delivery/ownership-lost') {
-      cause.deliveryCommitDetails = { ...(cause.deliveryCommitDetails || {}), ...recoveryDetails() };
+    if (fault(cause).deliveryOwnershipCode === 'delivery/ownership-lost') {
+      fault(cause).deliveryCommitDetails = { ...(fault(cause).deliveryCommitDetails || {}), ...recoveryDetails() };
       throw cause;
     }
-    const rollbackErrors = [];
-    const recoverableBackups = [];
+    const rollbackErrors: Array<string | undefined> = [];
+    const recoverableBackups: RecoveryFile[] = [];
     try {
       for (const item of [...committed].reverse()) {
         try {
           assertDeliveryOwnership(ownership, `roll back the ${item.label}`, { pending: 'identity' });
-          const removed = quarantineRemoveRegularFileBinding(item.candidateBinding, item.target, {
+          const removed = present(quarantineRemoveRegularFileBinding)(item.candidateBinding ?? UNBOUND_FILE, item.target, {
             subject: 'published-delivery-target',
             expectedLinks: item.candidatePresent ? 2 : 1,
           });
@@ -3463,16 +3940,16 @@ function commitDeliveryPair({
             throw new Error(`the committed target could not be removed safely (${removed.reason?.code || 'unknown target state'})`);
           }
         } catch (error) {
-          if (error.deliveryOwnershipCode === 'delivery/ownership-lost') throw error;
-          rollbackErrors.push(`${item.label}: remove failed (${error.message})`);
+          if (fault(error).deliveryOwnershipCode === 'delivery/ownership-lost') throw error;
+          rollbackErrors.push(`${item.label}: remove failed (${fault(error).message})`);
         }
       }
       for (const item of [...backedUp].reverse()) {
         try {
           assertDeliveryOwnership(ownership, `restore the previous ${item.label}`, { pending: 'identity' });
           if (pathEntryExists(item.target)) {
-            const current = item.candidateBinding
-              ? verifyRegularFileBinding(item.candidateBinding, {
+            const current: RelationLike = item.candidateBinding
+              ? present(verifyRegularFileBinding)(item.candidateBinding, {
                 filePath: item.target,
                 expectedLinks: item.candidatePresent ? 2 : 1,
               })
@@ -3480,7 +3957,7 @@ function commitDeliveryPair({
             if (current.status !== 'match') {
               throw new Error(`a changed target claimant prevents restoring the previous file (${current.reason?.code || 'unknown target state'})`);
             }
-            const removed = quarantineRemoveRegularFileBinding(item.candidateBinding, item.target, {
+            const removed = present(quarantineRemoveRegularFileBinding)(item.candidateBinding ?? UNBOUND_FILE, item.target, {
               subject: 'published-delivery-target',
               expectedLinks: item.candidatePresent ? 2 : 1,
             });
@@ -3499,7 +3976,7 @@ function commitDeliveryPair({
           if (item.backupVerified !== true) {
             throw new Error('the backup entry was never verified as the previous delivery file');
           }
-          const currentBackup = verifyRegularFileBinding(item.previousBinding, {
+          const currentBackup = present(verifyRegularFileBinding)(item.previousBinding ?? UNBOUND_FILE, {
             filePath: item.backup,
             expectedLinks: 1,
           });
@@ -3511,13 +3988,13 @@ function commitDeliveryPair({
           try {
             fs.linkSync(item.backup, item.target);
           } catch (error) {
-            if (error?.code === 'EEXIST') {
+            if (fault(error).code === 'EEXIST') {
               throw new Error('a new target claimant prevents restoring the previous file');
             }
             throw error;
           }
           for (const restoredPath of [item.target, item.backup]) {
-            const restored = verifyRegularFileBinding(item.previousBinding, {
+            const restored = present(verifyRegularFileBinding)(item.previousBinding ?? UNBOUND_FILE, {
               filePath: restoredPath,
               expectedLinks: 2,
             });
@@ -3525,8 +4002,8 @@ function commitDeliveryPair({
               throw new Error('the restored delivery target identity could not be verified');
             }
           }
-          const retired = quarantineRemoveRegularFileBinding(
-            item.previousBinding,
+          const retired = present(quarantineRemoveRegularFileBinding)(
+            item.previousBinding ?? UNBOUND_FILE,
             item.backup,
             { subject: 'previous-delivery-target', expectedLinks: 2 },
           );
@@ -3534,7 +4011,7 @@ function commitDeliveryPair({
             throw new Error(`the restored delivery backup could not be retired safely (${retired.reason?.code || 'unknown target state'})`);
           }
           item.backupPresent = false;
-          const restoredFinal = verifyRegularFileBinding(item.previousBinding, {
+          const restoredFinal = present(verifyRegularFileBinding)(item.previousBinding ?? UNBOUND_FILE, {
             filePath: item.target,
             expectedLinks: 1,
           });
@@ -3543,8 +4020,8 @@ function commitDeliveryPair({
           }
           retainedBackups.delete(item);
         } catch (error) {
-          if (error.deliveryOwnershipCode === 'delivery/ownership-lost') throw error;
-          rollbackErrors.push(`${item.label}: restore failed (${error.message})`);
+          if (fault(error).deliveryOwnershipCode === 'delivery/ownership-lost') throw error;
+          rollbackErrors.push(`${item.label}: restore failed (${fault(error).message})`);
           // A failed restoration leaves this exact backup at its source path.
           // Record it without probing the failing recovery path again.
           if (item.backupPresent !== false) {
@@ -3561,24 +4038,24 @@ function commitDeliveryPair({
       }
       assertDeliveryOwnership(ownership, 'finish the delivery rollback', { pending: 'identity' });
     } catch (rollbackError) {
-      if (rollbackError.deliveryOwnershipCode === 'delivery/ownership-lost') {
-        rollbackError.deliveryCommitDetails = {
-          ...(rollbackError.deliveryCommitDetails || {}),
+      if (fault(rollbackError).deliveryOwnershipCode === 'delivery/ownership-lost') {
+        fault(rollbackError).deliveryCommitDetails = {
+          ...(fault(rollbackError).deliveryCommitDetails || {}),
           commitError: {
-            reason: cause.message,
-            ...(cause?.code ? { systemCode: cause.code } : {}),
+            reason: fault(cause).message,
+            ...(fault(cause).code ? { systemCode: fault(cause).code } : {}),
           },
           ...recoveryDetails(),
         };
         throw rollbackError;
       }
-      rollbackErrors.push(rollbackError.message);
+      rollbackErrors.push(fault(rollbackError).message);
     }
-    const error = new Error(rollbackErrors.length
+    const error: SchematicsError = new Error(rollbackErrors.length
       ? 'Delivery pair commit failed and its previous files could not be fully restored.'
       : 'Delivery pair commit failed; the previous files were restored.');
     error.deliveryCommitDetails = {
-      reason: cause.message,
+      reason: fault(cause).message,
       ...(rollbackErrors.length ? {
         rollbackErrors,
         recoveryRequired: true,
@@ -3586,43 +4063,49 @@ function commitDeliveryPair({
         recoverableBackups: [...recoverableBackups, ...publicRecoveryBackups],
       } : {}),
     };
-    if (cause.deliveryTargetState) {
-      error.deliveryTargetState = cause.deliveryTargetState;
-      error.schematicsDiagnostics = cause.schematicsDiagnostics;
+    if (fault(cause).deliveryTargetState) {
+      error.deliveryTargetState = fault(cause).deliveryTargetState;
+      error.schematicsDiagnostics = fault(cause).schematicsDiagnostics;
     }
     throw error;
   } finally {
     for (const item of targets) {
-      if (item.candidateBinding) releaseRegularFileBinding(item.candidateBinding);
+      if (item.candidateBinding) present(releaseRegularFileBinding)(item.candidateBinding);
       if (item.previousBinding
         && !(retainSuccessfulBackupBindings && item.backupPresent)) {
-        releaseRegularFileBinding(item.previousBinding);
+        present(releaseRegularFileBinding)(item.previousBinding);
       }
     }
   }
 }
 
-async function renderValidatedArchitecture(inputPath, outputPath, quality, repoRoot, captureStagingFile) {
+async function renderValidatedArchitecture(
+  inputPath: string,
+  outputPath: string,
+  quality: string | undefined,
+  repoRoot: string | undefined,
+  captureStagingFile?: (filePath: string, content: DeliveryContent) => void,
+): Promise<{ artifact: Buffer; html: string; checks: ArtifactCheckReceipt; sourceEvidence: SourceEvidence | null }> {
   const render = runNode([rendererPath('architecture'), inputPath, outputPath], {
     stdio: 'pipe',
     env: rendererEnv(quality, repoRoot, true),
   });
   if (render.status !== 0) {
     const failure = rendererFailure(render);
-    const error = new Error(failure.error);
+    const error: SchematicsError = new Error(failure.error);
     error.compareStage = 'input';
     error.compareStatus = render.status ?? 1;
     error.diagnostics = failure.diagnostics;
     throw error;
   }
-  let artifact;
+  let artifact: Buffer | undefined;
   if (captureStagingFile) {
     artifact = fs.readFileSync(outputPath);
     captureStagingFile(outputPath, artifactIdentity(artifact));
   }
   const check = await runArtifactCheck(outputPath);
   if (!check.receipt?.ok) {
-    const error = new Error('Validated snapshot failed final artifact checks.');
+    const error: SchematicsError = new Error('Validated snapshot failed final artifact checks.');
     error.compareStage = 'check';
     error.compareStatus = 1;
     if (check.receipt) {
@@ -3642,7 +4125,18 @@ async function renderValidatedArchitecture(inputPath, outputPath, quality, repoR
   };
 }
 
-async function commandCompare(args) {
+interface ArchitectureCheckReceipt {
+  checks: ReadonlyArray<{ ok?: boolean }>;
+  composition: { status?: unknown; [detail: string]: unknown };
+}
+
+function architectureCheckReceipt(receipt: ArtifactCheckReceipt): ArchitectureCheckReceipt {
+  const { checks, composition } = receipt;
+  if (!Array.isArray(checks) || !isRecord(composition)) throw new TypeError('The architecture check receipt is incomplete.');
+  return { checks, composition };
+}
+
+async function commandCompare(args: string[]): Promise<void> {
   await loadSidecarPathRuntime();
   const {
     canonicalFuturePath,
@@ -3679,7 +4173,7 @@ async function commandCompare(args) {
   try {
     deltaRuntime = await import(pathToFileURL(path.join(skillRoot, 'packages/delta/architecture-delta.ts')).href);
   } catch (error) {
-    reportCompareFailure({ json: options.json, stage: 'prepare', error: 'Architecture compare runtime is unavailable.', code: 'delta/runtime-missing', details: { reason: error.message, supportedFixes: ['install the complete Schematics skill package'] } });
+    reportCompareFailure({ json: options.json, stage: 'prepare', error: 'Architecture compare runtime is unavailable.', code: 'delta/runtime-missing', details: { reason: fault(error).message, supportedFixes: ['install the complete Schematics skill package'] } });
     return;
   }
   const {
@@ -3720,11 +4214,11 @@ async function commandCompare(args) {
         : (invalidOutputAliasPreflight ? [invalidOutputAliasPreflight] : []),
     }));
   } catch (error) {
-    const outputDiagnostic = error.schematicsDiagnostics?.[0];
+    const outputDiagnostic = fault(error).schematicsDiagnostics?.[0];
     reportCompareFailure({
       json: options.json,
       stage: 'prepare',
-      error: error.message,
+      error: fault(error).message,
       code: outputDiagnostic?.code || 'output/path-resolution',
       details: {
         ...(outputDiagnostic?.subject || {}),
@@ -3748,11 +4242,11 @@ async function commandCompare(args) {
       }));
       requestedReceiptPath = receiptPath;
     } catch (error) {
-      const outputDiagnostic = error.schematicsDiagnostics?.[0];
+      const outputDiagnostic = fault(error).schematicsDiagnostics?.[0];
       reportCompareFailure({
         json: options.json,
         stage: 'prepare',
-        error: error.message,
+        error: fault(error).message,
         code: outputDiagnostic?.code || 'output/path-resolution',
         details: {
           ...(outputDiagnostic?.subject || {}),
@@ -3767,11 +4261,11 @@ async function commandCompare(args) {
     outputPath = canonicalFuturePath(requestedOutputPath);
     if (requestedReceiptPath) receiptPath = canonicalFuturePath(requestedReceiptPath);
   } catch (error) {
-    const outputDiagnostic = error.schematicsDiagnostics?.[0];
+    const outputDiagnostic = fault(error).schematicsDiagnostics?.[0];
     reportCompareFailure({
       json: options.json,
       stage: 'prepare',
-      error: error.message,
+      error: fault(error).message,
       code: outputDiagnostic?.code || 'output/path-resolution',
       details: {
         ...(outputDiagnostic?.subject || {}),
@@ -3789,14 +4283,14 @@ async function commandCompare(args) {
     baseBuffer = fs.readFileSync(basePath);
     base = JSON.parse(baseBuffer.toString('utf8'));
   } catch (error) {
-    reportCompareFailure({ json: options.json, stage: 'input', error: `Could not read base input: ${error.message}`, code: 'delta/base-input', details: { side: 'base', reason: error.message } });
+    reportCompareFailure({ json: options.json, stage: 'input', error: `Could not read base input: ${fault(error).message}`, code: 'delta/base-input', details: { side: 'base', reason: fault(error).message } });
     return;
   }
   try {
     headBuffer = fs.readFileSync(headPath);
     head = JSON.parse(headBuffer.toString('utf8'));
   } catch (error) {
-    reportCompareFailure({ json: options.json, stage: 'input', error: `Could not read head input: ${error.message}`, code: 'delta/head-input', details: { side: 'head', reason: error.message } });
+    reportCompareFailure({ json: options.json, stage: 'input', error: `Could not read head input: ${fault(error).message}`, code: 'delta/head-input', details: { side: 'head', reason: fault(error).message } });
     return;
   }
 
@@ -3804,11 +4298,11 @@ async function commandCompare(args) {
     try {
       validateAuthoredOutputPath(document?.meta?.output);
     } catch (error) {
-      const diagnosticEntry = error.schematicsDiagnostics?.[0];
+      const diagnosticEntry = fault(error).schematicsDiagnostics?.[0];
       reportCompareFailure({
         json: options.json,
         stage: 'input',
-        error: `${side === 'base' ? 'Base' : 'Head'} snapshot failed validation: ${error.message}`,
+        error: `${side === 'base' ? 'Base' : 'Head'} snapshot failed validation: ${fault(error).message}`,
         code: diagnosticEntry?.code || `delta/${side}-validation`,
         details: {
           side,
@@ -3858,7 +4352,7 @@ async function commandCompare(args) {
   try {
     fs.mkdirSync(outputDirectory, { recursive: true });
   } catch (error) {
-    reportCompareFailure({ json: options.json, stage: 'prepare', error: `Could not create compare output directory: ${error.message}`, code: 'delta/output-directory', details: { reason: error.message } });
+    reportCompareFailure({ json: options.json, stage: 'prepare', error: `Could not create compare output directory: ${fault(error).message}`, code: 'delta/output-directory', details: { reason: fault(error).message } });
     return;
   }
 
@@ -3875,19 +4369,19 @@ async function commandCompare(args) {
       requestedReceiptPath = receiptPath;
       receiptPath = canonicalFuturePath(requestedReceiptPath);
     } catch (error) {
-      const outputDiagnostic = error.schematicsDiagnostics?.[0];
-      const namespaceIndeterminate = error?.code === 'SCHEMATICS_SIDECAR_NAMESPACE_INDETERMINATE';
+      const outputDiagnostic = fault(error).schematicsDiagnostics?.[0];
+      const namespaceIndeterminate = fault(error).code === 'SCHEMATICS_SIDECAR_NAMESPACE_INDETERMINATE';
       reportCompareFailure({
         json: options.json,
         stage: 'prepare',
-        error: error.message,
+        error: fault(error).message,
         code: namespaceIndeterminate
           ? 'delta/receipt-namespace-indeterminate'
           : outputDiagnostic?.code || 'output/path-resolution',
         details: {
           ...(outputDiagnostic?.subject || {}),
           ...(outputDiagnostic?.evidence || {}),
-          ...(namespaceIndeterminate ? { pathIdentity: error.sidecarNamespaceReason } : {}),
+          ...(namespaceIndeterminate ? { pathIdentity: fault(error).sidecarNamespaceReason } : {}),
           supportedFixes: outputDiagnostic?.supportedFixes
             || ['choose a safe receipt path beside the compare artifact and retry'],
         },
@@ -3929,11 +4423,11 @@ async function commandCompare(args) {
   }
 
   const outputCapture = captureAtomicOutput(requestedOutputPath);
-  const receiptCapture = captureAtomicOutput(requestedReceiptPath);
+  const receiptCapture = captureAtomicOutput(requiredPath(requestedReceiptPath));
   for (const [capture, label, requestedPath] of [
     [outputCapture, 'HTML artifact', requestedOutputPath],
-    [receiptCapture, 'receipt', requestedReceiptPath],
-  ]) {
+    [receiptCapture, 'receipt', requiredPath(requestedReceiptPath)],
+  ] as const) {
     if (capture.status === 'captured') continue;
     const failure = compareAtomicOutputFailure(capture, label, requestedPath, 'prepare');
     reportCompareFailure({
@@ -3945,6 +4439,7 @@ async function commandCompare(args) {
     });
     return;
   }
+  if (outputCapture.status !== 'captured' || receiptCapture.status !== 'captured') return;
   const outputParent = outputCapture.snapshot.slot;
   const receiptParent = receiptCapture.snapshot.slot;
   if (outputParent.parentDevice !== receiptParent.parentDevice
@@ -3975,7 +4470,7 @@ async function commandCompare(args) {
     stagingDirectory = staging.directory;
     stagingIdentity = staging.identity;
   } catch (error) {
-    reportCompareFailure({ json: options.json, stage: 'prepare', error: `Could not create compare candidate: ${error.message}`, code: 'delta/candidate-directory', details: { reason: error.message } });
+    reportCompareFailure({ json: options.json, stage: 'prepare', error: `Could not create compare candidate: ${fault(error).message}`, code: 'delta/candidate-directory', details: { reason: fault(error).message } });
     return;
   }
 
@@ -3990,8 +4485,8 @@ async function commandCompare(args) {
   const htmlCandidate = path.join(stagingDirectory, path.basename(outputPath));
   const receiptCandidate = path.join(stagingDirectory, path.basename(receiptPath));
   let preserveRecoveryDirectory = false;
-  const stagingOwnership = [];
-  const captureCompareStagingFile = (filePath, content) => captureOwnedStagingFile(
+  const stagingOwnership: StagingEntry[] = [];
+  const captureCompareStagingFile = (filePath: string, content: DeliveryContent) => captureOwnedStagingFile(
     stagingOwnership,
     filePath,
     fileBindingRuntime,
@@ -4009,7 +4504,7 @@ async function commandCompare(args) {
         fs.writeFileSync(snapshotPath, buffer, { flag: 'wx' });
         captureCompareStagingFile(snapshotPath, artifactIdentity(buffer));
       } catch (error) {
-        const message = `Could not freeze ${side} compare snapshot: ${error.message}`;
+        const message = `Could not freeze ${side} compare snapshot: ${fault(error).message}`;
         reportCompareFailure({
           json: options.json,
           stage: 'prepare',
@@ -4017,8 +4512,8 @@ async function commandCompare(args) {
           code: 'delta/freeze-snapshot',
           details: {
             side,
-            ...(error?.code ? { systemCode: error.code } : {}),
-            reason: error.message,
+            ...(fault(error).code ? { systemCode: fault(error).code } : {}),
+            reason: fault(error).message,
             supportedFixes: ['choose a writable compare output directory on the target filesystem'],
           },
         });
@@ -4034,14 +4529,14 @@ async function commandCompare(args) {
         captureCompareStagingFile,
       );
     } catch (error) {
-      const diagnosticEntry = error.diagnostics?.[0];
+      const diagnosticEntry = fault(error).diagnostics?.[0];
       reportCompareFailure({
         json: options.json,
-        stage: error.compareStage || 'validate',
-        error: `Base snapshot failed validation: ${error.message}`,
+        stage: fault(error).compareStage || 'validate',
+        error: `Base snapshot failed validation: ${fault(error).message}`,
         code: diagnosticEntry?.code || 'delta/base-validation',
         details: { side: 'base', ...(diagnosticEntry?.subject?.path ? { path: diagnosticEntry.subject.path } : {}), ...(diagnosticEntry?.evidence || {}), supportedFixes: diagnosticEntry?.supportedFixes || [] },
-        status: error.compareStatus || 1,
+        status: fault(error).compareStatus || 1,
       });
       return;
     }
@@ -4054,14 +4549,14 @@ async function commandCompare(args) {
         captureCompareStagingFile,
       );
     } catch (error) {
-      const diagnosticEntry = error.diagnostics?.[0];
+      const diagnosticEntry = fault(error).diagnostics?.[0];
       reportCompareFailure({
         json: options.json,
-        stage: error.compareStage || 'validate',
-        error: `Head snapshot failed validation: ${error.message}`,
+        stage: fault(error).compareStage || 'validate',
+        error: `Head snapshot failed validation: ${fault(error).message}`,
         code: diagnosticEntry?.code || 'delta/head-validation',
         details: { side: 'head', ...(diagnosticEntry?.subject?.path ? { path: diagnosticEntry.subject.path } : {}), ...(diagnosticEntry?.evidence || {}), supportedFixes: diagnosticEntry?.supportedFixes || [] },
-        status: error.compareStatus || 1,
+        status: fault(error).compareStatus || 1,
       });
       return;
     }
@@ -4094,7 +4589,7 @@ async function commandCompare(args) {
       captureCompareStagingFile,
     );
 
-    const semanticHash = (diagram) => new Bun.CryptoHasher('sha256').update(canonicalArchitectureJson(diagram)).digest('hex');
+    const semanticHash = (diagram: unknown) => new Bun.CryptoHasher('sha256').update(canonicalArchitectureJson(diagram)).digest('hex');
     let compareIr;
     try {
       compareIr = compareArchitecture(base, head, {
@@ -4109,7 +4604,7 @@ async function commandCompare(args) {
       });
     } catch (error) {
       if (!(error instanceof ArchitectureDeltaError)) throw error;
-      reportCompareFailure({ json: options.json, stage: 'compare', error: error.message, code: error.code, details: error.details });
+      reportCompareFailure({ json: options.json, stage: 'compare', error: fault(error).message, code: fault(error).code, details: fault(error).details });
       return;
     }
 
@@ -4140,16 +4635,18 @@ async function commandCompare(args) {
     if (outputCapture.mode !== null) fs.chmodSync(htmlCandidate, outputCapture.mode);
     const artifact = fs.readFileSync(htmlCandidate);
     captureCompareStagingFile(htmlCandidate, artifactIdentity(artifact));
-    const baseChecks = baseResult.checks.checks.filter((check) => check.ok).length;
-    const headChecks = headResult.checks.checks.filter((check) => check.ok).length;
+    const baseReceipt = architectureCheckReceipt(baseResult.checks);
+    const headReceipt = architectureCheckReceipt(headResult.checks);
+    const baseChecks = baseReceipt.checks.filter((check) => check.ok).length;
+    const headChecks = headReceipt.checks.filter((check) => check.ok).length;
     const finalReceipt = {
       ...compareIr,
       artifact: artifactIdentity(artifact),
       validation: {
         checksPassed: baseChecks + headChecks + deltaValidation.checksPassed,
-        checkCount: baseResult.checks.checks.length + headResult.checks.checks.length + deltaValidation.checkCount,
-        baseComposition: baseResult.checks.composition.status,
-        headComposition: headResult.checks.composition.status,
+        checkCount: baseReceipt.checks.length + headReceipt.checks.length + deltaValidation.checkCount,
+        baseComposition: baseReceipt.composition.status,
+        headComposition: headReceipt.composition.status,
       },
     };
     const receiptBytes = Buffer.from(`${JSON.stringify(finalReceipt, null, 2)}\n`);
@@ -4162,7 +4659,7 @@ async function commandCompare(args) {
         requestedOutput,
         defaultOutput: 'architecture-delta.html',
         inputPaths: [basePath, headPath],
-        otherOutputPaths: [requestedReceiptPath],
+        otherOutputPaths: [requiredPath(requestedReceiptPath)],
       }).outputPath;
       resolveOutputPath({
         requestedOutput: options.receipt || compareReceiptPath(currentOutput),
@@ -4172,11 +4669,11 @@ async function commandCompare(args) {
         otherOutputPaths: [currentOutput],
       });
     } catch (error) {
-      const outputDiagnostic = error.schematicsDiagnostics?.[0];
+      const outputDiagnostic = fault(error).schematicsDiagnostics?.[0];
       reportCompareFailure({
         json: options.json,
         stage: 'commit',
-        error: error.message,
+        error: fault(error).message,
         code: outputDiagnostic?.code || 'output/path-resolution',
         details: {
           ...(outputDiagnostic?.subject || {}),
@@ -4207,18 +4704,18 @@ async function commandCompare(args) {
     }
   } catch (error) {
     if (error instanceof ArchitectureDeltaError) {
-      reportCompareFailure({ json: options.json, stage: 'artifact', error: error.message, code: error.code, details: error.details });
-    } else if (error.compareStage === 'commit') {
-      preserveRecoveryDirectory = Boolean(error.compareDetails?.recoveryFiles?.length);
+      reportCompareFailure({ json: options.json, stage: 'artifact', error: fault(error).message, code: fault(error).code, details: fault(error).details });
+    } else if (fault(error).compareStage === 'commit') {
+      preserveRecoveryDirectory = Boolean(fault(error).compareDetails?.recoveryFiles?.length);
       reportCompareFailure({
         json: options.json,
-        stage: error.compareStage,
-        error: error.message,
-        code: error.compareCode,
-        details: error.compareDetails,
+        stage: fault(error).compareStage,
+        error: fault(error).message,
+        code: fault(error).compareCode,
+        details: fault(error).compareDetails,
       });
     } else {
-      reportCompareFailure({ json: options.json, stage: 'internal', error: 'Architecture compare failed before commit.', code: 'delta/internal', details: { reason: error.message } });
+      reportCompareFailure({ json: options.json, stage: 'internal', error: 'Architecture compare failed before commit.', code: 'delta/internal', details: { reason: fault(error).message } });
     }
   } finally {
     try {
@@ -4233,12 +4730,12 @@ async function commandCompare(args) {
         releaseOwnedStagingBindings(stagingOwnership, fileBindingRuntime);
       }
     } catch (error) {
-      console.error(`Warning: could not remove compare staging directory: ${error.message}`);
+      console.error(`Warning: could not remove compare staging directory: ${fault(error).message}`);
     }
   }
 }
 
-async function commandRender(args) {
+async function commandRender(args: string[]): Promise<void> {
   const qualityArgs = extractQualityArgs(args);
   const repoArgs = extractRepoRootArgs(qualityArgs.rest);
   // render takes no options of its own once --quality and --repo-root are
@@ -4261,7 +4758,7 @@ async function commandRender(args) {
   }
 }
 
-function reportArtifactFailure({ command, json, stage, type, input, output, error, diagnostics = [], status = 1, checker, receiptId, provenance }) {
+function reportArtifactFailure({ command, json, stage, type, input, output, error, diagnostics = [], status = 1, checker, receiptId, provenance }: ArtifactFailureReport): void {
   const receipt = {
     schemaVersion: 1,
     ok: false,
@@ -4281,15 +4778,16 @@ function reportArtifactFailure({ command, json, stage, type, input, output, erro
   process.exitCode = status;
 }
 
-function writeDeliveryFailureReceipt(options) {
+function writeDeliveryFailureReceipt(options: DeliveryFailureReport): DeliveryRecord {
   const receiptId = options.receiptId || crypto.randomUUID();
   const recorded = recordDeliveryFailure({ ...options, receiptId });
+  if (!recorded) throw new TypeError('The delivery failure record is unavailable.');
   const ownershipOrLockError = recorded.ownershipError || recorded.lockError;
   if (ownershipOrLockError) {
     const failureWasRecorded = recorded.status && recorded.status !== 'unrecorded';
     const lockOrOwnershipFailure = Boolean(
-      ownershipOrLockError.deliveryLockCode
-      || ownershipOrLockError.deliveryOwnershipCode,
+      fault(ownershipOrLockError).deliveryLockCode
+      || fault(ownershipOrLockError).deliveryOwnershipCode,
     );
     reportArtifactFailure({
       ...options,
@@ -4297,7 +4795,7 @@ function writeDeliveryFailureReceipt(options) {
       receiptId,
       status: 1,
       error: lockOrOwnershipFailure
-        ? `Could not safely continue delivery for "${options.output}": ${ownershipOrLockError.message}`
+        ? `Could not safely continue delivery for "${options.output}": ${fault(ownershipOrLockError).message}`
         : options.error,
       ...(failureWasRecorded ? { provenance: recorded.status } : {}),
       diagnostics: lockOrOwnershipFailure
@@ -4334,16 +4832,16 @@ function writeDeliveryFailureReceipt(options) {
   return recorded;
 }
 
-function reportArtifactArgumentFailure(command, error) {
-  const details = error.schematicsArgument || {};
+function reportArtifactArgumentFailure(command: string, error: unknown): void {
+  const details = fault(error).schematicsArgument || {};
   reportArtifactFailure({
     command,
     json: true,
     stage: 'arguments',
-    error: error.message,
+    error: fault(error).message,
     diagnostics: [diagnostic({
       code: details.code || 'cli/invalid-arguments',
-      message: error.message,
+      message: fault(error).message,
       subject: { command, ...(details.subject || {}) },
       evidence: details.evidence || {},
       supportedFixes: details.supportedFixes || ['correct the command arguments and retry'],
@@ -4352,23 +4850,59 @@ function reportArtifactArgumentFailure(command, error) {
   });
 }
 
-function sourceEvidenceFromArtifact(artifact) {
+interface SourceEvidence {
+  verified: true;
+  repository: { url: string; revision: string; [detail: string]: unknown };
+  referenceCount: number;
+  [detail: string]: unknown;
+}
+
+function sourceEvidenceFromArtifact(artifact: Buffer): SourceEvidence | null {
   const html = artifact.toString('utf8');
   const match = html.match(/<script id="schematics-source-evidence-data" type="application\/json">([\s\S]*?)<\/script>/);
   if (!match) return null;
-  const evidence = JSON.parse(match[1]);
+  const evidence = JSON.parse(String(match[1]));
   if (evidence?.verified !== true || !evidence.repository?.url || !evidence.repository?.revision || !Number.isInteger(evidence.referenceCount)) {
     throw new Error('Rendered source evidence receipt is incomplete.');
   }
   return evidence;
 }
 
-function engineeringProfileFromArtifact(artifact) {
+function engineeringProfileFromArtifact(artifact: Buffer): string | null {
   const match = artifact.toString('utf8').match(/<svg[^>]*\sdata-engineering-profile="([^"]+)"/);
   return match ? match[1] : null;
 }
 
-async function commandDeliver(args) {
+interface DiagramCheckReceipt {
+  checks: ReadonlyArray<{ ok?: boolean }>;
+  composition: {
+    profile?: unknown;
+    status?: unknown;
+    summary: { errors?: unknown; warnings?: unknown; [detail: string]: unknown };
+    issues?: unknown;
+    [detail: string]: unknown;
+  };
+}
+
+function diagramCheckReceipt(receipt: ArtifactCheckReceipt): DiagramCheckReceipt {
+  const { checks, composition } = receipt;
+  if (!Array.isArray(checks) || !isRecord(composition) || !isRecord(composition.summary)) {
+    throw new TypeError('The artifact check receipt is incomplete.');
+  }
+  return { checks, composition: { ...composition, summary: composition.summary } };
+}
+
+function requiredList(value: unknown): unknown[] {
+  if (!Array.isArray(value)) throw new TypeError('The artifact check receipt is incomplete.');
+  return value;
+}
+
+function requiredRecord(value: unknown): JsonRecord {
+  if (!isRecord(value)) throw new TypeError('The artifact check receipt is incomplete.');
+  return value;
+}
+
+async function commandDeliver(args: string[]): Promise<void> {
   await loadSidecarPathRuntime();
   const qualityArgs = extractQualityArgs(args);
   const repoArgs = extractRepoRootArgs(qualityArgs.rest);
@@ -4415,12 +4949,12 @@ async function commandDeliver(args) {
     releaseRegularFileBinding,
   };
   const receiptId = crypto.randomUUID();
-  let deliveryOwnership;
+  let deliveryOwnership: DeliveryOwnership | undefined;
   let recoveryRequired = false;
-  let stagingDirectory;
-  let stagingIdentity;
-  let deliveryAliasOutput;
-  const reportDeliveryFailure = async (options) => {
+  let stagingDirectory: string | undefined;
+  let stagingIdentity: StagingIdentity | undefined;
+  let deliveryAliasOutput: string | undefined;
+  const reportDeliveryFailure = async (options: Omit<DeliveryFailureReport, 'pathsAlias'>) => {
     const ownership = deliveryOwnership;
     deliveryOwnership = undefined;
     const recorded = writeDeliveryFailureReceipt({
@@ -4435,11 +4969,11 @@ async function commandDeliver(args) {
       verifyAtomicOutput,
       fileBindingRuntime,
     });
-    if (ownership && (recorded?.ownershipError || recorded?.lockError)?.deliveryOwnershipCode === 'delivery/ownership-lost') {
+    if (ownership && fault(recorded?.ownershipError || recorded?.lockError).deliveryOwnershipCode === 'delivery/ownership-lost') {
       recoveryRequired = true;
     }
   };
-  const reportPreparedArtifactFailure = async (options) => reportArtifactFailure(options);
+  const reportPreparedArtifactFailure = async (options: ArtifactFailureReport) => reportArtifactFailure(options);
   const inputPath = path.resolve(input);
   let specification;
   let diagram;
@@ -4458,14 +4992,14 @@ async function commandDeliver(args) {
       type,
       input: inputPath,
       output: path.resolve(requestedOutput || `${type}.html`),
-      error: `Could not read delivery input "${inputPath}": ${error.message}`,
-      diagnostics: error.schematicsDiagnostics || [repair],
+      error: `Could not read delivery input "${inputPath}": ${fault(error).message}`,
+      diagnostics: fault(error).schematicsDiagnostics || [repair],
     });
     return;
   }
 
   const authoredOutput = diagram?.meta?.output;
-  let outputPath;
+  let outputPath: string | undefined;
   let provenancePath;
   let preparedDeliveryTargets;
   try {
@@ -4493,12 +5027,12 @@ async function commandDeliver(args) {
       type,
       input: inputPath,
       output: attemptedOutput,
-      error: error.message,
-      diagnostics: error.schematicsDiagnostics || [diagnostic({
+      error: fault(error).message,
+      diagnostics: fault(error).schematicsDiagnostics || [diagnostic({
         code: 'output/path-resolution',
-        message: error.message,
+        message: fault(error).message,
         subject: { output: attemptedOutput },
-        evidence: { ...(error?.code ? { systemCode: error.code } : {}) },
+        evidence: { ...(fault(error).code ? { systemCode: fault(error).code } : {}) },
         supportedFixes: ['choose a safe output path and retry'],
       })],
     };
@@ -4513,7 +5047,7 @@ async function commandDeliver(args) {
   try {
     fs.mkdirSync(outputDirectory, { recursive: true });
   } catch (error) {
-    const message = `Could not create delivery directory "${outputDirectory}": ${error.message}`;
+    const message = `Could not create delivery directory "${outputDirectory}": ${fault(error).message}`;
     await reportDeliveryFailure({
       json,
       stage: 'prepare',
@@ -4525,7 +5059,7 @@ async function commandDeliver(args) {
         code: 'delivery/prepare-directory',
         message,
         subject: { outputDirectory },
-        evidence: { ...(error?.code ? { systemCode: error.code } : {}), reason: error.message },
+        evidence: { ...(fault(error).code ? { systemCode: fault(error).code } : {}), reason: fault(error).message },
         supportedFixes: ['choose a writable output directory'],
       })],
     });
@@ -4557,16 +5091,16 @@ async function commandDeliver(args) {
       type,
       input: inputPath,
       output: attemptedOutput,
-      error: error.message,
-      diagnostics: error.schematicsDiagnostics || [diagnostic({
+      error: fault(error).message,
+      diagnostics: fault(error).schematicsDiagnostics || [diagnostic({
         code: 'output/path-resolution',
-        message: error.message,
+        message: fault(error).message,
         subject: { output: attemptedOutput },
-        evidence: { ...(error?.code ? { systemCode: error.code } : {}) },
+        evidence: { ...(fault(error).code ? { systemCode: fault(error).code } : {}) },
         supportedFixes: ['choose a safe output path and retry'],
       })],
     };
-    if (error?.code === 'SCHEMATICS_SIDECAR_NAMESPACE_INDETERMINATE') {
+    if (fault(error).code === 'SCHEMATICS_SIDECAR_NAMESPACE_INDETERMINATE') {
       await reportPreparedArtifactFailure({ ...failure, command: 'deliver', receiptId });
     } else {
       await reportDeliveryFailure(failure);
@@ -4610,12 +5144,12 @@ async function commandDeliver(args) {
   } catch (error) {
     await reportPreparedArtifactFailure({
       command: 'deliver', json, stage: 'prepare', type, input: inputPath, output: outputPath, receiptId,
-      error: error.message,
-      diagnostics: error.schematicsDiagnostics || [diagnostic({
+      error: fault(error).message,
+      diagnostics: fault(error).schematicsDiagnostics || [diagnostic({
         code: 'output/target-indeterminate',
-        message: error.message,
+        message: fault(error).message,
         subject: { output: outputPath },
-        evidence: { ...(error?.code ? { systemCode: error.code } : {}) },
+        evidence: { ...(fault(error).code ? { systemCode: fault(error).code } : {}) },
         supportedFixes: ['retry only after the output path and its parent directories stop changing'],
       })],
     });
@@ -4632,7 +5166,7 @@ async function commandDeliver(args) {
     stagingDirectory = staging.directory;
     stagingIdentity = staging.identity;
   } catch (error) {
-    const message = `Could not create a delivery candidate beside "${outputPath}": ${error.message}`;
+    const message = `Could not create a delivery candidate beside "${outputPath}": ${fault(error).message}`;
     await reportDeliveryFailure({
       json,
       stage: 'prepare',
@@ -4644,7 +5178,7 @@ async function commandDeliver(args) {
         code: 'delivery/prepare-candidate',
         message,
         subject: { output: outputPath },
-        evidence: { ...(error?.code ? { systemCode: error.code } : {}), reason: error.message },
+        evidence: { ...(fault(error).code ? { systemCode: fault(error).code } : {}), reason: fault(error).message },
         supportedFixes: ['choose a writable output directory on the target filesystem'],
       })],
     });
@@ -4653,9 +5187,9 @@ async function commandDeliver(args) {
   const candidatePath = path.join(stagingDirectory, path.basename(outputPath));
   const specificationSnapshotPath = path.join(stagingDirectory, 'specification.snapshot.json');
   const provenanceCandidatePath = path.join(stagingDirectory, 'delivery-provenance.json');
-  let commitRecoveryBackups = [];
-  const stagingOwnership = [];
-  const captureDeliveryStagingFile = (filePath, content) => captureOwnedStagingFile(
+  let commitRecoveryBackups: RecoveryFile[] = [];
+  const stagingOwnership: StagingEntry[] = [];
+  const captureDeliveryStagingFile = (filePath: string, content: DeliveryContent) => captureOwnedStagingFile(
     stagingOwnership,
     filePath,
     fileBindingRuntime,
@@ -4673,7 +5207,7 @@ async function commandDeliver(args) {
           output: outputPath,
           stage: 'prepare',
           input: inputPath,
-          error: `Could not start delivery for "${outputPath}": ${lockError.message}`,
+          error: `Could not start delivery for "${outputPath}": ${fault(lockError).message}`,
           receiptId,
           pathsAlias,
           ownership: initializingOwnership,
@@ -4685,15 +5219,15 @@ async function commandDeliver(args) {
         fileBindingRuntime,
       );
     } catch (error) {
-      const message = `Could not start delivery for "${outputPath}": ${error.message}`;
-      const recorded = error.deliveryFailureRecord;
+      const message = `Could not start delivery for "${outputPath}": ${fault(error).message}`;
+      const recorded = fault(error).deliveryFailureRecord;
       await reportPreparedArtifactFailure({
         command: 'deliver', json, stage: 'prepare', type, input: inputPath, output: outputPath, receiptId,
         error: message,
         ...(recorded ? { provenance: recorded.status } : {}),
-        diagnostics: error.deliveryJournalRecovery?.recoveryRequired
+        diagnostics: fault(error).deliveryJournalRecovery?.recoveryRequired
           ? [deliveryJournalRecoveryDiagnostic(outputPath, error)]
-          : error.deliveryProvenanceRecovery?.recoveryRequired
+          : fault(error).deliveryProvenanceRecovery?.recoveryRequired
             ? [
               ...(recorded?.diagnostic ? [recorded.diagnostic] : []),
               deliveryLockFailureDiagnostic(outputPath, error),
@@ -4728,14 +5262,14 @@ async function commandDeliver(args) {
       deliveryOwnership = undefined;
       await reportPreparedArtifactFailure({
         command: 'deliver', json, stage: 'prepare', type, input: inputPath, output: outputPath, receiptId,
-        error: error.message,
+        error: fault(error).message,
         diagnostics: [
           ...(releaseError ? [deliveryLockFailureDiagnostic(outputPath, releaseError)] : []),
-          ...(error.schematicsDiagnostics || [diagnostic({
+          ...(fault(error).schematicsDiagnostics || [diagnostic({
             code: 'output/target-indeterminate',
-            message: error.message,
+            message: fault(error).message,
             subject: { output: outputPath },
-            evidence: { ...(error?.code ? { systemCode: error.code } : {}) },
+            evidence: { ...(fault(error).code ? { systemCode: fault(error).code } : {}) },
           })]),
         ],
       });
@@ -4750,28 +5284,28 @@ async function commandDeliver(args) {
         fileBindingRuntime,
       });
     } catch (error) {
-      if (error.deliveryJournalRecovery?.recoveryRequired) {
+      if (fault(error).deliveryJournalRecovery?.recoveryRequired) {
         // The lock is the remaining fail-closed barrier. Do not write failure
         // provenance or release it after journal rollback itself became unsafe.
         deliveryOwnership = undefined;
         await reportPreparedArtifactFailure({
           command: 'deliver', json, stage: 'prepare', type, input: inputPath, output: outputPath, receiptId,
-          error: `Could not persist the delivery attempt before rendering: ${error.message}`,
+          error: `Could not persist the delivery attempt before rendering: ${fault(error).message}`,
           diagnostics: [deliveryJournalRecoveryDiagnostic(outputPath, error)],
         });
         return;
       }
-      if (error.deliveryOwnershipCode === 'delivery/ownership-lost') {
+      if (fault(error).deliveryOwnershipCode === 'delivery/ownership-lost') {
         deliveryOwnership = undefined;
         recoveryRequired = true;
-        error.deliveryCommitDetails = {
+        fault(error).deliveryCommitDetails = {
           recoveryRequired: true,
           recoveryDirectory: stagingDirectory,
           recoverableBackups: [],
         };
         await reportPreparedArtifactFailure({
           command: 'deliver', json, stage: 'prepare', type, input: inputPath, output: outputPath, receiptId,
-          error: `Could not persist the delivery attempt before rendering: ${error.message}`,
+          error: `Could not persist the delivery attempt before rendering: ${fault(error).message}`,
           diagnostics: [deliveryLockFailureDiagnostic(outputPath, error)],
         });
         return;
@@ -4786,7 +5320,7 @@ async function commandDeliver(args) {
             journal: deliveryOwnershipStates.get(deliveryOwnership)?.pendingPath
               || deliveryPendingPath(outputPath),
           },
-          evidence: { reason: error.message },
+          evidence: { reason: fault(error).message },
           supportedFixes: ['choose a writable output directory with a journal path distinct from the input'],
         })],
       });
@@ -4800,7 +5334,7 @@ async function commandDeliver(args) {
         artifactIdentity(Buffer.from(specification)),
       );
     } catch (error) {
-      const message = `Could not freeze the delivery specification: ${error.message}`;
+      const message = `Could not freeze the delivery specification: ${fault(error).message}`;
       await reportDeliveryFailure({
         json,
         stage: 'prepare',
@@ -4812,7 +5346,7 @@ async function commandDeliver(args) {
           code: 'delivery/freeze-specification',
           message,
           subject: { input: inputPath },
-          evidence: { ...(error?.code ? { systemCode: error.code } : {}), reason: error.message },
+          evidence: { ...(fault(error).code ? { systemCode: fault(error).code } : {}), reason: fault(error).message },
           supportedFixes: ['choose a writable output directory on the target filesystem'],
         })],
       });
@@ -4826,8 +5360,8 @@ async function commandDeliver(args) {
         preparedBundlePath = writePreparedBundle(stagingDirectory, explainerBundle);
         captureDeliveryStagingFile(preparedBundlePath, artifactIdentity(fs.readFileSync(preparedBundlePath)));
       } catch (error) {
-        await reportDeliveryFailure({json,stage:'prepare',type,input:inputPath,output:outputPath,error:error.message,
-          diagnostics:error.schematicsDiagnostics || [diagnostic({code:'explainer/freeze-resource-bundle',message:error.message,subject:{input:inputPath,line:1,component:'document'},evidence:{reason:error.code || 'bundle-write-failed',example:'Use a writable delivery directory and a document within the resource budget.'},supportedFixes:['Use a writable delivery directory and a document within the resource budget.']})]});
+        await reportDeliveryFailure({json,stage:'prepare',type,input:inputPath,output:outputPath,error:fault(error).message,
+          diagnostics:fault(error).schematicsDiagnostics || [diagnostic({code:'explainer/freeze-resource-bundle',message:fault(error).message,subject:{input:inputPath,line:1,component:'document'},evidence:{reason:fault(error).code || 'bundle-write-failed',example:'Use a writable delivery directory and a document within the resource budget.'},supportedFixes:['Use a writable delivery directory and a document within the resource budget.']})]});
         return;
       }
     }
@@ -4851,7 +5385,7 @@ async function commandDeliver(args) {
       return;
     }
     if (render.stderr) process.stderr.write(render.stderr);
-    const localeWarnings = [...await specificationLocaleDiagnostics(type, specification), ...(explainerBundle?.diagnostics.filter(entry => entry.severity === 'warning') || [])];
+    const localeWarnings = [...await specificationLocaleDiagnostics(type, specification), ...(explainerBundle?.diagnostics.filter((entry) => entry.severity === 'warning') || [])];
     for (const warning of localeWarnings) process.stderr.write(`schematics: ${warning.message}\n`);
     try {
       const renderedCandidate = fs.readFileSync(candidatePath);
@@ -4868,7 +5402,7 @@ async function commandDeliver(args) {
     if (!check.receipt?.ok) {
       const checker = check.receipt
         ? { ...check.receipt, file: outputPath }
-        : { ok: false, file: outputPath, diagnostic: check.error.message };
+        : { ok: false, file: outputPath, diagnostic: fault(check.error).message };
       await reportDeliveryFailure({
         json,
         stage: 'check',
@@ -4888,7 +5422,7 @@ async function commandDeliver(args) {
     try {
       artifact = fs.readFileSync(candidatePath);
     } catch (error) {
-      const message = `Could not read the verified delivery candidate: ${error.message}`;
+      const message = `Could not read the verified delivery candidate: ${fault(error).message}`;
       await reportDeliveryFailure({
         json,
         stage: 'receipt',
@@ -4900,7 +5434,7 @@ async function commandDeliver(args) {
           code: 'delivery/candidate-unreadable',
           message,
           subject: { output: outputPath },
-          evidence: { ...(error?.code ? { systemCode: error.code } : {}), reason: error.message },
+          evidence: { ...(fault(error).code ? { systemCode: fault(error).code } : {}), reason: fault(error).message },
         })],
       });
       return;
@@ -4909,7 +5443,7 @@ async function commandDeliver(args) {
     try {
       sourceEvidence = sourceEvidenceFromArtifact(artifact);
     } catch (error) {
-      const message = `Could not read the repository evidence receipt: ${error.message}`;
+      const message = `Could not read the repository evidence receipt: ${fault(error).message}`;
       await reportDeliveryFailure({
         json,
         stage: 'receipt',
@@ -4921,12 +5455,13 @@ async function commandDeliver(args) {
           code: 'delivery/evidence-receipt-invalid',
           message,
           subject: { output: outputPath },
-          evidence: { reason: error.message },
+          evidence: { reason: fault(error).message },
         })],
       });
       return;
     }
     const engineeringProfile = engineeringProfileFromArtifact(artifact);
+    const checked = diagramCheckReceipt(result);
     const receipt = {
       schemaVersion: 1,
       receiptId,
@@ -4945,15 +5480,15 @@ async function commandDeliver(args) {
         bytes: artifact.byteLength,
       },
       validation: {
-        checksPassed: result.checks.filter((checkItem) => checkItem.ok).length,
-        checkCount: result.checks.length,
-        compositionProfile: result.composition.profile,
-        compositionStatus: result.composition.status,
+        checksPassed: checked.checks.filter((checkItem) => checkItem.ok).length,
+        checkCount: checked.checks.length,
+        compositionProfile: checked.composition.profile,
+        compositionStatus: checked.composition.status,
         ...(engineeringProfile ? { engineeringProfile } : {}),
-        errors: result.composition.summary.errors,
-        warnings: result.composition.summary.warnings,
-        ...(result.composition.summary.warnings ? {
-          compositionIssues: result.composition.issues.filter((issue) => issue.severity === 'warning'),
+        errors: checked.composition.summary.errors,
+        warnings: checked.composition.summary.warnings,
+        ...(checked.composition.summary.warnings ? {
+          compositionIssues: requiredList(checked.composition.issues).filter((issue) => field(issue, 'severity') === 'warning'),
         } : {}),
       },
       ...(sourceEvidence ? {
@@ -4990,12 +5525,12 @@ async function commandDeliver(args) {
         type,
         input: inputPath,
         output: outputPath,
-        error: `Could not prepare delivery provenance for "${outputPath}": ${error.message}`,
+        error: `Could not prepare delivery provenance for "${outputPath}": ${fault(error).message}`,
         diagnostics: [diagnostic({
           code: 'delivery/provenance-prepare',
           message: 'Could not prepare the artifact-bound delivery provenance.',
           subject: { output: outputPath },
-          evidence: { reason: error.message },
+          evidence: { reason: fault(error).message },
           supportedFixes: ['choose a writable output directory and rerun deliver'],
         })],
       });
@@ -5025,12 +5560,12 @@ async function commandDeliver(args) {
         type,
         input: inputPath,
         output: outputPath,
-        error: error.message,
-        diagnostics: error.schematicsDiagnostics || [diagnostic({
+        error: fault(error).message,
+        diagnostics: fault(error).schematicsDiagnostics || [diagnostic({
           code: 'output/path-resolution',
-          message: error.message,
+          message: fault(error).message,
           subject: { output: outputPath },
-          evidence: { ...(error?.code ? { systemCode: error.code } : {}) },
+          evidence: { ...(fault(error).code ? { systemCode: fault(error).code } : {}) },
           supportedFixes: ['restore a safe output path and retry'],
         })],
       });
@@ -5055,15 +5590,15 @@ async function commandDeliver(args) {
       commitRecoveryBackups = committed.recoverableBackups;
       stagingOwnership.push(...committed.ownedBackupEntries);
     } catch (error) {
-      if (error.deliveryOwnershipCode === 'delivery/ownership-lost' && !error.deliveryCommitDetails) {
-        error.deliveryCommitDetails = {
+      if (fault(error).deliveryOwnershipCode === 'delivery/ownership-lost' && !fault(error).deliveryCommitDetails) {
+        fault(error).deliveryCommitDetails = {
           recoveryRequired: true,
           recoveryDirectory: stagingDirectory,
           recoverableBackups: [],
         };
       }
-      recoveryRequired = error.deliveryCommitDetails?.recoveryRequired === true;
-      const message = `Could not commit verified delivery "${outputPath}": ${error.message}`;
+      recoveryRequired = fault(error).deliveryCommitDetails?.recoveryRequired === true;
+      const message = `Could not commit verified delivery "${outputPath}": ${fault(error).message}`;
       if (recoveryRequired) {
         // The owned lock and pending journal are the remaining fail-closed
         // barrier around retained backups and any claimant we did not create.
@@ -5073,16 +5608,16 @@ async function commandDeliver(args) {
           command: 'deliver', json, stage: 'commit', type, input: inputPath, output: outputPath, receiptId,
           error: message,
           diagnostics: [
-            ...(error.deliveryOwnershipCode === 'delivery/ownership-lost'
+            ...(fault(error).deliveryOwnershipCode === 'delivery/ownership-lost'
               ? [deliveryLockFailureDiagnostic(outputPath, error)]
               : []),
-            ...(error.schematicsDiagnostics || []),
+            ...(fault(error).schematicsDiagnostics || []),
             deliveryCommitRecoveryDiagnostic(outputPath, error),
           ],
         });
         return;
       }
-      if (error.deliveryTargetState) {
+      if (fault(error).deliveryTargetState) {
         let releaseError;
         try {
           releaseDeliveryOwnership(deliveryOwnership);
@@ -5095,12 +5630,12 @@ async function commandDeliver(args) {
           error: message,
           diagnostics: [
             ...(releaseError ? [deliveryLockFailureDiagnostic(outputPath, releaseError)] : []),
-            ...(error.schematicsDiagnostics || []),
+            ...(fault(error).schematicsDiagnostics || []),
           ],
         });
         return;
       }
-      if (error.deliveryOwnershipCode === 'delivery/ownership-lost') {
+      if (fault(error).deliveryOwnershipCode === 'delivery/ownership-lost') {
         deliveryOwnership = undefined;
         await reportPreparedArtifactFailure({
           command: 'deliver', json, stage: 'commit', type, input: inputPath, output: outputPath, receiptId,
@@ -5116,14 +5651,14 @@ async function commandDeliver(args) {
         input: inputPath,
         output: outputPath,
         error: message,
-        diagnostics: error.schematicsDiagnostics || [diagnostic({
+        diagnostics: fault(error).schematicsDiagnostics || [diagnostic({
           code: 'delivery/commit',
           message,
           subject: { output: outputPath },
           evidence: {
-            ...(error?.code ? { systemCode: error.code } : {}),
-            reason: error.message,
-            ...(error.deliveryCommitDetails || {}),
+            ...(fault(error).code ? { systemCode: fault(error).code } : {}),
+            reason: fault(error).message,
+            ...(fault(error).deliveryCommitDetails || {}),
           },
           supportedFixes: ['choose replaceable regular-file artifact and provenance targets on the same writable filesystem'],
         })],
@@ -5136,15 +5671,15 @@ async function commandDeliver(args) {
       deliveryOwnership = undefined;
     } catch (error) {
       deliveryOwnership = undefined;
-      if (error.deliveryOwnershipCode === 'delivery/ownership-lost') {
+      if (fault(error).deliveryOwnershipCode === 'delivery/ownership-lost') {
         recoveryRequired = true;
-        error.deliveryCommitDetails = {
+        fault(error).deliveryCommitDetails = {
           recoveryRequired: true,
           recoveryDirectory: stagingDirectory,
           recoverableBackups: commitRecoveryBackups,
         };
       }
-      const message = `Delivery committed, but its lock could not be released for "${outputPath}": ${error.message}`;
+      const message = `Delivery committed, but its lock could not be released for "${outputPath}": ${fault(error).message}`;
       await reportPreparedArtifactFailure({
         command: 'deliver', json, stage: 'release', type, input: inputPath, output: outputPath, receiptId,
         error: message,
@@ -5153,20 +5688,22 @@ async function commandDeliver(args) {
       return;
     }
 
+    let openReceipt: LaunchReceipt | undefined;
     if (open) {
       try {
-        const { openArtifact } = await import('./open-artifact.mjs');
-        receipt.open = openArtifact(outputPath);
+        const { openArtifact } = await import('./open-artifact.ts');
+        openReceipt = openArtifact(outputPath);
       } catch {
-        receipt.open = {
+        openReceipt = {
           requested: true,
           status: 'unsupported',
           target: outputPath,
           method: null,
         };
       }
-      if (receipt.open.status !== 'opened') {
-        console.error(`Could not open the verified artifact (${receipt.open.status}). ${receipt.open.failure?.reason || 'Open it manually.'} Target: ${outputPath}`);
+      Object.assign(receipt, { open: openReceipt });
+      if (openReceipt.status !== 'opened') {
+        console.error(`Could not open the verified artifact (${openReceipt.status}). ${openReceipt.failure?.reason || 'Open it manually.'} Target: ${outputPath}`);
       }
     }
 
@@ -5178,17 +5715,17 @@ async function commandDeliver(args) {
         ? `; engineering ${receipt.validation.engineeringProfile}: pass`
         : '';
       console.log(`${receipt.validation.checksPassed}/${receipt.validation.checkCount} artifact checks; composition ${receipt.validation.compositionProfile}: ${receipt.validation.compositionStatus}${engineering}; sha256 ${receipt.artifact.sha256.slice(0, 12)}`);
-      if (receipt.open?.status === 'opened') console.log(`opened ${outputPath}`);
+      if (openReceipt?.status === 'opened') console.log(`opened ${outputPath}`);
     }
   } finally {
     if (deliveryOwnership) {
       try {
         releaseDeliveryOwnership(deliveryOwnership, { allowInitializing: true });
       } catch (error) {
-        if (error.deliveryOwnershipCode === 'delivery/ownership-lost') {
+        if (fault(error).deliveryOwnershipCode === 'delivery/ownership-lost') {
           recoveryRequired = true;
-          error.deliveryCommitDetails = {
-            ...(error.deliveryCommitDetails || {}),
+          fault(error).deliveryCommitDetails = {
+            ...(fault(error).deliveryCommitDetails || {}),
             recoveryRequired: true,
             recoveryDirectory: stagingDirectory,
             recoverableBackups: commitRecoveryBackups,
@@ -5213,13 +5750,13 @@ async function commandDeliver(args) {
           fileBindingRuntime,
         );
       } catch (error) {
-        console.error(`Warning: could not remove delivery staging directory "${stagingDirectory}": ${error.message}`);
+        console.error(`Warning: could not remove delivery staging directory "${stagingDirectory}": ${fault(error).message}`);
       }
     }
   }
 }
 
-async function commandPatch(rawArgs) {
+async function commandPatch(rawArgs: string[]): Promise<void> {
   const qualityArgs = extractQualityArgs(rawArgs);
   const repoArgs = extractRepoRootArgs(qualityArgs.rest);
   const writingArgs = extractExplainerWritingArgs(repoArgs.rest);
@@ -5263,11 +5800,11 @@ async function commandPatch(rawArgs) {
     if(delivery.stderr)process.stderr.write(delivery.stderr);
     process.exitCode=delivery.status ?? 1;
   } catch(error) {
-    reportArtifactFailure({command:'patch',json,stage:'prepare',type:'explainer',input:path.resolve(artifact),output:path.resolve(output),error:error.message,diagnostics:error.schematicsDiagnostics || [diagnostic({code:'explainer/patch-runtime',message:error.message,subject:{input:path.resolve(artifact),line:1,component:'panel',panelId},evidence:{reason:error.code || 'patch-failure',example:'Use a complete replacement panel with the same stable id.'},supportedFixes:['Repair the replacement panel and retry.']})]});
+    reportArtifactFailure({command:'patch',json,stage:'prepare',type:'explainer',input:path.resolve(artifact),output:path.resolve(output),error:fault(error).message,diagnostics:fault(error).schematicsDiagnostics || [diagnostic({code:'explainer/patch-runtime',message:fault(error).message,subject:{input:path.resolve(artifact),line:1,component:'panel',panelId},evidence:{reason:fault(error).code || 'patch-failure',example:'Use a complete replacement panel with the same stable id.'},supportedFixes:['Repair the replacement panel and retry.']})]});
   } finally {if(temporary)await temporary.cleanup();}
 }
 
-async function commandPreview(args) {
+async function commandPreview(args: string[]): Promise<void> {
   const qualityArgs = extractQualityArgs(args);
   const repoArgs = extractRepoRootArgs(qualityArgs.rest);
   const noOpen = repoArgs.rest.includes('--no-open');
@@ -5288,14 +5825,14 @@ async function commandPreview(args) {
     // Preserve live repair for unreadable or malformed JSON. A parsed document,
     // however, must already carry the durable output contract before preview
     // allocates a server, watcher, or staging directory.
-    if (error?.schematicsDiagnostics) fail(`Could not start live preview: ${error.message}`, 1);
+    if (fault(error).schematicsDiagnostics) fail(`Could not start live preview: ${fault(error).message}`, 1);
   }
 
   let runPreview;
   try {
-    ({ runPreview } = await import('./preview.mjs'));
+    ({ runPreview } = await import('./preview.ts'));
   } catch (error) {
-    fail(`Could not load live preview: ${error.message}`, 1);
+    fail(`Could not load live preview: ${fault(error).message}`, 1);
   }
   try {
     await runPreview({
@@ -5307,7 +5844,7 @@ async function commandPreview(args) {
       open: !noOpen,
     });
   } catch (error) {
-    fail(`Could not start live preview: ${error.message}`, 1);
+    fail(`Could not start live preview: ${fault(error).message}`, 1);
   }
 }
 
@@ -5335,19 +5872,48 @@ async function loadPathIdentityRuntime() {
   }
 }
 
+type ArtifactFileBinding = Omit<SidecarBinding, 'path'>;
+
+interface DeliveryFileBindings {
+  artifact?: ArtifactFileBinding;
+  sidecar?: SidecarBinding;
+}
+
+interface DeliveryProvenanceResult {
+  ok: boolean;
+  status: string;
+  diagnostics?: Diagnostic[];
+  receiptId?: unknown;
+  type?: unknown;
+  artifact?: DeliveryContent;
+  fileBindings?: DeliveryFileBindings;
+  [detail: string]: unknown;
+}
+
+function firstDiagnostic<T>(diagnostics: readonly T[] | undefined): T {
+  const first = diagnostics?.[0];
+  if (!first) throw new TypeError('The provenance diagnostics are unavailable.');
+  return first;
+}
+
+function definedContent(content: DeliveryContent | undefined): DeliveryContent {
+  if (!content) throw new TypeError('The provenance artifact identity is unavailable.');
+  return content;
+}
+
 function inspectArtifactDeliveryProvenance(
-  artifactPath,
-  requireProvenance,
-  pathIdentityRuntime,
-  expectedBindings,
-) {
+  artifactPath: string,
+  requireProvenance: boolean,
+  pathIdentityRuntime: PathIdentityRuntime | undefined,
+  expectedBindings?: DeliveryFileBindings,
+): DeliveryProvenanceResult {
   const {
     captureRegularFileBinding,
     verifyRegularFileBinding,
     releaseRegularFileBinding,
   } = pathIdentityRuntime || {};
   const stableArtifactPath = canonicalExistingDeliveryOutput(artifactPath);
-  let artifactCapture;
+  let artifactCapture: CaptureResult;
   try {
     if (typeof captureRegularFileBinding !== 'function'
       || typeof verifyRegularFileBinding !== 'function'
@@ -5386,15 +5952,15 @@ function inspectArtifactDeliveryProvenance(
     return {
       ok: false, status: 'unknown',
       diagnostics: [diagnostic({
-        code: 'input/artifact-unreadable', message: `Could not read the HTML artifact: ${error.message}`,
+        code: 'input/artifact-unreadable', message: `Could not read the HTML artifact: ${fault(error).message}`,
         subject: { artifact: artifactPath },
-        evidence: { reason: error.message, ...(error.code ? { systemCode: error.code } : {}) },
+        evidence: { reason: fault(error).message, ...(fault(error).code ? { systemCode: fault(error).code } : {}) },
         supportedFixes: ['provide an existing readable .html artifact, then rerun the checker'],
       })],
     };
   }
   try {
-    const inspection = {};
+    const inspection: ProvenanceInspection = {};
     const provenance = inspectDeliveryProvenance(
       artifactPath,
       artifactCapture.content.buffer,
@@ -5452,7 +6018,12 @@ function inspectArtifactDeliveryProvenance(
   }
 }
 
-function verifyDeliveryUnchanged(artifactPath, expected, checkedArtifact, pathIdentityRuntime) {
+function verifyDeliveryUnchanged(
+  artifactPath: string,
+  expected: DeliveryProvenanceResult | undefined,
+  checkedArtifact: { sha256?: unknown; bytes?: unknown },
+  pathIdentityRuntime: PathIdentityRuntime | undefined,
+): DeliveryProvenanceResult {
   const current = inspectArtifactDeliveryProvenance(
     artifactPath,
     false,
@@ -5461,8 +6032,10 @@ function verifyDeliveryUnchanged(artifactPath, expected, checkedArtifact, pathId
   );
   if (current && !current.ok) return current;
   if (!current || !expected || current.status !== expected.status || current.receiptId !== expected.receiptId
-    || current.artifact.sha256 !== expected.artifact.sha256 || current.artifact.bytes !== expected.artifact.bytes
-    || checkedArtifact.sha256 !== expected.artifact.sha256 || checkedArtifact.bytes !== expected.artifact.bytes) {
+    || definedContent(current.artifact).sha256 !== definedContent(expected.artifact).sha256
+    || definedContent(current.artifact).bytes !== definedContent(expected.artifact).bytes
+    || checkedArtifact.sha256 !== definedContent(expected.artifact).sha256
+    || checkedArtifact.bytes !== definedContent(expected.artifact).bytes) {
     return {
       ok: false, status: 'mismatch',
       diagnostics: [diagnostic({
@@ -5476,8 +6049,12 @@ function verifyDeliveryUnchanged(artifactPath, expected, checkedArtifact, pathId
   return current;
 }
 
-function provenanceFailureReceipt({ command, artifactPath, provenance }) {
-  const error = provenance.diagnostics[0].message;
+function provenanceFailureReceipt({ command, artifactPath, provenance }: {
+  command: string;
+  artifactPath: string;
+  provenance: DeliveryProvenanceResult;
+}) {
+  const error = firstDiagnostic(provenance.diagnostics).message;
   return {
     schemaVersion: 1,
     ok: false,
@@ -5496,7 +6073,7 @@ function provenanceFailureReceipt({ command, artifactPath, provenance }) {
   };
 }
 
-async function commandCheck(args) {
+async function commandCheck(args: string[]): Promise<void> {
   const knownOptions = new Set(['--json', '--require-provenance']);
   const unknown = args.find((arg) => arg.startsWith('--') && !knownOptions.has(arg));
   if (unknown) fail(`Unknown check option "${unknown}".`);
@@ -5510,7 +6087,16 @@ async function commandCheck(args) {
   process.exitCode = checked.exitCode;
 }
 
-async function checkDelivery(html, { requireProvenance = false } = {}) {
+interface DeliveryCheckReceipt {
+  ok: boolean;
+  family?: string;
+  artifact: unknown;
+  diagnostics?: unknown[];
+  provenance?: unknown;
+  deliveryReceiptId?: unknown;
+}
+
+async function checkDelivery(html: string, { requireProvenance = false }: { requireProvenance?: boolean } = {}) {
   const artifactPath = path.resolve(html);
   const pathIdentityRuntime = await loadPathIdentityRuntime();
   const provenance = inspectArtifactDeliveryProvenance(
@@ -5522,17 +6108,18 @@ async function checkDelivery(html, { requireProvenance = false } = {}) {
     return { exitCode: 1, receipt: provenanceFailureReceipt({ command: 'check', artifactPath, provenance }) };
   }
   const check = await runArtifactCheck(html);
-  if (check.error) return { exitCode: 1, stderr: check.error.message };
-  const receipt = check.receipt;
+  if (check.error) return { exitCode: 1, stderr: fault(check.error).message };
+  if (!check.receipt) throw new TypeError('The artifact check receipt is unavailable.');
+  const receipt: DeliveryCheckReceipt = check.receipt;
   if (provenance?.status === 'current' && ((provenance.type === 'explainer') !== (receipt.family === 'explainer'))) {
     receipt.ok = false;
-    receipt.diagnostics = [...(receipt.diagnostics || []), diagnostic({code:'delivery/artifact-family-mismatch',message:'The checked artifact family differs from its delivery provenance.',subject:{artifact:artifactPath},evidence:{expectedType:provenance.type,actualFamily:receipt.family},supportedFixes:['Rebuild the artifact from its original specification.']})];
+    receipt.diagnostics = [...requiredList(receipt.diagnostics || []), diagnostic({code:'delivery/artifact-family-mismatch',message:'The checked artifact family differs from its delivery provenance.',subject:{artifact:artifactPath},evidence:{expectedType:provenance.type,actualFamily:receipt.family},supportedFixes:['Rebuild the artifact from its original specification.']})];
   }
   if (provenance) {
     const verified = verifyDeliveryUnchanged(
       artifactPath,
       provenance,
-      receipt.artifact || {},
+      recordOrEmpty(receipt.artifact),
       pathIdentityRuntime,
     );
     if (!verified.ok) {
@@ -5546,19 +6133,25 @@ async function checkDelivery(html, { requireProvenance = false } = {}) {
 
 async function executeBrowserEvidence({
   artifactPath, outDir, requireProvenance, command, capture, ...browserOptions
-}) {
+}: VisualCheck.BrowserEvidenceOptions & {
+  artifactPath: string;
+  outDir?: string | undefined;
+  requireProvenance: boolean;
+  command: string;
+  capture: boolean;
+}): Promise<{ exitCode: number; receipt: VisualCheck.BrowserReceipt | VisualCheck.BrowserFailureReceipt; inputFailure?: boolean }> {
   const pathIdentityRuntime = await loadPathIdentityRuntime();
   const provenance = inspectArtifactDeliveryProvenance(artifactPath, requireProvenance, pathIdentityRuntime);
-  let runEvidence;
-  let persistFailure;
+  let runEvidence: typeof VisualCheck.runVisualCheck;
+  let persistFailure: typeof VisualCheck.persistVisualCheckFailure;
   try {
-    const evidence = await import('./visual-check.mjs');
+    const evidence = await import('./visual-check.ts');
     runEvidence = command === 'browser-check' ? evidence.runBrowserCheck : evidence.runVisualCheck;
     persistFailure = command === 'browser-check'
       ? evidence.persistBrowserCheckFailure
       : evidence.persistVisualCheckFailure;
   } catch (error) {
-    fail(`Could not load ${command}: ${error.message}`, 1);
+    fail(`Could not load ${command}: ${fault(error).message}`, 1);
   }
   if (provenance && !provenance.ok) {
     const receipt = persistFailure(artifactPath,
@@ -5574,7 +6167,7 @@ async function executeBrowserEvidence({
       artifactPath,
       outDir,
       ...(provenance ? { deliveryProvenance: provenance } : {}),
-      verifyArtifact: (bytes) => {
+      verifyArtifact: (bytes: Buffer) => {
         const verified = verifyDeliveryUnchanged(
           artifactPath,
           provenance,
@@ -5582,7 +6175,7 @@ async function executeBrowserEvidence({
           pathIdentityRuntime,
         );
         if (!verified.ok) {
-          const error = new Error(verified.diagnostics[0].message);
+          const error: SchematicsError = new Error(firstDiagnostic(verified.diagnostics).message);
           error.deliveryProvenance = verified;
           error.schematicsDiagnostics = verified.diagnostics;
           throw error;
@@ -5602,12 +6195,12 @@ async function executeBrowserEvidence({
           ...(provenance.receiptId ? { deliveryReceiptId: provenance.receiptId } : {}),
         } : {}),
         artifact: { path: artifactPath },
-        error: error.message,
+        error: fault(error).message,
         diagnostics: [diagnostic({
           code: `viewer/${command}-input`,
           message: `${command} could not read a valid HTML input or prepare its evidence files.`,
           subject: { artifact: artifactPath },
-          evidence: { reason: error.message, ...(error.code ? { systemCode: error.code } : {}) },
+          evidence: { reason: fault(error).message, ...(fault(error).code ? { systemCode: fault(error).code } : {}) },
           supportedFixes: ['provide an existing readable .html artifact and a writable directory for evidence files'],
         })],
       }, { outDir });
@@ -5617,13 +6210,13 @@ async function executeBrowserEvidence({
   return result;
 }
 
-async function commandBrowserEvidence(rawArgs, { command, capture }) {
+async function commandBrowserEvidence(rawArgs: string[], { command, capture }: { command: string; capture: boolean }): Promise<void> {
   const { rest: args, outDir: rawOutDir } = extractOutDirArgs(rawArgs);
   const summary = args.includes('--summary');
   const json = args.includes('--json') || summary;
-  const printJson = async (receipt) => {
+  const printJson = async (receipt: VisualCheck.BrowserFailureInput) => {
     const value = summary
-      ? (await import('./visual-check.mjs')).summarizeBrowserEvidence(receipt)
+      ? (await import('./visual-check.ts')).summarizeBrowserEvidence(receipt)
       : receipt;
     console.log(JSON.stringify(value, null, summary ? undefined : 2));
   };
@@ -5641,11 +6234,11 @@ async function commandBrowserEvidence(rawArgs, { command, capture }) {
     try {
       outDir = resolveNativeOutputDirectory(rawOutDir);
     } catch (error) {
-      const outputDiagnostic = error.schematicsDiagnostics?.[0] || diagnostic({
+      const outputDiagnostic = fault(error).schematicsDiagnostics?.[0] || diagnostic({
         code: 'output/native-path-syntax',
-        message: error.message,
+        message: fault(error).message,
         subject: { output: rawOutDir },
-        evidence: { ...(error?.code ? { systemCode: error.code } : {}) },
+        evidence: { ...(fault(error).code ? { systemCode: fault(error).code } : {}) },
         supportedFixes: ['choose an ordinary native filesystem directory and retry'],
       });
       const failure = {
@@ -5656,7 +6249,7 @@ async function commandBrowserEvidence(rawArgs, { command, capture }) {
         status: 'fail',
         visualReview: capture ? 'pending' : 'not-requested',
         artifact: { path: artifactPath },
-        error: error.message,
+        error: fault(error).message,
         diagnostics: [outputDiagnostic],
       };
       if (json) await printJson(failure);
@@ -5683,8 +6276,8 @@ async function commandBrowserEvidence(rawArgs, { command, capture }) {
   if (json) {
     await printJson(result.receipt);
   } else {
-    const sidecarDirectory = outDir || path.dirname(result.receipt.artifact.path);
-    console.log(`automated browser evidence ${result.receipt.status}: ${result.receipt.artifact.path}`);
+    const sidecarDirectory = outDir || path.dirname(requiredPath(result.receipt.artifact?.path));
+    console.log(`automated browser evidence ${result.receipt.status}: ${requiredPath(result.receipt.artifact?.path)}`);
     console.log(`${command} containment ${result.receipt.containment.status}; captures ${result.receipt.captures.status}; perceptual visual review ${result.receipt.visualReview}`);
     console.log(`receipt ${path.join(sidecarDirectory, result.receipt.sidecars.receipt)}`);
     if (result.receipt.captures.contactSheet) {
@@ -5695,19 +6288,19 @@ async function commandBrowserEvidence(rawArgs, { command, capture }) {
   process.exitCode = result.exitCode;
 }
 
-async function commandVisualCheck(rawArgs) {
+async function commandVisualCheck(rawArgs: string[]): Promise<void> {
   return commandBrowserEvidence(rawArgs, { command: 'visual-check', capture: true });
 }
 
-async function commandBrowserCheck(rawArgs) {
+async function commandBrowserCheck(rawArgs: string[]): Promise<void> {
   return commandBrowserEvidence(rawArgs, { command: 'browser-check', capture: false });
 }
 
-function extractFinalizeReceiptArgs(args) {
-  const rest = [];
-  let receiptPath;
+function extractFinalizeReceiptArgs(args: string[]): { rest: string[]; receiptPath: string | undefined } {
+  const rest: string[] = [];
+  let receiptPath: string | undefined;
   for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
+    const arg = String(args[index]);
     if (arg === '--receipt') {
       receiptPath = args[index + 1];
       if (!receiptPath || receiptPath.startsWith('--')) rejectCliArgument('--receipt requires a JSON output path.', {
@@ -5732,11 +6325,11 @@ function extractFinalizeReceiptArgs(args) {
   return { rest, receiptPath };
 }
 
-function extractCandidateSha256Args(args) {
-  const rest = [];
-  let candidateSha256;
+function extractCandidateSha256Args(args: string[]): { rest: string[]; candidateSha256: string | undefined } {
+  const rest: string[] = [];
+  let candidateSha256: string | undefined;
   for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
+    const arg = String(args[index]);
     if (arg === '--candidate-sha256') {
       candidateSha256 = args[index + 1];
       if (!candidateSha256 || candidateSha256.startsWith('--')) rejectCliArgument('--candidate-sha256 requires a SHA-256 digest.', {
@@ -5769,7 +6362,7 @@ function extractCandidateSha256Args(args) {
   return { rest, candidateSha256 };
 }
 
-async function finalizeAttempt(rawArgs) {
+async function finalizeAttempt(rawArgs: string[]) {
   const qualityArgs = extractQualityArgs(rawArgs);
   const repoArgs = extractRepoRootArgs(qualityArgs.rest);
   const outDirArgs = extractOutDirArgs(repoArgs.rest);
@@ -5795,9 +6388,9 @@ async function finalizeAttempt(rawArgs) {
 
   let runFinalize;
   try {
-    ({ runFinalize } = await import('./finalize.mjs'));
+    ({ runFinalize } = await import('./finalize.ts'));
   } catch (error) {
-    fail(`Could not load finalize: ${error.message}`, 1);
+    fail(`Could not load finalize: ${fault(error).message}`, 1);
   }
 
   let result;
@@ -5850,11 +6443,11 @@ async function finalizeAttempt(rawArgs) {
       artifact: { path: path.resolve(output) },
       gates: Object.fromEntries(['validate', 'deliver', 'check', 'browser-check'].map((stage) => [stage, 'not-run'])),
       browserCheck: {requested:type !== 'explainer' || candidateArgs.rest.includes('--browser-check'),ran:false},
-      diagnostics: error.schematicsDiagnostics || [{
-        code: error.finalizeCode || 'finalize/runtime',
+      diagnostics: fault(error).schematicsDiagnostics || [{
+        code: fault(error).finalizeCode || 'finalize/runtime',
         severity: 'error',
-        message: error.message,
-        ...(error.finalizeEvidence ? { evidence: error.finalizeEvidence } : {}),
+        message: fault(error).message,
+        ...(fault(error).finalizeEvidence ? { evidence: fault(error).finalizeEvidence } : {}),
       }],
       visualReview: 'not-requested',
     };
@@ -5865,7 +6458,7 @@ async function finalizeAttempt(rawArgs) {
   return { json, type, input, exitCode: result.exitCode, started: true, summary: result.summary, receipt: result.receipt };
 }
 
-async function commandFinalize(rawArgs) {
+async function commandFinalize(rawArgs: string[]): Promise<void> {
   const { json, exitCode, started, summary } = await finalizeAttempt(rawArgs);
   if (!started) {
     if (json) console.log(JSON.stringify(summary));
@@ -5878,7 +6471,7 @@ async function commandFinalize(rawArgs) {
   } else {
     console.log(`finalize ${summary.status}: ${summary.artifact.path}`);
     console.log(`gates ${Object.entries(summary.gates).map(([stage, status]) => `${stage}:${status}`).join(' ')}`);
-    console.log(`receipt ${summary.evidence.receipt}`);
+    console.log(`receipt ${'evidence' in summary ? summary.evidence.receipt : undefined}`);
     console.log(`perceptual visual review ${summary.visualReview}`);
     for (const entry of summary.diagnostics || []) {
       if (entry.severity === 'warning') console.error(`warning [${entry.code}] ${entry.message}`);
@@ -5889,7 +6482,7 @@ async function commandFinalize(rawArgs) {
 
 const AUTOFIX_MAX_PASSES = 4;
 
-async function commandAutofix(rawArgs) {
+async function commandAutofix(rawArgs: string[]): Promise<void> {
   const json = rawArgs.includes('--json');
   if (rawArgs[0] === 'explainer') rejectCliArgument('autofix repairs JSON diagram candidates; explainer is not supported.', {
     code: 'cli/unsupported-type',
@@ -5897,10 +6490,10 @@ async function commandAutofix(rawArgs) {
     supportedFixes: ['run schematics finalize explainer and apply its diagnostics by hand'],
   });
   const { applyRepairs } = await import('../packages/diagnostics/fixes.ts');
-  const passes = [];
-  let attempt;
+  const passes: Array<{ pass: number; applied: unknown; skipped: unknown }> = [];
+  let attempt = await finalizeAttempt(rawArgs);
   for (let pass = 1; pass <= AUTOFIX_MAX_PASSES; pass += 1) {
-    attempt = await finalizeAttempt(rawArgs);
+    if (pass > 1) attempt = await finalizeAttempt(rawArgs);
     if (attempt.exitCode === 0) break;
     const candidatePath = path.resolve(attempt.input);
     const candidate = JSON.parse(fs.readFileSync(candidatePath, 'utf8'));
@@ -5921,13 +6514,13 @@ async function commandAutofix(rawArgs) {
   process.exitCode = passed ? 0 : 1;
 }
 
-async function commandChart(rawArgs) {
+async function commandChart(rawArgs: string[]): Promise<void> {
   const [inputPath, outputPath] = rawArgs;
   if (!inputPath) fail('Usage: schematics chart <input.mmd|text> [output.svg]');
   const text = fs.existsSync(inputPath) ? fs.readFileSync(inputPath, 'utf-8') : inputPath;
   const { compileExplainerChart } = await import('../packages/explainer/charts.ts');
   const result = compileExplainerChart(text);
-  if (result.error) {
+  if (result.error !== undefined) {
     fail(`Chart compilation failed: ${result.error}`);
   }
   if (outputPath) {
@@ -5938,12 +6531,12 @@ async function commandChart(rawArgs) {
   }
 }
 
-async function commandImport(rawArgs) {
-  const rest = [];
+async function commandImport(rawArgs: string[]): Promise<void> {
+  const rest: string[] = [];
   let json = false;
-  let title;
+  let title: string | undefined;
   for (let index = 0; index < rawArgs.length; index += 1) {
-    const arg = rawArgs[index];
+    const arg = String(rawArgs[index]);
     if (arg === '--json') {
       json = true;
       continue;
@@ -5963,7 +6556,7 @@ async function commandImport(rawArgs) {
   try {
     text = fs.readFileSync(inputPath, 'utf8');
   } catch (error) {
-    fail(`Mermaid input could not be read: ${error.message}`, 1);
+    fail(`Mermaid input could not be read: ${fault(error).message}`, 1);
   }
   const { loadMermaidImporter } = await import(pathToFileURL(path.join(skillRoot, 'packages/mermaid/load.ts')).href);
   const { importMermaid, MermaidImportError } = await loadMermaidImporter();
@@ -5973,8 +6566,8 @@ async function commandImport(rawArgs) {
     result = importMermaid(text, { title, output: htmlName });
   } catch (error) {
     if (!(error instanceof MermaidImportError)) throw error;
-    if (json) console.log(JSON.stringify({ schemaVersion: 1, ok: false, command: 'import', code: error.code, error: error.message }, null, 2));
-    else console.error(`Mermaid import failed: ${error.message}`);
+    if (json) console.log(JSON.stringify({ schemaVersion: 1, ok: false, command: 'import', code: fault(error).code, error: fault(error).message }, null, 2));
+    else console.error(`Mermaid import failed: ${fault(error).message}`);
     process.exit(1);
   }
   const serialized = `${JSON.stringify(result.diagram, null, 2)}\n`;
@@ -6001,7 +6594,7 @@ async function commandImport(rawArgs) {
   console.log(`Next: schematics finalize ${result.type} ${outputPath} ${outputPath.replace(/\.json$/i, '')}.html`);
 }
 
-function commandExamples(args) {
+function commandExamples(args: string[]): void {
   const unknown = args.find((arg) => arg.startsWith('--'));
   if (unknown) fail(`Unknown examples option "${unknown}".`);
   if (args.length) fail(usage());
@@ -6009,7 +6602,7 @@ function commandExamples(args) {
   if (result.status !== 0) exitFrom(result);
 }
 
-async function commandDoctor(args) {
+async function commandDoctor(args: string[]): Promise<void> {
   const unknown = args.find((arg) => arg.startsWith('--'));
   if (unknown) fail(`Unknown doctor option "${unknown}".`);
   if (args.length) fail(usage());
@@ -6036,21 +6629,21 @@ async function commandDoctor(args) {
     missing: fs.existsSync(examplesRenderer) ? 0 : 1,
   });
 
-  const previewRuntime = path.join(skillRoot, 'bin/preview.mjs');
+  const previewRuntime = path.join(skillRoot, 'bin/preview.ts');
   checks.push({
     label: 'Live preview runtime',
     ok: fs.existsSync(previewRuntime),
     missing: fs.existsSync(previewRuntime) ? 0 : 1,
   });
 
-  const visualCheckRuntime = path.join(skillRoot, 'bin/visual-check.mjs');
+  const visualCheckRuntime = path.join(skillRoot, 'bin/visual-check.ts');
   checks.push({
     label: 'Visual-check runtime',
     ok: fs.existsSync(visualCheckRuntime),
     missing: fs.existsSync(visualCheckRuntime) ? 0 : 1,
   });
 
-  const finalizeRuntime = path.join(skillRoot, 'bin/finalize.mjs');
+  const finalizeRuntime = path.join(skillRoot, 'bin/finalize.ts');
   checks.push({
     label: 'Finalize runtime',
     ok: fs.existsSync(finalizeRuntime),
@@ -6142,7 +6735,7 @@ async function commandDoctor(args) {
     failureLabel: validatorsExist ? 'invalid' : 'missing',
   });
 
-  const examples = {
+  const examples: Record<string, string> = {
     architecture: 'web-app.architecture.json',
     workflow: 'agent-tool-call.workflow.json',
     sequence: 'cache-miss-request.sequence.json',
@@ -6158,7 +6751,7 @@ async function commandDoctor(args) {
 
   for (const type of TYPES) {
     const required = [
-      rendererFile(type),
+      rendererPath(type),
       path.join(skillRoot, 'schemas', `${type}.schema.json`),
       path.join(skillRoot, 'examples', examples[type]),
     ];
@@ -6170,7 +6763,7 @@ async function commandDoctor(args) {
     });
   }
 
-  const explainerRuntime = ['model.ts', 'parse.ts', 'validate.ts', 'inline.ts', 'sources.ts', 'writing.ts', 'diagrams.ts', 'prepare.ts', 'patch.ts', 'diff.ts', 'revision.ts', 'layout.ts', 'render.ts', 'check.ts', 'browser-check.ts', 'charts.ts', 'page-bundle.ts', 'vendor/pele/core.js', 'reader.css', 'reader.js'];
+  const explainerRuntime = ['parse.ts', 'validate.ts', 'inline.ts', 'sources.ts', 'writing.ts', 'diagrams.ts', 'prepare.ts', 'patch.ts', 'diff.ts', 'revision.ts', 'layout.ts', 'render.ts', 'check.ts', 'browser-check.ts', 'charts.ts', 'page-bundle.ts', 'vendor/pele/core.js', 'reader.css', 'reader.js'];
   const missingExplainerRuntime = explainerRuntime.filter(file => !fs.existsSync(path.join(skillRoot, 'packages', 'explainer', file))).length;
   checks.push({label:'Explainer runtime and reader assets',ok:missingExplainerRuntime===0,missing:missingExplainerRuntime});
 
@@ -6195,13 +6788,13 @@ async function commandDoctor(args) {
   process.exitCode = 1;
 }
 
-async function commandGuide(args) {
-  let lang;
+async function commandGuide(args: string[]): Promise<void> {
+  let lang: 'en' | 'zh' | undefined;
   let json = false;
-  const queryParts = [];
+  const queryParts: string[] = [];
 
   for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
+    const arg = String(args[index]);
     if (arg === '--json') {
       json = true;
     } else if (arg === '--lang') {
@@ -6225,7 +6818,7 @@ async function commandGuide(args) {
   try {
     guide = await import(pathToFileURL(guidePath).href);
   } catch (error) {
-    fail(`Could not load the scenario recipe guide: ${error.message}`, 1);
+    fail(`Could not load the scenario recipe guide: ${fault(error).message}`, 1);
   }
 
   const query = queryParts.join(' ').trim();
@@ -6248,7 +6841,7 @@ async function commandGuide(args) {
   console.log(json ? JSON.stringify(result, null, 2) : guide.formatScenarioRecommendation(result));
 }
 
-async function commandBrands(args) {
+async function commandBrands(args: string[]): Promise<void> {
   const json = args.includes('--json');
   const unknown = args.filter((arg) => arg.startsWith('--') && arg !== '--json');
   if (unknown.length) fail(`Unknown brands option "${unknown[0]}".`);
@@ -6258,9 +6851,9 @@ async function commandBrands(args) {
     const { captureBrandReference } = await import('../packages/svg/brand-marks.ts');
     let capture;
     try {
-      capture = await captureBrandReference(positional[1]);
+      capture = await captureBrandReference(String(positional[1]));
     } catch (error) {
-      fail(error.message);
+      fail(fault(error).message);
     }
     const result = {
       schemaVersion: 1,
@@ -6270,8 +6863,8 @@ async function commandBrands(args) {
       evidence: {
         status: capture.resolved.status,
         source: capture.resolved.sourceUrl,
-        ...(capture.resolved.sha256 ? { sha256: capture.resolved.sha256 } : {}),
-        ...(capture.resolved.contentType ? { contentType: capture.resolved.contentType } : {}),
+        ...(field(capture.resolved, 'sha256') ? { sha256: field(capture.resolved, 'sha256') } : {}),
+        ...(field(capture.resolved, 'contentType') ? { contentType: field(capture.resolved, 'contentType') } : {}),
       },
     };
     console.log(json ? JSON.stringify(result, null, 2) : JSON.stringify(result.brand));
@@ -6296,15 +6889,16 @@ async function commandBrands(args) {
     console.log(`No built-in brand matched "${query}". Run "schematics brands capture <url> --json", then use the returned digest-pinned brand value.`);
     return;
   }
-  const grouped = Map.groupBy
-    ? Map.groupBy(marks, (mark) => mark.category)
-    : marks.reduce((map, mark) => map.set(mark.category, [...(map.get(mark.category) || []), mark]), new Map());
+  const groupBy: ((items: typeof marks, key: (mark: (typeof marks)[number]) => string) => Map<string, typeof marks>) | undefined = Reflect.get(Map, 'groupBy');
+  const grouped = groupBy
+    ? groupBy.call(Map, marks, (mark) => mark.category)
+    : marks.reduce((map, mark) => map.set(mark.category, [...(map.get(mark.category) || []), mark]), new Map<string, typeof marks>());
   for (const [category, entries] of grouped) {
     console.log(`${category}: ${entries.map((mark) => mark.id).join(', ')}`);
   }
 }
 
-function commandDemo(args) {
+function commandDemo(args: string[]): void {
   const unknown = args.find((arg) => arg.startsWith('--'));
   if (unknown) fail(`Unknown demo option "${unknown}".`);
   if (args.length > 1) fail(usage());
@@ -6316,7 +6910,7 @@ function commandDemo(args) {
   try {
     fs.mkdirSync(outputDirectory, { recursive: true });
   } catch (error) {
-    fail(`Could not create demo directory "${outputDirectory}": ${error.message}`, 1);
+    fail(`Could not create demo directory "${outputDirectory}": ${fault(error).message}`, 1);
   }
 
   const result = runNode([rendererPath('architecture'), input, output]);
@@ -6327,9 +6921,10 @@ function commandDemo(args) {
   console.log('  schematics render architecture <input.json> <output.html>');
 }
 
-function migrationPathDiagnostics(error, sourcePath, destinationPath) {
-  if (Array.isArray(error?.schematicsDiagnostics) && error.schematicsDiagnostics.length) {
-    return error.schematicsDiagnostics.map((entry) => ({
+function migrationPathDiagnostics(error: unknown, sourcePath: string, destinationPath: string): Diagnostic[] {
+  const pathDiagnostics = fault(error).schematicsDiagnostics;
+  if (Array.isArray(pathDiagnostics) && pathDiagnostics.length) {
+    return pathDiagnostics.map((entry) => ({
       ...entry,
       subject: { ...(entry.subject || {}) },
       evidence: { ...(entry.evidence || {}) },
@@ -6341,11 +6936,60 @@ function migrationPathDiagnostics(error, sourcePath, destinationPath) {
     message: 'Could not verify that the workflow migration paths are distinct.',
     subject: { source: sourcePath, destination: destinationPath },
     evidence: {
-      ...(error?.code ? { systemCode: error.code } : {}),
-      reason: error?.message || String(error),
+      ...(fault(error).code ? { systemCode: fault(error).code } : {}),
+      reason: fault(error).message || String(error),
     },
     supportedFixes: ['remove unsafe path aliases or choose a different destination path'],
   })];
+}
+
+type MigrationEntry = Diagnostic
+  | WorkflowMigrationResult['preExistingDiagnostics'][number]
+  | WorkflowMigrationResult['migrationDiagnostics'][number];
+
+interface MigrationReportInput {
+  ok: boolean;
+  sourcePath: string;
+  destinationPath: string;
+  sourceBytes?: Buffer | undefined;
+  destinationBytes?: Buffer | undefined;
+  fromSchemaVersion?: unknown;
+  preExistingDiagnostics?: readonly MigrationEntry[];
+  migrationDiagnostics?: readonly MigrationEntry[];
+  newSchemaDiagnostics?: readonly MigrationEntry[];
+  changedCoordinates?: unknown[];
+  oldRequiredViewBox?: unknown;
+  newRequiredViewBox?: unknown;
+}
+
+interface MigrationFileReport {
+  path: string;
+  sha256?: string;
+  bytes?: number;
+}
+
+interface MigrationReport {
+  ok: boolean;
+  command: string;
+  type: string;
+  source: MigrationFileReport;
+  destination: MigrationFileReport;
+  fromSchemaVersion: unknown;
+  toSchemaVersion: number;
+  preExistingDiagnostics: readonly MigrationEntry[];
+  migrationDiagnostics: readonly MigrationEntry[];
+  newSchemaDiagnostics: readonly MigrationEntry[];
+  changedCoordinates: unknown[];
+  oldRequiredViewBox: unknown;
+  newRequiredViewBox: unknown;
+  diagnostics?: MigrationEntry[];
+  error?: string | undefined;
+}
+
+interface MigrationSourceDocument {
+  schema_version?: unknown;
+  meta?: { output?: unknown; quality_profile?: string; [detail: string]: unknown };
+  [detail: string]: unknown;
 }
 
 function migrationReport({
@@ -6361,8 +7005,8 @@ function migrationReport({
   changedCoordinates = [],
   oldRequiredViewBox = null,
   newRequiredViewBox = null,
-}) {
-  const report = {
+}: MigrationReportInput): MigrationReport {
+  const report: MigrationReport = {
     ok,
     command: 'migrate',
     type: 'workflow',
@@ -6401,18 +7045,18 @@ function migrationReport({
         message: 'Workflow migration failed without a classified diagnostic.',
       }));
     }
-    report.error = report.diagnostics[0].message;
+    report.error = firstDiagnostic(report.diagnostics).message;
   }
   return report;
 }
 
-function extractMigrationOptions(args) {
-  const positional = [];
+function extractMigrationOptions(args: string[]): { positional: string[]; json: boolean; toSchema: string | undefined; output: string | undefined } {
+  const positional: string[] = [];
   let json = false;
-  let toSchema;
-  let output;
+  let toSchema: string | undefined;
+  let output: string | undefined;
   for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
+    const arg = String(args[index]);
     if (arg === '--json') {
       json = true;
       continue;
@@ -6445,7 +7089,7 @@ function extractMigrationOptions(args) {
   return { positional, json, toSchema, output };
 }
 
-async function commandMigrate(args) {
+async function commandMigrate(args: string[]): Promise<void> {
   const repoArgs = extractRepoRootArgs(args);
   const options = extractMigrationOptions(repoArgs.rest);
   const [type, sourceArgument, destinationArgument] = options.positional;
@@ -6461,9 +7105,9 @@ async function commandMigrate(args) {
 
   const sourcePath = path.resolve(sourceArgument);
   const destinationPath = path.resolve(destinationArgument);
-  let sourceBytes;
-  let sourceDocument;
-  const reportMigrationFailure = ({ status = 1, ...details }) => {
+  let sourceBytes: Buffer | undefined;
+  let sourceDocument: MigrationSourceDocument | undefined;
+  const reportMigrationFailure = ({ status = 1, ...details }: Omit<MigrationReportInput, 'ok' | 'sourcePath' | 'destinationPath'> & { ok?: boolean; status?: number }) => {
     const report = migrationReport({
       ...details,
       ok: false,
@@ -6561,9 +7205,10 @@ async function commandMigrate(args) {
       migrationDiagnostics: [diagnostic({
         code: 'migration/internal',
         message: 'Workflow migration failed unexpectedly.',
-        evidence: { reason: error.message },
+        evidence: { reason: fault(error).message },
         supportedFixes: ['report the source workflow and this diagnostic to the Schematics maintainers'],
       })],
+      newSchemaDiagnostics: [],
     };
   }
 
@@ -6606,7 +7251,7 @@ async function commandMigrate(args) {
         code: 'migration/prepare-destination',
         message: 'Could not prepare the workflow migration destination.',
         subject: { destination: destinationPath },
-        evidence: { ...(error?.code ? { systemCode: error.code } : {}), reason: error.message },
+        evidence: { ...(fault(error).code ? { systemCode: fault(error).code } : {}), reason: fault(error).message },
         supportedFixes: ['choose a writable destination directory'],
       })],
     });
@@ -6616,15 +7261,15 @@ async function commandMigrate(args) {
   const candidatePath = path.join(stagingDirectory, 'candidate.workflow.json');
   const artifactPath = path.join(stagingDirectory, 'migration-check.html');
   const destinationBytes = Buffer.from(serializeMigratedWorkflow(migration.document));
-  let candidateBinding = null;
-  let previousDestinationBinding = null;
+  let candidateBinding: AtomicOutput.RegularFileBinding | null = null;
+  let previousDestinationBinding: AtomicOutput.RegularFileBinding | null = null;
   let preserveRecoveryDirectory = false;
   const fileBindingRuntime = {
     captureRegularFileBinding,
     quarantineRemoveRegularFileBinding,
     releaseRegularFileBinding,
   };
-  const stagingOwnership = [];
+  const stagingOwnership: StagingEntry[] = [];
   try {
     fs.writeFileSync(candidatePath, destinationBytes, { flag: 'wx' });
     if (destinationCapture.mode !== null) fs.chmodSync(candidatePath, destinationCapture.mode);
@@ -6804,7 +7449,7 @@ async function commandMigrate(args) {
           message: 'Workflow migration destination was claimed during publication.',
           subject: { destination: destinationPath },
           evidence: {
-            ...(error?.code ? { systemCode: error.code } : {}),
+            ...(fault(error).code ? { systemCode: fault(error).code } : {}),
             ...(backupPresent ? { recoveryFile: backupPath } : {}),
           },
           supportedFixes: backupPresent
@@ -6870,7 +7515,7 @@ async function commandMigrate(args) {
     }
     if (backupPresent) {
       const removedBackup = quarantineRemoveRegularFileBinding(
-        previousDestinationBinding,
+        previousDestinationBinding ?? UNBOUND_FILE,
         backupPath,
         { subject: 'previous-migration-destination', expectedLinks: 1 },
       );
@@ -6900,22 +7545,22 @@ async function commandMigrate(args) {
       destinationPath,
       sourceBytes,
       destinationBytes,
-      fromSchemaVersion: sourceDocument.schema_version,
+      fromSchemaVersion: sourceDocument?.schema_version,
     });
     if (options.json) console.log(JSON.stringify(report, null, 2));
-    else if (sourceDocument.schema_version === 1) {
+    else if (sourceDocument?.schema_version === 1) {
       console.log(`migrated workflow schema v1→v2: ${sourcePath} → ${destinationPath}`);
     } else {
       console.log(`verified workflow schema v2 migration: ${sourcePath} → ${destinationPath}`);
     }
   } catch (error) {
-    const migrationDiagnostics = Array.isArray(error?.schematicsDiagnostics)
+    const migrationDiagnostics = Array.isArray(fault(error).schematicsDiagnostics)
       ? migrationPathDiagnostics(error, sourcePath, destinationPath)
       : [diagnostic({
         code: 'migration/commit',
         message: 'Could not commit the verified workflow migration.',
         subject: { destination: destinationPath },
-        evidence: { ...(error?.code ? { systemCode: error.code } : {}), reason: error.message },
+        evidence: { ...(fault(error).code ? { systemCode: fault(error).code } : {}), reason: fault(error).message },
         supportedFixes: ['choose a writable regular-file destination and retry'],
       })];
     reportMigrationFailure({
@@ -6936,16 +7581,16 @@ async function commandMigrate(args) {
         );
       }
     } catch (error) {
-      console.error(`Warning: could not remove workflow migration staging directory "${stagingDirectory}": ${error.message}`);
+      console.error(`Warning: could not remove workflow migration staging directory "${stagingDirectory}": ${fault(error).message}`);
     }
   }
 }
 
 // `inspect` delegates here in layout-JSON mode, so argument failures must be
 // attributed to the command the caller actually invoked.
-async function commandValidate(args, invocation = {}) {
+async function commandValidate(args: string[], invocation: { command?: string } = {}): Promise<void> {
   const invokingCommand = invocation.command || 'validate';
-  const reportFailure = (options) => reportArtifactFailure({ ...options, command: invokingCommand });
+  const reportFailure = (options: Omit<ArtifactFailureReport, 'command'>) => reportArtifactFailure({ ...options, command: invokingCommand });
   const qualityArgs = extractQualityArgs(args);
   const repoArgs = extractRepoRootArgs(qualityArgs.rest);
   const writingArgs = extractExplainerWritingArgs(repoArgs.rest);
@@ -6992,13 +7637,13 @@ async function commandValidate(args, invocation = {}) {
     if (document?.meta?.output !== undefined) validateAuthoredOutputPath(document.meta.output);
     else if (type !== 'explainer') validateSchema(type, document);
   } catch (error) {
-    const diagnostics = error.schematicsDiagnostics || [inputDiagnostic(error, inputPath)];
+    const diagnostics = fault(error).schematicsDiagnostics || [inputDiagnostic(error, inputPath)];
     reportFailure({
       json,
       stage: diagnostics.some((entry) => entry.code.startsWith('input/')) ? 'input' : 'render',
       type,
       input: inputPath,
-      error: error.message,
+      error: fault(error).message,
       diagnostics,
       status: 1,
     });
@@ -7075,7 +7720,7 @@ async function commandValidate(args, invocation = {}) {
       exitCode = render.status ?? 1;
     } else {
       if (render.stderr) process.stderr.write(render.stderr);
-      const localeWarnings = [...await specificationLocaleDiagnostics(type, specification), ...(explainerBundle?.diagnostics.filter(entry => entry.severity === 'warning') || [])];
+      const localeWarnings = [...await specificationLocaleDiagnostics(type, specification), ...(explainerBundle?.diagnostics.filter((entry) => entry.severity === 'warning') || [])];
       for (const warning of localeWarnings) process.stderr.write(`schematics: ${warning.message}\n`);
       const check = await runArtifactCheck(out);
       if (!check.receipt?.ok) {
@@ -7101,7 +7746,7 @@ async function commandValidate(args, invocation = {}) {
             path: path.resolve(input),
             ...artifactIdentity(specification),
           };
-          const resolvedQuality = quality || result.composition.profile || 'standard';
+          const resolvedQuality = quality || requiredRecord(result.composition).profile || 'standard';
           const receipt = {
             schemaVersion: 1,
             ok: true,
@@ -7134,7 +7779,12 @@ async function commandValidate(args, invocation = {}) {
           const engineering = engineeringProfile
             ? `; engineering ${engineeringProfile}: pass`
             : '';
-          report = () => console.log(`ok ${type} ${path.resolve(input)} (${result.checks.length} artifact checks; composition ${result.composition.profile}: ${result.composition.summary.errors} errors, ${result.composition.summary.warnings} warnings${engineering})`);
+          report = () => {
+            const checkCount = requiredList(result.checks).length;
+            const composition = requiredRecord(result.composition);
+            const summary = requiredRecord(composition.summary);
+            console.log(`ok ${type} ${path.resolve(input)} (${checkCount} artifact checks; composition ${composition.profile}: ${summary.errors} errors, ${summary.warnings} warnings${engineering})`);
+          };
         }
       }
     }
@@ -7148,13 +7798,13 @@ async function commandValidate(args, invocation = {}) {
         stage: 'cleanup',
         type,
         input: path.resolve(input),
-        error: error.message,
+        error: fault(error).message,
         diagnostics: [{
           code: 'validate/temp-cleanup-incomplete',
           severity: 'error',
-          message: error.message,
+          message: fault(error).message,
           subject: { directory: tmp },
-          evidence: { reason: error.cause?.code || error.code },
+          evidence: { reason: fault(fault(error).cause).code || fault(error).code },
           supportedFixes: ['resolve the reported filesystem error and inspect the retained temporary directory before retrying'],
         }],
         status: 1,
@@ -7251,10 +7901,10 @@ try {
       fail(`Unknown command "${command}".\n\n${usage()}`);
   }
 } catch (error) {
-  if (!error.schematicsArgument) throw error;
+  if (!fault(error).schematicsArgument) throw error;
   if (['validate', 'deliver', 'finalize', 'inspect', 'patch'].includes(command) && args.includes('--json')) {
-    reportArtifactArgumentFailure(command, error);
+    reportArtifactArgumentFailure(String(command), error);
   } else {
-    fail(error.message);
+    fail(fault(error).message);
   }
 }

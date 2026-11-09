@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 
 test('finalize proves all four gates in real Chrome with bounded mixed-case sidecars and repeat delivery', {
   skip: !process.env.SCHEMATICS_CHROME,

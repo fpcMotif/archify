@@ -8,7 +8,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.ts', import.meta.url));
 function inspect(t, diagram, { quality, envQuality } = {}) {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-dataflow-auto-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));

@@ -9,7 +9,7 @@ does; `brand` explains whose product it is.
 1. Search the built-in catalogue when the request names a recognizable brand:
 
    ```bash
-   bun bin/schematics.mjs brands "Claude" --json
+   bun bin/schematics.ts brands "Claude" --json
    ```
 
 2. Put the returned canonical ID in the node, participant, or state:
@@ -27,7 +27,7 @@ does; `brand` explains whose product it is.
    capture its icon explicitly:
 
    ```bash
-   bun bin/schematics.mjs brands capture "https://partner.example.com" --json
+   bun bin/schematics.ts brands capture "https://partner.example.com" --json
    ```
 
    Put the command's digest-pinned `brand` value in the authored node:
@@ -113,7 +113,7 @@ The final artifact never fetches a brand asset when opened. Preset vectors and
 digest-verified captured site icons remain embedded in SVG, PNG, WebP, JPEG
 and Share Card exports.
 
-Use `bun bin/schematics.mjs brands --json` to inspect all canonical IDs, aliases,
+Use `bun bin/schematics.ts brands --json` to inspect all canonical IDs, aliases,
 categories, domains, and provenance. Current categories cover AI, cloud,
 engineering, data, collaboration, business systems, channels, languages, and
 frameworks.

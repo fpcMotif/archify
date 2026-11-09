@@ -23,7 +23,7 @@ for (const [type, example] of Object.entries(examples)) {
     const output = path.join(directory, 'diagram.html');
     const run = () => {
       fs.writeFileSync(input, JSON.stringify(doc));
-      return spawnSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'render', type, input, output], { encoding: 'utf8' });
+      return spawnSync(process.execPath, [path.join(root, 'bin/schematics.ts'), 'render', type, input, output], { encoding: 'utf8' });
     };
     let result = run();
     assert.equal(result.status, 0, result.stderr);

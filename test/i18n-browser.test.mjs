@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome, runVisualCheck } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome, runVisualCheck } from '../schematics/bin/visual-check.ts';
 import {
   skillRoot, cli, EXAMPLES, example, localeDocument, FR_PARTIAL_TRANSLATIONS, createLocaleFixture,
 } from './helpers/i18n-fixture.mjs';

@@ -7,7 +7,7 @@
 // are captured: those are the ones a reviewer must look at.
 import fs from 'node:fs';
 import path from 'node:path';
-import { ChromeVisualBrowser, findChrome } from '../../../../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../../../../schematics/bin/visual-check.ts';
 import { tuningHome } from './lib.mjs';
 
 const args = process.argv.slice(2);

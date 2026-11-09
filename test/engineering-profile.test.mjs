@@ -14,7 +14,7 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
-const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
+const cli = path.join(skillRoot, 'bin', 'schematics.ts');
 const examplePath = path.join(skillRoot, 'examples', 'production-deployment.architecture.json');
 const example = JSON.parse(fs.readFileSync(examplePath, 'utf8'));
 

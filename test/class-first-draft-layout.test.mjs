@@ -12,7 +12,7 @@ import { routeHugs } from './helpers/route-hugs.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const renderer = path.join(skillRoot, 'packages', 'class', 'render-class.ts');
-const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
+const cli = path.join(skillRoot, 'bin', 'schematics.ts');
 const fixtures = path.join(__dirname, 'fixtures', 'class-first-draft');
 
 function render(diagram) {

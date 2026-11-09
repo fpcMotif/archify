@@ -11,7 +11,7 @@ const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const repoRoot = path.resolve(skillRoot, '..');
 import { softwareNotices, softwareNoticesHtml } from '../schematics/packages/output/software-notices.ts';
 
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 const template = fs.readFileSync(path.join(skillRoot, 'assets/template.html'), 'utf8');
 const DIAGRAMS = [
   ['architecture', 'web-app.architecture.json', 'web-app-rendered.html'],

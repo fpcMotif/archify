@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'parse5';
 
 const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 const examples = [
   ['architecture', 'web-app.architecture.json', 'components'],
   ['workflow', 'agent-tool-call.workflow.json', 'nodes'],

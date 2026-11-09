@@ -7,7 +7,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../schematics/', import.meta.url));
-const cli = path.join(root, 'bin/schematics.mjs');
+const cli = path.join(root, 'bin/schematics.ts');
 
 // Component-level failures are the highest-traffic hand-placement mistakes.
 // Their messages already carried the repair; these tests pin the structured

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { ChromeVisualBrowser } from '../../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser } from '../../schematics/bin/visual-check.ts';
 
 // Test-only Blink settings: headless hosts may have no physical mouse.
 // Disabling touch emulation would restore those host defaults and undo this.

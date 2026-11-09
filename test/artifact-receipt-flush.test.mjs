@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const checker = path.join(skillRoot, 'scripts/check-render-output.ts');
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-receipt-flush-'));
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 

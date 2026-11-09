@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { preparePanelPatch } from '../schematics/packages/explainer/patch.ts';
 import { packPageBundle, unpackPageBundle } from '../schematics/packages/explainer/page-bundle.ts';
 import { compileExplainerDiagram } from '../schematics/packages/explainer/diagrams.ts';
-const cli=path.resolve('schematics/bin/schematics.mjs');
+const cli=path.resolve('schematics/bin/schematics.ts');
 const run=args=>spawnSync(process.execPath,[cli,...args],{encoding:'utf8',maxBuffer:64*1024*1024,env:process.env});
 const read=file=>unpackPageBundle(JSON.parse(scanHtml(fs.readFileSync(file,'utf8')).scripts.find(s=>s.attrs.id==='schematics-explainer-prepared').text));
 const manifest=file=>JSON.parse(scanHtml(fs.readFileSync(file,'utf8')).scripts.find(s=>s.attrs.id==='explainer-manifest').text);

@@ -143,9 +143,9 @@ test('tuning: neutral trace exports collect first drafts and repairs without a h
     { role: 'user', content: `Generate in ${round}/workflow` },
     { role: 'assistant', content: '', tool_calls: [{ id: 'write-1', name: 'write', arguments: { file_path: candidate, content: JSON.stringify(first) } }] },
     { role: 'tool', content: 'written', tool_call_id: 'write-1' },
-    { role: 'assistant', content: '', tool_calls: [{ id: 'exec-1', name: 'exec', arguments: { command: `node /schematics/bin/schematics.mjs finalize workflow ${candidate} output.html --json` } }] },
+    { role: 'assistant', content: '', tool_calls: [{ id: 'exec-1', name: 'exec', arguments: { command: `node /schematics/bin/schematics.ts finalize workflow ${candidate} output.html --json` } }] },
     { role: 'tool', content: '{"ok":false,"status":"fail","diagnostics":[{"code":"composition/proper-crossing"}]}', tool_call_id: 'exec-1' },
-    { role: 'assistant', content: '', tool_calls: [{ id: 'exec-2', name: 'exec', arguments: { command: `node /schematics/bin/schematics.mjs finalize workflow ${candidate} output.html --json` } }] },
+    { role: 'assistant', content: '', tool_calls: [{ id: 'exec-2', name: 'exec', arguments: { command: `node /schematics/bin/schematics.ts finalize workflow ${candidate} output.html --json` } }] },
     { role: 'tool', content: '{"ok":true,"status":"pass"}', tool_call_id: 'exec-2' },
   ];
   fs.writeFileSync(trace, JSON.stringify({ schemaVersion: 1, sessions: [{ id: 'portable-1', messages }] }));
@@ -177,7 +177,7 @@ test('tuning: replay pins revisions and benchmark bytes and flags node-only visu
     const tree = path.join(root, side);
     fs.mkdirSync(path.join(tree, 'bin'), { recursive: true });
     const html = `<svg role="img" viewBox="0 0 20 20"><rect x="${x}" y="1" width="4" height="4"/></svg>`;
-    fs.writeFileSync(path.join(tree, 'bin/schematics.mjs'), `import fs from 'node:fs'; fs.writeFileSync(process.argv[5], ${JSON.stringify(html)});`);
+    fs.writeFileSync(path.join(tree, 'bin/schematics.ts'), `import fs from 'node:fs'; fs.writeFileSync(process.argv[5], ${JSON.stringify(html)});`);
     execFileSync('git', ['init', '-q', tree]);
     execFileSync('git', ['-C', tree, 'add', '.']);
     execFileSync('git', ['-C', tree, '-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', 'commit', '-qm', 'fixture']);
@@ -222,7 +222,7 @@ test('tuning: portable exports match native separators and quoted finalize paths
     const draft = { nodes: [{ id: 'a' }], edges: [] };
     fs.writeFileSync(candidate, JSON.stringify(draft));
     const spelling = (file) => nativeSeparators ? file.replaceAll('/', '\\') : file.replaceAll('\\', '/');
-    const cli = nativeSeparators ? 'C:\\Program Files\\Schematics\\bin\\schematics.mjs' : '/Applications/Schematics Skill/bin/schematics.mjs';
+    const cli = nativeSeparators ? 'C:\\Program Files\\Schematics\\bin\\schematics.ts' : '/Applications/Schematics Skill/bin/schematics.ts';
     const command = (quote) => `node ${quote}${cli}${quote} finalize workflow ${quote}${spelling(candidate)}${quote} output.html --json`;
     const messages = [
       { role: 'user', content: `Create a diagram in ${spelling(path.join(round, 'workflow'))}` },
@@ -282,7 +282,7 @@ test('tuning: replay records missing and incomplete SVG failures and continues i
     const tree = path.join(root, side);
     fs.mkdirSync(path.join(tree, 'bin'), { recursive: true });
     const renderer = `import fs from 'node:fs';\nconst document=JSON.parse(fs.readFileSync(process.argv[4],'utf8'));\nconst good='<svg role="img" viewBox="0 0 20 20"><text x="1">Good</text></svg>';\nconst invalid=${JSON.stringify(side)}==='head'&&document.name!=='good';\nfs.writeFileSync(process.argv[5],invalid?(document.name==='missing'?'<html>No diagram</html>':'<svg role="img"><text>Partial</text>'):good);\n`;
-    fs.writeFileSync(path.join(tree, 'bin/schematics.mjs'), renderer);
+    fs.writeFileSync(path.join(tree, 'bin/schematics.ts'), renderer);
   }
   const out = path.join(root, 'out');
   const result = run('replay.mjs', ['--base', path.join(root, 'base'), '--head', path.join(root, 'head'), '--bench', bench, '--out', out]);

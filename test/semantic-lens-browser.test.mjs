@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { findChrome } from '../schematics/bin/visual-check.mjs';
+import { findChrome } from '../schematics/bin/visual-check.ts';
 import { desktopBrowser, desktopPointerCheck } from './helpers/desktop-browser.mjs';
 import { foldedDockTool } from './helpers/viewer-click.mjs';
 import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';

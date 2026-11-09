@@ -92,7 +92,7 @@ test('the architecture renderer reserves extra room only for an automatic canvas
     components: [...boxes.values()].map(b => ({ id: b.id, label: b.id, type: 'backend', pos: [b.x, b.y], size: [b.width, b.height] })),
     connections,
   };
-  const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
+  const cli = fileURLToPath(new URL('../schematics/bin/schematics.ts', import.meta.url));
   const reports = [];
   for (const fixed of [false, true]) {
     if (fixed) diagram.meta.viewBox = [720, 700];

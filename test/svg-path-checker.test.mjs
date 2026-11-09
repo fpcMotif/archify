@@ -8,7 +8,7 @@ import { after, test } from 'node:test';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const checker = path.join(skillRoot, 'scripts/check-render-output.ts');
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-svg-path-checker-'));
 const deadlineMs = process.platform === 'win32' ? 10000 : 3000;
 let sequence = 0;

@@ -23,7 +23,7 @@ From `schematics/`, run `npm run generate:viewer` after editing any source.
 Checkout comparison from its tracked snapshots. From the repository root, run:
 
 ```sh
-node schematics/bin/schematics.mjs compare architecture schematics/examples/checkout-platform.base.architecture.json schematics/examples/checkout-platform.head.architecture.json examples/checkout-platform-delta.html --receipt examples/checkout-platform-delta.receipt.json --quality showcase --json
+bun schematics/bin/schematics.ts compare architecture schematics/examples/checkout-platform.base.architecture.json schematics/examples/checkout-platform.head.architecture.json examples/checkout-platform-delta.html --receipt examples/checkout-platform-delta.receipt.json --quality showcase --json
 ```
 
 `test/architecture-delta.test.mjs` verifies those artifact and receipt

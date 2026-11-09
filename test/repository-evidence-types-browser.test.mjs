@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const chrome = Object.hasOwn(process.env, 'SCHEMATICS_CHROME') ? findChrome() : null;
@@ -66,7 +66,7 @@ test('verified sources remain in Focus and Finder with accessible counts and no 
     diagram.meta.repository = { url, revision, ...(localOnly ? { link_mode: 'local-only' } : {}) };
     const input = path.join(repo, `${type}.json`), artifactPath = path.join(repo, `${type}.html`);
     fs.writeFileSync(input, JSON.stringify(diagram));
-    execFileSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'deliver', type, input, artifactPath, '--repo-root', repo, '--json'], { encoding: 'utf8' });
+    execFileSync(process.execPath, [path.join(root, 'bin/schematics.ts'), 'deliver', type, input, artifactPath, '--repo-root', repo, '--json'], { encoding: 'utf8' });
     const svg = fs.readFileSync(artifactPath, 'utf8').match(/<svg\b[\s\S]*?<\/svg>/)[0];
     await browser.inspect({ artifactPath, width: 1440, height: 900, theme });
     const session = await browser.sessionPromise;

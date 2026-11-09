@@ -10,7 +10,7 @@ const skill = fs.readFileSync(path.join(skillRoot, 'SKILL.md'), 'utf8');
 const delivery = fs.readFileSync(path.join(skillRoot, 'references', 'delivery-contract.md'), 'utf8');
 
 test('preview contract: the skill keeps live preview explicit, desktop-only, and last-good', () => {
-  assert.match(delivery, /schematics\.mjs preview <type> <input>\.json <output>\.html/);
+  assert.match(delivery, /schematics\.ts preview <type> <input>\.json <output>\.html/);
   assert.match(delivery, /active desktop authoring loop/i);
   assert.match(delivery, /previous verified revision on screen and on disk/i);
   assert.match(delivery, /never start it by default/i);

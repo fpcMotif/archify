@@ -469,7 +469,7 @@ test('validate and deliver receipts carry locale warnings as structured diagnost
     locale: 'fr',
     translations: { ...FR_PARTIAL_TRANSLATIONS, 'viewer.common.closee': 'Fermer' },
   })));
-  const cli = path.join(skillRoot, 'bin/schematics.mjs');
+  const cli = path.join(skillRoot, 'bin/schematics.ts');
   for (const command of ['validate', 'deliver']) {
     const args = [cli, command, 'architecture', input, ...(command === 'deliver' ? [path.join(tmp, 'receipt-fr.html')] : [])];
     const machine = spawnSync(process.execPath, [...args, '--json'], { cwd: tmp, encoding: 'utf8' });
@@ -534,7 +534,7 @@ test('enrolling a catalog is a data-only change and works from an unrelated work
     const input = path.join(unrelated, `${locale}.json`);
     const output = path.join(unrelated, `${locale}.html`);
     fs.writeFileSync(input, JSON.stringify(localeDocument('architecture', { locale })));
-    const result = spawnSync(process.execPath, [path.join(packageRoot, 'bin/schematics.mjs'), 'render', 'architecture', input, output], {
+    const result = spawnSync(process.execPath, [path.join(packageRoot, 'bin/schematics.ts'), 'render', 'architecture', input, output], {
       cwd: unrelated,
       encoding: 'utf8',
     });

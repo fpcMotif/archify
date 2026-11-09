@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.ts';
 
 import { translateMessage } from '../schematics/packages/i18n/i18n.ts';
 import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
@@ -140,7 +140,7 @@ test('semantic passport computes and applies target top synchronously on open an
 }, async () => {
   const artifact = path.join(tmp, 'passport-synchronous-placement.html');
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'bin', 'schematics.mjs'),
+    path.join(skillRoot, 'bin', 'schematics.ts'),
     'render',
     'architecture',
     path.join(skillRoot, 'examples', CASES.architecture),

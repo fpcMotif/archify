@@ -5,12 +5,12 @@ import os from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { startPreview } from '../schematics/bin/preview.mjs';
+import { startPreview } from '../schematics/bin/preview.ts';
 import { validateSchema } from '../schematics/packages/validation/validator.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..', 'schematics');
-const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
+const cli = path.join(skillRoot, 'bin', 'schematics.ts');
 
 // One table for the whole file: every diagram type names its node array
 // differently, and repository evidence must behave identically across all of

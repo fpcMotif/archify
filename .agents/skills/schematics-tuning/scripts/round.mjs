@@ -20,7 +20,7 @@ const project = args[0] && !args[0].startsWith('--') ? path.resolve(args[0]) : n
 const schematics = path.resolve(option('--schematics', path.join(here, '../../../../schematics')));
 const types = (option('--types', DIAGRAM_TYPES.join(','))).split(',').map((type) => type.trim()).filter(Boolean);
 const git = (cwd, ...command) => execFileSync('git', ['-C', cwd, ...command], { encoding: 'utf8' }).trim();
-if (!project || !fs.existsSync(path.join(schematics, 'bin/schematics.mjs')) || types.some((type) => !DIAGRAM_TYPES.includes(type))) {
+if (!project || !fs.existsSync(path.join(schematics, 'bin/schematics.ts')) || types.some((type) => !DIAGRAM_TYPES.includes(type))) {
   console.error(`Usage: node round.mjs <project-path> [--types ${DIAGRAM_TYPES.join(',')}] [--schematics <schematics-dir>] [--name <round>]`);
   process.exit(2);
 }
@@ -55,7 +55,7 @@ const prompts = types.map((type) => {
     title: `${name} ${TYPE_NAMES_ZH[type]}`,
     task: `画 ${project} 这个项目的${TYPE_NAMES_ZH[type]}。
 
-Use the Schematics skill located at ${schematics} (read ${schematics}/SKILL.md first and follow it exactly, including the references it tells you to read). Do NOT install, update, or copy Schematics anywhere; use the CLI directly as \`node ${schematics}/bin/schematics.mjs ...\`.
+Use the Schematics skill located at ${schematics} (read ${schematics}/SKILL.md first and follow it exactly, including the references it tells you to read). Do NOT install, update, or copy Schematics anywhere; use the CLI directly as \`node ${schematics}/bin/schematics.ts ...\`.
 
 Constraints:
 - Your working directory for all Schematics commands and outputs is ${workdir} (cd there; the skill's \`.schematics/<type>-<slug>-<timestamp>/\` folder must be created under it, not inside the project).

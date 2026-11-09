@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {ChromeVisualBrowser,findChrome,runBrowserCheck} from '../schematics/bin/visual-check.mjs';
+import {ChromeVisualBrowser,findChrome,runBrowserCheck} from '../schematics/bin/visual-check.ts';
 import {unpackPageBundle} from '../schematics/packages/explainer/page-bundle.ts';
 import {inspectPublicHtml,inspectExplainerBrowser,inspectNativePreviewLayout,inspectNativeViewer,explainerObservation,explainerObservationDiagnostics} from '../schematics/packages/explainer/browser-check.ts';
 // Explicit developer diagnostics only; ordinary explainer tests never launch Chrome.

@@ -1,7 +1,54 @@
-import { spawnSync } from 'node:child_process';
+import { spawnSync, type SpawnSyncOptionsWithStringEncoding } from 'node:child_process';
 import path from 'node:path';
 
-const OPENERS = {
+interface Opener {
+  command: string;
+  method: string;
+  timeoutMs: number;
+  args: (target: string) => string[];
+}
+
+interface LaunchError {
+  code?: unknown;
+  message?: unknown;
+}
+
+export interface LaunchResult {
+  error?: unknown;
+  signal?: string | null;
+  status?: number | null;
+}
+
+export type OpenerSpawn = (
+  command: string,
+  args: string[],
+  options: SpawnSyncOptionsWithStringEncoding,
+) => LaunchResult;
+
+export interface LaunchOptions {
+  platform?: string;
+  spawn?: OpenerSpawn;
+  timeoutMs?: unknown;
+}
+
+export interface LaunchFailure {
+  code: string;
+  reason: unknown;
+  systemCode?: string;
+  timeoutMs?: number;
+  signal?: string;
+  exitCode?: number | null;
+}
+
+export interface LaunchReceipt {
+  requested: true;
+  status: 'opened' | 'unsupported' | 'failed';
+  target: string;
+  method: string | null;
+  failure?: LaunchFailure;
+}
+
+const OPENERS: Record<string, Opener> = {
   darwin: {
     command: 'open',
     method: 'open',
@@ -32,8 +79,12 @@ const OPENERS = {
   },
 };
 
-function failureDetails(result, opener, timeoutMs) {
-  const error = result?.error;
+function launchError(value: unknown): LaunchError | undefined {
+  return typeof value === 'object' && value !== null ? value : undefined;
+}
+
+function failureDetails(result: LaunchResult | undefined, opener: Opener, timeoutMs: number): LaunchFailure | null {
+  const error = launchError(result?.error);
   if (error?.code === 'ENOENT') {
     return {
       code: 'opener/unavailable',
@@ -73,11 +124,11 @@ function failureDetails(result, opener, timeoutMs) {
   return null;
 }
 
-function launchTimeout(value, fallback) {
-  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+function launchTimeout(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : fallback;
 }
 
-function launchTarget(target, options = {}) {
+function launchTarget(target: string, options: LaunchOptions = {}): LaunchReceipt {
   const platform = options.platform || process.platform;
   const opener = OPENERS[platform];
   if (!opener) {
@@ -89,11 +140,11 @@ function launchTarget(target, options = {}) {
     };
   }
 
-  const spawn = options.spawn || spawnSync;
+  const spawn: OpenerSpawn = options.spawn || spawnSync;
   const timeoutMs = launchTimeout(options.timeoutMs, opener.timeoutMs);
-  let result;
+  let result: LaunchResult;
   try {
-    const spawnOptions = {
+    const spawnOptions: SpawnSyncOptionsWithStringEncoding = {
       encoding: 'utf8',
       shell: false,
       stdio: 'ignore',
@@ -112,7 +163,7 @@ function launchTarget(target, options = {}) {
   }
 
   const failure = failureDetails(result, opener, timeoutMs);
-  let status = 'opened';
+  let status: LaunchReceipt['status'] = 'opened';
   if (failure?.code === 'opener/unavailable') status = 'unsupported';
   else if (failure) status = 'failed';
 
@@ -125,12 +176,12 @@ function launchTarget(target, options = {}) {
   };
 }
 
-export function openArtifact(target, options = {}) {
+export function openArtifact(target: string, options: LaunchOptions = {}): LaunchReceipt {
   return launchTarget(path.resolve(target), options);
 }
 
-export function openLoopbackUrl(target, options = {}) {
-  let url;
+export function openLoopbackUrl(target: string, options: LaunchOptions = {}): LaunchReceipt {
+  let url: URL;
   try {
     url = new URL(target);
   } catch {

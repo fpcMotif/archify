@@ -62,7 +62,7 @@ for (const [mode, [example, collection, index = 0]] of Object.entries(cases)) {
       }
       spec[collection][index].icon = '<svg onload="alert(1)">';
       fs.writeFileSync(input, JSON.stringify(spec));
-      const rejected = spawnSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'validate', mode, input, '--json'], { encoding: 'utf8' });
+      const rejected = spawnSync(process.execPath, [path.join(root, 'bin/schematics.ts'), 'validate', mode, input, '--json'], { encoding: 'utf8' });
       assert.notEqual(rejected.status, 0);
       assert.match(rejected.stdout + rejected.stderr, /icon/);
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }

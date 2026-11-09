@@ -8,7 +8,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
-const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
+const cli = path.join(skillRoot, 'bin', 'schematics.ts');
 
 test('passing validate emits a frozen candidate and one hash-bound finalize action', t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-next-action-'));

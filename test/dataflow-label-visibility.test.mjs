@@ -7,7 +7,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { rectsOverlap, segmentRectClearanceWithin } from '../schematics/packages/geometry/geometry.ts';
 
-const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.ts', import.meta.url));
 const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/dataflow-label-visibility.json', import.meta.url)));
 function render(t, diagram) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-dataflow-label-visibility-'));

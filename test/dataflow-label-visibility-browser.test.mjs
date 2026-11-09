@@ -5,9 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.ts';
 
-const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.ts', import.meta.url));
 const fixture = fileURLToPath(new URL('./fixtures/dataflow-label-visibility.json', import.meta.url));
 
 test('dataflow classification plates preserve their own connector in Read and Detail', async (t) => {

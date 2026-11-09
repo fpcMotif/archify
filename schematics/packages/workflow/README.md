@@ -4,7 +4,7 @@ Render `diagram_type: "workflow"` JSON files into the standard Schematics HTML
 template.
 
 ```bash
-node schematics/packages/workflow/render-workflow.mjs input.workflow.json output.html
+bun schematics/packages/workflow/render-workflow.ts input.workflow.json output.html
 ```
 
 The renderer validates input against `schematics/schemas/workflow.schema.json`
@@ -16,7 +16,7 @@ from the JSON file.
 After rendering, run the artifact checker:
 
 ```bash
-node schematics/scripts/check-render-output.mjs output.html
+bun schematics/scripts/check-render-output.ts output.html
 ```
 
 It catches final-SVG issues that are easiest to see in a browser: non-finite
@@ -68,7 +68,7 @@ schematics/schemas/workflow.schema.json
 Migrate an existing v1 source into a separate v2 file:
 
 ```bash
-node schematics/bin/schematics.mjs migrate workflow old.json new.json --to-schema 2 --json
+bun schematics/bin/schematics.ts migrate workflow old.json new.json --to-schema 2 --json
 ```
 
 Running the command again with its schema-v2 output as the new source is an
@@ -78,7 +78,7 @@ If a legacy v1 source is blocked solely because `meta.output` is missing or no
 longer portable, supply its replacement for the separate v2 destination:
 
 ```bash
-node schematics/bin/schematics.mjs migrate workflow old.json new.json --to-schema 2 --output reports/workflow.html --json
+bun schematics/bin/schematics.ts migrate workflow old.json new.json --to-schema 2 --output reports/workflow.html --json
 ```
 
 `--output` must itself be a portable POSIX-relative `.html` path. It updates
@@ -100,7 +100,7 @@ The complete migrated document must still satisfy every authored requirement.
 Inspect the stable author-facing v2 plan with:
 
 ```bash
-node schematics/bin/schematics.mjs validate workflow input.workflow.json --layout-json
+bun schematics/bin/schematics.ts validate workflow input.workflow.json --layout-json
 ```
 
 The receipt reports the selected contract, measured `viewBox` and

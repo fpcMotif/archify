@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ChromeVisualBrowser, findChrome, runVisualCheck } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome, runVisualCheck } from '../schematics/bin/visual-check.ts';
 import { DESKTOP_READABILITY_VIEWPORT, MIN_PROJECTED_NODE_TEXT_PX } from '../schematics/packages/diagnostics/desktop-readability.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -109,7 +109,7 @@ test('default sequence and dataflow canvases fit the real desktop reader without
         const candidate = structuredClone(doc);
         if (authored) candidate.meta.viewBox = viewBox;
         fs.writeFileSync(input, JSON.stringify(candidate));
-        execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'render', type, input, artifact]);
+        execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'render', type, input, artifact]);
         const result = await runVisualCheck({ artifactPath: artifact, chromePath });
         if (authored) {
           assert.equal(result.exitCode, 1, `${type}: explicit narrow canvas still requires repair`);
@@ -144,7 +144,7 @@ test('visual-check collects nested ID-less semantic edge text for every renderer
     for (const [index, [type, input]] of cases.entries()) {
       const artifact = path.join(tmp, `${type}.html`);
       execFileSync(process.execPath, [
-        path.join(skillRoot, 'bin', 'schematics.mjs'), 'render', type,
+        path.join(skillRoot, 'bin', 'schematics.ts'), 'render', type,
         path.join(skillRoot, input), artifact, '--quality', 'showcase',
       ], { cwd: skillRoot, encoding: 'utf8' });
       const edge = index % 2
@@ -217,7 +217,7 @@ test('production showcase is readable in the real 1440 by 900 adaptive reader', 
   const artifact = path.join(tmp, 'production-deployment.html');
   try {
     execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin', 'schematics.mjs'),
+      path.join(skillRoot, 'bin', 'schematics.ts'),
       'render',
       'architecture',
       path.join(skillRoot, 'examples', 'production-deployment.architecture.json'),
@@ -290,7 +290,7 @@ test('route-expanded intrinsic architecture preserves reading size with ordinary
   const artifact = path.join(tmp, 'route-expanded-worldscope.html');
   try {
     execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin', 'schematics.mjs'),
+      path.join(skillRoot, 'bin', 'schematics.ts'),
       'deliver',
       'architecture',
       input,
@@ -348,7 +348,7 @@ test('extreme intrinsic architecture keeps readable page scroll below first-scre
   const artifact = path.join(tmp, 'readable-scroll-worldscope.html');
   try {
     execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin', 'schematics.mjs'),
+      path.join(skillRoot, 'bin', 'schematics.ts'),
       'deliver',
       'architecture',
       input,
@@ -428,7 +428,7 @@ test('offline intrinsic workflows fit while authored overflow still identifies l
         fs.writeFileSync(input, JSON.stringify(pinned));
       }
       const artifact = path.join(tmp, `${name}.html`);
-      execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'deliver', 'workflow',
+      execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'deliver', 'workflow',
         input, artifact, '--quality', 'showcase', '--json'], { cwd: skillRoot });
       const result = await runVisualCheck({
         artifactPath: artifact, chromePath,
@@ -473,7 +473,7 @@ test('a 1px width-first remainder is declared instead of failing browser contain
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-reader-remainder-'));
   try {
     const artifact = path.join(tmp, 'three-lane-remainder.html');
-    execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'deliver', 'workflow',
+    execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'deliver', 'workflow',
       path.join(skillRoot, '..', 'test', 'fixtures/workflow-viewport/three-lane-remainder.workflow.json'),
       artifact, '--quality', 'showcase', '--json'], { cwd: skillRoot });
     assert.match(fs.readFileSync(artifact, 'utf8'), /viewBox="0 0 \d+ 528" data-reader-fit="width-first"/);
@@ -497,7 +497,7 @@ test('issue #250 tall intrinsic workflow uses reading width and permits readable
   try {
     fs.writeFileSync(input, `${JSON.stringify(issue250TallGroup, null, 2)}\n`);
     execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin', 'schematics.mjs'),
+      path.join(skillRoot, 'bin', 'schematics.ts'),
       'render',
       'workflow',
       input,
@@ -545,7 +545,7 @@ test('issue #250 five-stage stack retains reading scale within the automatic enl
   try {
     fs.writeFileSync(input, `${JSON.stringify(issue250FiveStageGroup, null, 2)}\n`);
     execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin', 'schematics.mjs'),
+      path.join(skillRoot, 'bin', 'schematics.ts'),
       'render',
       'workflow',
       input,
@@ -592,7 +592,7 @@ test('authored Architecture canvas keeps its scale and accepts readable document
     connections: [{ from: 'client', to: 'api', label: 'request' }, { from: 'api', to: 'store', label: 'persist' }],
   };
   fs.writeFileSync(input, JSON.stringify(doc));
-  execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'render', 'architecture', input, artifact]);
+  execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'render', 'architecture', input, artifact]);
   const html = fs.readFileSync(artifact, 'utf8');
   assert.match(html, /viewBox="0 0 1040 700"/);
   assert.match(html, /<rect x="300" y="470" width="140" height="64"/);

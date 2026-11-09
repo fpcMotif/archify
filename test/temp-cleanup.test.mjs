@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { ChromeVisualBrowser } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser } from '../schematics/bin/visual-check.ts';
 
 function browserWithChild(kill) {
   const child = new EventEmitter();
@@ -192,7 +192,7 @@ test('validate emits one failed JSON receipt when temporary cleanup is blocked',
       return remove(target, options);
     };
   `);
-  const cli = new URL('../schematics/bin/schematics.mjs', import.meta.url);
+  const cli = new URL('../schematics/bin/schematics.ts', import.meta.url);
   const input = new URL('../schematics/examples/agent-tool-call.workflow.json', import.meta.url);
   const result = spawnSync(process.execPath, ['--import', pathToFileURL(preload).href,
     fileURLToPath(cli), 'validate', 'workflow', fileURLToPath(input), '--json'], {

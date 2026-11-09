@@ -10,7 +10,7 @@ import { intrinsicWorkflow, planningWorkflow } from '../schematics/packages/work
 import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.ts';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const contracts = {
   requiredEdges: [{ from: 'a', to: 'b' }],

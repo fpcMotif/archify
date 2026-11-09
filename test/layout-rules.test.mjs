@@ -63,7 +63,7 @@ function validateCli(mode, doc, quality = 'showcase') {
   fs.writeFileSync(input, JSON.stringify(cliDoc));
   try {
     const stdout = execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin', 'schematics.mjs'),
+      path.join(skillRoot, 'bin', 'schematics.ts'),
       'validate',
       mode,
       input,
@@ -88,7 +88,7 @@ function deliverCli(mode, doc, quality = 'showcase') {
   fs.writeFileSync(input, JSON.stringify(cliDoc));
   try {
     const stdout = execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin', 'schematics.mjs'),
+      path.join(skillRoot, 'bin', 'schematics.ts'),
       'deliver',
       mode,
       input,
@@ -1934,7 +1934,7 @@ test('architecture: automatic reciprocal adjacent routes keep the showcase inter
   fs.writeFileSync(input, JSON.stringify({ ...doc, meta: { ...doc.meta, output: 'reciprocal.html' } }));
   let report;
   try {
-    execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'validate', 'architecture', input, '--layout-json'], { encoding: 'utf8' });
+    execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'validate', 'architecture', input, '--layout-json'], { encoding: 'utf8' });
     assert.fail('crowded labels must be rejected');
   } catch (error) {
     assert.equal(error.status, 1);

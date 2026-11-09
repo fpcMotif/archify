@@ -58,7 +58,7 @@ for (const kind of ['node', 'edge', 'boundary']) {
         return file;
       });
       const output = path.join(dir, 'delta.html');
-      const run = spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'),
+      const run = spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'),
         'compare', 'architecture', ...inputs, output, '--quality', 'standard', '--json'],
       { cwd: skillRoot, encoding: 'utf8', timeout: 30000 });
       assert.ifError(run.error);

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.ts';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'SCHEMATICS_CHROME');
@@ -36,7 +36,7 @@ test('Tree branches collapse in place, follow the keyboard, reveal selections, a
     diagram.nodes.forEach((node) => { node.sources = [{ path: 'source.js', line: 1 }]; });
     const input = path.join(scratch, name + '.json');
     fs.writeFileSync(input, JSON.stringify(diagram));
-    execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'render', 'tree', input, output, '--repo-root', scratch]);
+    execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'render', 'tree', input, output, '--repo-root', scratch]);
     return output;
   };
   const small = render('payment-platform.tree.json', 'small.html');

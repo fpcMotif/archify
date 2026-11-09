@@ -1,15 +1,16 @@
 import { recoverRetiredPublication } from '../packages/output/atomic-output.ts';
 
-function usage(stream = process.stderr) {
-  stream.write('Usage: node bin/recover-output.mjs <private-recovery-directory> [--json]\n');
+function usage(stream: NodeJS.WriteStream = process.stderr): void {
+  stream.write('Usage: bun bin/recover-output.ts <private-recovery-directory> [--json]\n');
 }
 
 const args = process.argv.slice(2);
-if (args.length === 1 && ['--help', '-h'].includes(args[0])) {
+const [firstArgument] = args;
+if (args.length === 1 && firstArgument !== undefined && ['--help', '-h'].includes(firstArgument)) {
   usage(process.stdout);
 } else {
   let json = false;
-  let recoveryDirectory;
+  let recoveryDirectory: string | undefined;
   let invalid = false;
   for (const argument of args) {
     if (argument === '--json' && !json) {

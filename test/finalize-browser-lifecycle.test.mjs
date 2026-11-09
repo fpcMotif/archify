@@ -5,8 +5,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { runFinalize } from '../schematics/bin/finalize.mjs';
-import { CAPTURE_VIEWPORTS, VISUAL_CHECK_VIEWPORTS } from '../schematics/bin/visual-check.mjs';
+import { runFinalize } from '../schematics/bin/finalize.ts';
+import { CAPTURE_VIEWPORTS, VISUAL_CHECK_VIEWPORTS } from '../schematics/bin/visual-check.ts';
 
 function workspace(t) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-finalize-browser-'));
@@ -137,7 +137,7 @@ function inputs(t) {
 
 function options({ input, output, outDir, runCommand, runBrowserCheck, resolveChrome, createBrowser }) {
   return {
-    cliPath: '/fake/schematics.mjs',
+    cliPath: '/fake/schematics.ts',
     type: 'architecture',
     input,
     output,

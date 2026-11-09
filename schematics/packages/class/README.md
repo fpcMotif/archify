@@ -3,7 +3,7 @@
 Render `diagram_type: "class"` JSON files into the standard Schematics HTML template.
 
 ```bash
-node schematics/packages/class/render-class.mjs input.class.json output.html
+bun schematics/packages/class/render-class.ts input.class.json output.html
 ```
 
 The renderer validates input against `schematics/schemas/class.schema.json` with the
@@ -103,7 +103,7 @@ that would cross another type falls back to ordinary routes.
 固定路线之间的冲突和无法绕开的复杂交叉仍遵循现有路由约束，不会修改作者指定的几何。
 
 All other relationships use the shared orthogonal router
-(`../architecture/routing.mjs`) and the shared Clean Flow, crossing, corridor,
+(`../architecture/routing.ts`) and the shared Clean Flow, crossing, corridor,
 rhythm, and label-clearance gates.
 
 Labels sit on the segment with the most room: above a horizontal run, beside a

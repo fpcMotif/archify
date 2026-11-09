@@ -4,7 +4,7 @@ Render `diagram_type: "sequence"` JSON files into the standard Schematics HTML
 template.
 
 ```bash
-node schematics/packages/sequence/render-sequence.mjs input.sequence.json output.html
+bun schematics/packages/sequence/render-sequence.ts input.sequence.json output.html
 ```
 
 The renderer validates input against `schematics/schemas/sequence.schema.json`

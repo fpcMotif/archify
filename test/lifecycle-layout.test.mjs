@@ -429,7 +429,7 @@ test('dense automatic exit notes pass public readability validation without losi
   const fixture = path.join(__dirname, 'fixtures/lifecycle-dense-exit-notes.json');
   const bytes = fs.readFileSync(fixture, 'utf8');
   const doc = JSON.parse(bytes);
-  const validated = spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'validate', 'lifecycle', fixture,
+  const validated = spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'validate', 'lifecycle', fixture,
     '--quality', 'showcase', '--json'], { encoding: 'utf8' });
   assert.equal(validated.status, 0, validated.stdout + validated.stderr);
   const receipt = JSON.parse(validated.stdout);
@@ -468,7 +468,7 @@ test('long transition notes are identified in width and placement diagnostics wi
   const input = path.join(tmp, 'long-note-diagnostics.json');
   const source = JSON.stringify(doc);
   fs.writeFileSync(input, source);
-  const cli = path.join(skillRoot, 'bin/schematics.mjs');
+  const cli = path.join(skillRoot, 'bin/schematics.ts');
   const result = spawnSync(process.execPath, [cli, 'validate', 'lifecycle', input, '--json'], { encoding: 'utf8' });
   assert.notEqual(result.status, 0, 'the diagnostic change does not make this layout valid');
   const receipt = JSON.parse(result.stdout);
@@ -493,7 +493,7 @@ test('long transition notes are identified in width and placement diagnostics wi
 });
 
 test('an inherently too-wide lifecycle reports its budget and bounded spacing advice', () => {
-  const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
+  const cli = fileURLToPath(new URL('../schematics/bin/schematics.ts', import.meta.url));
   const fixture = fileURLToPath(new URL('./fixtures/lifecycle-crowded-wide.json', import.meta.url));
   const result = spawnSync(process.execPath, [cli, 'validate', 'lifecycle', fixture, '--json'], { encoding: 'utf8' });
   assert.notEqual(result.status, 0);

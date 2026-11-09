@@ -5,10 +5,10 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { compactFinalizeReceipt } from '../schematics/bin/finalize.mjs';
+import { compactFinalizeReceipt } from '../schematics/bin/finalize.ts';
 
 const root = fileURLToPath(new URL('../schematics/', import.meta.url));
-const cli = path.join(root, 'bin/schematics.mjs');
+const cli = path.join(root, 'bin/schematics.ts');
 const checker = path.join(root, 'scripts/check-render-output.ts');
 
 function sequence(count = 6) {

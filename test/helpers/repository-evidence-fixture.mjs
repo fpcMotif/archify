@@ -7,7 +7,7 @@ import { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 export const skillRoot = fileURLToPath(new URL('../../schematics/', import.meta.url));
-export const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
+export const cli = path.join(skillRoot, 'bin', 'schematics.ts');
 
 export function git(repo, ...args) {
   return execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();

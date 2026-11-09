@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRouter } from '../schematics/packages/architecture/routing.ts';
 
-const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.ts', import.meta.url));
 
 function box(id, x, y, width = 230, height = 80) {
   return [id, { id, x, y, width, height, cx: x + width / 2, cy: y + height / 2 }];

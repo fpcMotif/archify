@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.ts';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
@@ -66,7 +66,7 @@ test('valid identifiers preserve Viewer selection, routes and relationship links
       // Use the public CLI and final artifact: these IDs already satisfy the
       // schema and must retain the same meaning in every shared Viewer.
       const receipt = JSON.parse(execFileSync(process.execPath, [
-        path.join(skillRoot, 'bin/schematics.mjs'), 'deliver', type, input, output, '--json',
+        path.join(skillRoot, 'bin/schematics.ts'), 'deliver', type, input, output, '--json',
       ], { encoding: 'utf8' }));
       assert.equal(receipt.ok, true);
       const ordinary = diagram[nodeCollection].find(node => !['constructor', 'hasOwnProperty'].includes(node.id)).id;

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.ts', import.meta.url));
 const renderer = fileURLToPath(new URL('../schematics/packages/timeline/render-timeline.ts', import.meta.url));
 const hour = 60 * 60 * 1000;
 

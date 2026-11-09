@@ -8,7 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-import { startPreview } from '../schematics/bin/preview.mjs';
+import { startPreview } from '../schematics/bin/preview.ts';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -149,7 +149,7 @@ test('preview CLI: second Ctrl-C exits despite an unfinished HTTP request', {
   timeout: 15000,
 }, async () => {
   const data = fixture();
-  const child = spawn(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'preview', 'architecture', data.input, data.output, '--no-open'], {
+  const child = spawn(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'preview', 'architecture', data.input, data.output, '--no-open'], {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let stdout = '';
@@ -188,7 +188,7 @@ for (const window of ['snapshot', 'receipt']) {
     const data = fixture();
     const ready = path.join(data.root, 'delivery.ready');
     const deliveryCli = path.join(data.root, 'paused-delivery.mjs');
-    const cli = path.join(skillRoot, 'bin/schematics.mjs');
+    const cli = path.join(skillRoot, 'bin/schematics.ts');
     const previous = Buffer.from('<!doctype html><title>Previous verified artifact</title>');
     fs.writeFileSync(data.output, previous);
     // Pause a real deliver at a deterministic boundary, without publishing its

@@ -22,7 +22,7 @@ import {
   browserCheckSidecarPaths,
   sidecarPaths,
   summarizeBrowserEvidence,
-} from '../schematics/bin/visual-check.mjs';
+} from '../schematics/bin/visual-check.ts';
 import { sameLocation } from '../schematics/packages/output/path-semantics.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1689,7 +1689,7 @@ for (const operation of ['run', 'persist-failure']) {
   }, (t) => {
     const input = artifact(`artifact-fifo-substitution-${operation}.html`);
     const outputs = sidecarPaths(input);
-    const visualCheckUrl = new URL('../schematics/bin/visual-check.mjs', import.meta.url).href;
+    const visualCheckUrl = new URL('../schematics/bin/visual-check.ts', import.meta.url).href;
     t.after(() => {
       try {
         if (fs.lstatSync(input).isFIFO()) fs.unlinkSync(input);
@@ -1758,7 +1758,7 @@ test('visual-check rejects a previous receipt changed to a FIFO before its conte
   const first = await runVisualCheck({ artifactPath: input, resolveChrome: () => null });
   assert.equal(first.exitCode, 2);
   const receiptBefore = fs.readFileSync(outputs.receipt);
-  const visualCheckUrl = new URL('../schematics/bin/visual-check.mjs', import.meta.url).href;
+  const visualCheckUrl = new URL('../schematics/bin/visual-check.ts', import.meta.url).href;
   t.after(() => {
     try {
       if (fs.lstatSync(outputs.receipt).isFIFO()) fs.unlinkSync(outputs.receipt);
@@ -2523,7 +2523,7 @@ for (const scenario of [
 test('public visual-check CLI reports a committed cleanup warning', (t) => {
   const input = artifact('public-cli-committed-cleanup-warning.html');
   const outputs = sidecarPaths(input);
-  const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
+  const cli = path.join(skillRoot, 'bin', 'schematics.ts');
   const missingChrome = path.join(tmp, 'missing-cleanup-warning-chrome');
   const baseEnv = {
     ...process.env,
@@ -2799,7 +2799,7 @@ test('public visual-check CLI preserves an unowned contact-sheet path', () => {
   fs.writeFileSync(outputs.contactSheet, sentinel);
 
   const result = spawnSync(process.execPath, [
-    path.join(skillRoot, 'bin', 'schematics.mjs'),
+    path.join(skillRoot, 'bin', 'schematics.ts'),
     'visual-check',
     input,
     '--json',

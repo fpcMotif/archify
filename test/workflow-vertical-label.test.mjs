@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.ts';
 
 const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
-const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
+const cli = path.join(skillRoot, 'bin', 'schematics.ts');
 
 function verticalWorkflow({ direction = 'down', edge = {}, schemaVersion = 2 } = {}) {
   const down = direction === 'down';

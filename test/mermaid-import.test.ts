@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { importMermaid, MermaidImportError } from '../schematics/packages/mermaid/import.ts';
 
-const cli = path.join(import.meta.dir, '..', 'schematics', 'bin', 'schematics.mjs');
+const cli = path.join(import.meta.dir, '..', 'schematics', 'bin', 'schematics.ts');
 const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-mermaid-import-'));
 afterAll(() => fs.rmSync(workDir, { recursive: true, force: true }));
 

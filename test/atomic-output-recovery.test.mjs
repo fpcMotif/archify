@@ -18,7 +18,7 @@ import {
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..', 'schematics');
 const atomicOutput = path.join(skillRoot, 'packages/output/atomic-output.ts');
-const recoveryCli = path.join(skillRoot, 'bin/recover-output.mjs');
+const recoveryCli = path.join(skillRoot, 'bin/recover-output.ts');
 
 function workspace(t, prefix) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -106,7 +106,7 @@ test('recovery CLI help is successful and unknown options do not name a recovery
   for (const option of ['--help', '-h']) {
     const result = spawnSync(process.execPath, [recoveryCli, option], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /^Usage: node bin\/recover-output\.mjs/m);
+    assert.match(result.stdout, /^Usage: bun bin\/recover-output\.ts/m);
     assert.equal(result.stderr, '');
   }
 
@@ -115,7 +115,7 @@ test('recovery CLI help is successful and unknown options do not name a recovery
   });
   assert.equal(result.status, 64, result.stderr);
   assert.equal(result.stdout, '');
-  assert.match(result.stderr, /^Usage: node bin\/recover-output\.mjs/m);
+  assert.match(result.stderr, /^Usage: bun bin\/recover-output\.ts/m);
 });
 
 function portableRecoveryFixture(t) {

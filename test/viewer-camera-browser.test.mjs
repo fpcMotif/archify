@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.ts';
 import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
@@ -61,7 +61,7 @@ test('Camera accessible names retain the visible readout after native actions', 
       const input = path.join(scratch, `${mode}-${locale}.json`);
       const artifact = path.join(scratch, `${mode}-${locale}.html`);
       fs.writeFileSync(input, JSON.stringify(candidate));
-      execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'render', mode, input, artifact]);
+      execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'render', mode, input, artifact]);
       await assertAccessibleReadout(artifact, `${mode}/${locale}`);
     }
   }

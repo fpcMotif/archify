@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome, runVisualCheck } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome, runVisualCheck } from '../schematics/bin/visual-check.ts';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const configured = Object.prototype.hasOwnProperty.call(process.env, 'SCHEMATICS_CHROME');
@@ -149,7 +149,7 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
   try {
     function render(name, input, repoRoot) {
       const file = path.join(scratch, `${name}.html`);
-      execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'),
+      execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'),
         'render', 'architecture', path.resolve(skillRoot, input), file,
         ...(repoRoot ? ['--repo-root', repoRoot] : [])], { stdio: 'pipe' });
       return file;

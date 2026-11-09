@@ -946,7 +946,7 @@ test('workflow validate JSON exposes an executable preset label repair', (t) => 
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preset-label-repair-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'workflow.json');
-  const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
+  const cli = fileURLToPath(new URL('../schematics/bin/schematics.ts', import.meta.url));
   const document = outsideRightLabelWorkflow();
   const original = JSON.stringify(document);
   fs.writeFileSync(input, original);
@@ -2668,7 +2668,7 @@ test('rejected layout CLI receipt preserves failure diagnostics and writes no HT
   document.meta.output = 'must-not-write.html';
   const original = JSON.stringify(document);
   fs.writeFileSync(input, original);
-  const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
+  const cli = fileURLToPath(new URL('../schematics/bin/schematics.ts', import.meta.url));
   for (const flags of [['--layout-json'], ['--layout-json', '--json']]) {
     const result = spawnSync(process.execPath, [cli, 'validate', 'workflow', input, ...flags], {
       encoding: 'utf8', cwd: directory,
@@ -2784,7 +2784,7 @@ test('rejected layout receipt belongs to the selected best route-order attempt',
   const input = path.join(directory, 'workflow.json');
   const inputBytes = JSON.stringify(document);
   fs.writeFileSync(input, inputBytes);
-  const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
+  const cli = fileURLToPath(new URL('../schematics/bin/schematics.ts', import.meta.url));
   const failures = [[], ['--layout-json']].map((flags) => {
     const validation = spawnSync(process.execPath, [
       cli, 'validate', 'workflow', input, '--quality', 'showcase', '--json', ...flags,

@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { collectLabelRouteClearance, rectsOverlap, labelPoint } from '../schematics/packages/geometry/geometry.ts';
 
 const root = fileURLToPath(new URL('../schematics/', import.meta.url));
-const cli = path.join(root, 'bin/schematics.mjs');
+const cli = path.join(root, 'bin/schematics.ts');
 function inspect(t, diagram, extra = []) {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-auto-labels-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));

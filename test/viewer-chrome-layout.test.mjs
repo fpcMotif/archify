@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.ts';
 import { MIN_PROJECTED_NODE_TEXT_PX } from '../schematics/packages/diagnostics/desktop-readability.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,7 +28,7 @@ function render(mode, example) {
   if (renderedArtifacts.has(key)) return renderedArtifacts.get(key);
   const output = path.join(tmp, `${mode}-${renderedArtifacts.size}.html`);
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'bin', 'schematics.mjs'),
+    path.join(skillRoot, 'bin', 'schematics.ts'),
     'render',
     mode,
     path.join(skillRoot, 'examples', example),
@@ -48,7 +48,7 @@ function renderWithoutLegend() {
   const output = path.join(tmp, 'architecture-no-legend.html');
   fs.writeFileSync(input, `${JSON.stringify(source, null, 2)}\n`);
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'bin', 'schematics.mjs'),
+    path.join(skillRoot, 'bin', 'schematics.ts'),
     'render',
     'architecture',
     input,
@@ -266,7 +266,7 @@ test('the public CLI gives all typed renderers one final Viewer contract', () =>
     assert.match(html, directChildSvg, `${mode} keeps the SVG as a direct child`);
     assert.doesNotMatch(html, /class="diagram-stage"/, `${mode} does not re-nest the exported SVG`);
     assert.doesNotMatch(canonicalSvg(html), /nav-safe-rail|schematics-nav-reserve|viewerChromeLayout/, mode);
-    execFileSync(process.execPath, [path.join(skillRoot, 'bin', 'schematics.mjs'), 'check', output]);
+    execFileSync(process.execPath, [path.join(skillRoot, 'bin', 'schematics.ts'), 'check', output]);
   }
 });
 
@@ -375,7 +375,7 @@ test('Maka remains collision-free at the reported Retina-equivalent viewport', {
 }, async () => {
   const output = path.join(tmp, 'maka-architecture.html');
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'bin', 'schematics.mjs'),
+    path.join(skillRoot, 'bin', 'schematics.ts'),
     'render',
     'architecture',
     path.resolve(skillRoot, '..', 'test', 'fixtures', 'maka-architecture.architecture.json'),

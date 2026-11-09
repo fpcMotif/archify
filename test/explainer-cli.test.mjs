@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { prepareExplainer, writePreparedBundle } from '../schematics/packages/explainer/prepare.ts';
 import { scanHtml } from '../schematics/packages/explainer/check.ts';
-const cli = path.resolve('schematics/bin/schematics.mjs');
+const cli = path.resolve('schematics/bin/schematics.ts');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a8XcAAAAASUVORK5CYII=', 'base64');
 function run(args,env={}) { return spawnSync(process.execPath,[cli,...args],{encoding:'utf8',maxBuffer:64*1024*1024,env:{...process.env,...env}}); }

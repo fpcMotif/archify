@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { validateSchema } from '../schematics/packages/validation/validator.ts';
 
-const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.ts', import.meta.url));
 
 for (const quality of ['standard', 'showcase']) {
   test(`sequence ${quality} names unsupported self-messages without advertising a spacing repair`, t => {

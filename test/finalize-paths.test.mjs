@@ -5,10 +5,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defaultFinalizeReceiptPath, defaultFinalizeSummaryPath, runFinalize } from '../schematics/bin/finalize.mjs';
+import { defaultFinalizeReceiptPath, defaultFinalizeSummaryPath, runFinalize } from '../schematics/bin/finalize.ts';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 const example = path.join(skillRoot, 'examples/web-app.architecture.json');
 function workspace(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-finalize-paths-'));

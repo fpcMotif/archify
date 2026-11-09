@@ -6,7 +6,8 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { EventEmitter } from 'node:events';
 import { fileURLToPath } from 'node:url';
-import { ChromeVisualBrowser, runVisualCheck } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, runVisualCheck } from '../schematics/bin/visual-check.ts';
+import { errorCode, errorMessage, readField } from '../schematics/packages/output/path-semantics.ts';
 
 // Minimal 1x1 PNG so visual-check's capture path has bytes to persist.
 const PNG_STUB = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
@@ -186,7 +187,7 @@ test('late owner work before the last comparison rejects at 960 instead of false
 // a fake transport/clock. No Chrome process and no real 15-second sleep needed.
 // Frame and wall-clock limits are independent: the CLI can time out before960.
 test('forever-pending joint inspection still fails at the unchanged 15000ms CDP boundary without fallback', async () => {
-  const visualSource = fs.readFileSync(path.join(root, 'schematics/bin/visual-check.mjs'), 'utf8');
+  const visualSource = fs.readFileSync(path.join(root, 'schematics/bin/visual-check.ts'), 'utf8');
   const pipeSource = visualSource.slice(visualSource.indexOf('class PipeCdp {'), visualSource.indexOf('export function chromeVisualBrowserArgs'));
   const timers = new Map();
   let nextTimer = 0;
@@ -194,10 +195,15 @@ test('forever-pending joint inspection still fails at the unchanged 15000ms CDP 
   const clockContext = vm.createContext({
     Buffer,
     process,
+    errorCode,
+    errorMessage,
+    readField,
     setTimeout(callback, delay) { const id = ++nextTimer; timers.set(id, { callback, deadline: now + delay }); return id; },
     clearTimeout(id) { timers.delete(id); },
   });
-  const PipeCdp = vm.runInContext(pipeSource + '\nPipeCdp', clockContext);
+  const pipeHelpers = visualSource.slice(visualSource.indexOf('function isRecord('), visualSource.indexOf('function isPageComposition('));
+  const pipeScript = new Bun.Transpiler({ loader: 'ts' }).transformSync(pipeHelpers + pipeSource);
+  const PipeCdp = vm.runInContext(pipeScript + '\nPipeCdp', clockContext);
   const f = fixture({ readerPending: () => true });
   const localCalls = [];
   f.context.window = { Schematics: f.context.Schematics };

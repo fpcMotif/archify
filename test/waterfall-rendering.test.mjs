@@ -97,7 +97,7 @@ test('waterfall: unrepresentable derived timing is rejected without writing inva
     assert.equal(result.status, 1, result.stderr || result.error?.message);
     assert.match(result.stderr, /finite/);
     assert.equal(fs.existsSync(result.output), false);
-    const cli = spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'validate', 'waterfall', result.input, '--json'], { encoding: 'utf8', timeout: 10000 });
+    const cli = spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'validate', 'waterfall', result.input, '--json'], { encoding: 'utf8', timeout: 10000 });
     assert.equal(cli.status, 1, cli.stderr || cli.stdout);
     const receipt = JSON.parse(cli.stdout);
     const diagnostic = receipt.diagnostics.find(({ code }) => code === 'waterfall/invalid-timing');

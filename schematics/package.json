@@ -6,7 +6,7 @@
   "description": "JSON-IR diagram renderers (architecture / workflow / sequence / dataflow / lifecycle / erd / class / tree / timeline / waterfall).",
   "license": "Apache-2.0",
   "bin": {
-    "schematics": "./bin/schematics.mjs"
+    "schematics": "./bin/schematics.ts"
   },
   "engines": {
     "bun": ">=1.4"

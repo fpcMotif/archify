@@ -46,6 +46,6 @@ In a sequence render under Bun, the layout code itself takes about 5 ms. Most of
 - The Ajv-generated validators must be replaced by typed validators that scriptc can compile before the whole CLI can build with scriptc. Until then, `bun build --compile` builds the release executable.
 - `tsconfig.json` uses `erasableSyntaxOnly` and `verbatimModuleSyntax`, so every `.ts` file runs by type stripping alone. `bun check` type-checks it. Dependencies lock in `bun.lock`.
 - The fork drops what does not render or show a diagram: the website, gallery, release ZIP and its gates, the update notifier, community packages and agent integrations. Node compatibility lanes go with them.
-- The Skill runs as `bun bin/schematics.mjs` until per-platform executables exist.
+- The Skill runs as `bun bin/schematics.ts` until per-platform executables exist.
 - scriptc is experimental. Each scriptc build must produce byte-identical output to the Bun build of the same source.
 - The upstream repository `fpcMotif/schematics` stays on Node, so merges from upstream will conflict more as files convert.

@@ -14,7 +14,7 @@ function renderBaseFixture(type, name) {
   const input = path.join(skillRoot, '..', 'test', 'fixtures', 'v1-baseline', name);
   const output = path.join(tmp, `${name}.html`);
   return spawnSync(process.execPath, [
-    path.join(skillRoot, 'bin', 'schematics.mjs'),
+    path.join(skillRoot, 'bin', 'schematics.ts'),
     'render',
     type,
     input,

@@ -4,7 +4,7 @@ Render `diagram_type: "lifecycle"` JSON files into the standard Schematics HTML
 template.
 
 ```bash
-node schematics/packages/lifecycle/render-lifecycle.mjs input.lifecycle.json output.html
+bun schematics/packages/lifecycle/render-lifecycle.ts input.lifecycle.json output.html
 ```
 
 The renderer validates input against `schematics/schemas/lifecycle.schema.json`

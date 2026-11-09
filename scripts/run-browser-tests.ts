@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Runs the Chrome-backed suites. Plain `bun test` skips them without SCHEMATICS_CHROME.
-import { findChrome } from '../schematics/bin/visual-check.mjs';
+import { findChrome } from '../schematics/bin/visual-check.ts';
 
 const browserTestFiles = [
   'finalize-browser.test.mjs',

@@ -11,7 +11,7 @@ import { collectAmbiguousCorridors, properSegmentIntersection } from '../schemat
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const renderer = path.join(skillRoot, 'packages', 'dataflow', 'render-dataflow.ts');
-const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
+const cli = path.join(skillRoot, 'bin', 'schematics.ts');
 const fixture = path.join(__dirname, 'fixtures', 'dataflow-first-draft', 'ml-features.dataflow.json');
 
 function render(diagram) {

@@ -34,7 +34,7 @@ test('multi-target lifecycle bus passes the public artifact checker and validati
   assert.equal(check.status, 0, check.stdout);
   assert.equal(receipt.composition.metrics.ambiguousCorridors, 0);
   assert.equal(receipt.composition.metrics.arrowheadCollisions, 0);
-  const validate = spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'validate', 'lifecycle', input, '--json'], { encoding: 'utf8' });
+  const validate = spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.ts'), 'validate', 'lifecycle', input, '--json'], { encoding: 'utf8' });
   assert.equal(validate.status, 0, validate.stdout + validate.stderr);
 });
 

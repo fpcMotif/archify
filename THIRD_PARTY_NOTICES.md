@@ -40,7 +40,7 @@ pinned Simple Icons 16.28.0 metadata:
 | Vue.js | [Vue logo source](https://github.com/vuejs/art/blob/a1c78b74569b70a25300925b4eacfefcc143b8f6/logo.svg) | [`CC-BY-NC-SA-4.0`](https://creativecommons.org/licenses/by-nc-sa/4.0/) | Embedded as vector-path data; color may be changed by the authored diagram. The non-commercial and share-alike conditions remain applicable; see the [Vue artwork terms](https://github.com/vuejs/art/blob/a1c78b74569b70a25300925b4eacfefcc143b8f6/README.md). |
 
 The source, guideline, and known license fields for every packaged mark are
-preserved in `packages/svg/generated-brand-marks.mjs`.
+preserved in `packages/svg/generated-brand-marks.ts`.
 
 ## OpenAI mark
 

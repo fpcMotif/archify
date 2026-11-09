@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const cli = path.resolve(__dirname, '..', 'schematics', 'bin', 'schematics.mjs');
+const cli = path.resolve(__dirname, '..', 'schematics', 'bin', 'schematics.ts');
 // An unedited first draft: the long "no approval needed" branch from the agent
 // lane to the execution lane was planned before the same-lane "denied" edge
 // and took the gap between Human Approval and Blocked, so "denied" could only

@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 
 function fixture(translations, locale = 'zh-CN') {
   return {

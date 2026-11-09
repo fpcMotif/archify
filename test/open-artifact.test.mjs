@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
-import { openArtifact, openLoopbackUrl } from '../schematics/bin/open-artifact.mjs';
+import { openArtifact, openLoopbackUrl } from '../schematics/bin/open-artifact.ts';
 
 const target = path.resolve("/tmp/-复杂 path 'quoted'/diagram.html");
 

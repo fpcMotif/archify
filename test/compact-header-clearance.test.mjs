@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 test('compact stage rail and in-canvas navigation keep the diagram clear of toolbar and controls', async (t) => {
@@ -19,7 +19,7 @@ test('compact stage rail and in-canvas navigation keep the diagram clear of tool
   const input = path.join(dir, 'input.json');
   const output = path.join(dir, 'output.html');
   fs.writeFileSync(input, JSON.stringify(spec));
-  execFileSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'render', 'architecture', input, output]);
+  execFileSync(process.execPath, [path.join(root, 'bin/schematics.ts'), 'render', 'architecture', input, output]);
   const browser = new ChromeVisualBrowser(chrome);
   try {
     const session = await browser.sessionPromise;

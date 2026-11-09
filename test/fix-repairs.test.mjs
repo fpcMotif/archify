@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { applyRepair } from '../schematics/packages/diagnostics/fixes.ts';
 
 const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 
 function validate(type, candidate, directory) {
   const input = path.join(directory, `${type}.json`);

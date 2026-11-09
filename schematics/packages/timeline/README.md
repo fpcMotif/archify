@@ -3,7 +3,7 @@
 Render `diagram_type: "timeline"` JSON files into the standard Schematics HTML template.
 
 ```bash
-node schematics/packages/timeline/render-timeline.mjs input.timeline.json output.html
+bun schematics/packages/timeline/render-timeline.ts input.timeline.json output.html
 ```
 
 `--layout-json` prints the axis segments, breaks, ticks, lanes, and placed

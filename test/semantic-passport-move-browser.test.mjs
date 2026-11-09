@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { findChrome } from '../schematics/bin/visual-check.mjs';
+import { findChrome } from '../schematics/bin/visual-check.ts';
 import { desktopBrowser, desktopPointerCheck } from './helpers/desktop-browser.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));

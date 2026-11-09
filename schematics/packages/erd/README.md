@@ -3,7 +3,7 @@
 Render `diagram_type: "erd"` JSON files into the standard Schematics HTML template.
 
 ```bash
-node schematics/packages/erd/render-erd.mjs input.erd.json output.html
+bun schematics/packages/erd/render-erd.ts input.erd.json output.html
 ```
 
 The renderer validates input against `schematics/schemas/erd.schema.json` with the
@@ -15,7 +15,7 @@ or falls back to `erd.html` in the current working directory.
 After rendering, run the artifact checker:
 
 ```bash
-node schematics/scripts/check-render-output.mjs output.html
+bun schematics/scripts/check-render-output.ts output.html
 ```
 
 ## Input
@@ -68,7 +68,7 @@ index leaves a routing channel. `pos` overrides the cell for a bounded
 exception.
 
 Relationships route through the orthogonal router the other typed renderers use
-(`../architecture/routing.mjs`), so the same contracts apply: automatic port
+(`../architecture/routing.ts`), so the same contracts apply: automatic port
 spreading on a shared entity, the endpoint-side contract, the route-rhythm
 floors, and the universal Clean Flow gate. The ERD is a caller, not a fork: it
 passes `sideFor`, `maxPortSpacing`, `preferredCandidates`, and

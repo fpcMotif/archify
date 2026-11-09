@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { applyTemplate } from '../schematics/packages/svg/utils.ts';
-import { findChrome } from '../schematics/bin/visual-check.mjs';
+import { findChrome } from '../schematics/bin/visual-check.ts';
 import { desktopBrowser, desktopPointerCheck } from './helpers/desktop-browser.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');

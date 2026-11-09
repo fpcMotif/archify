@@ -9,7 +9,7 @@ import vm from 'node:vm';
 import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
-const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.ts');
 const diagnosticModule = new URL('../schematics/packages/diagnostics/diagnostics.ts', import.meta.url).href;
 const installBoundary = `import { installRendererDiagnosticBoundary } from ${JSON.stringify(diagnosticModule)}; installRendererDiagnosticBoundary();`;
 const examples = {
@@ -210,7 +210,7 @@ test('public post-render checker failures retain the locale warning once', t => 
   const failingChecker = 'export function checkArtifact(bytes, { file } = {}) { return { ok: false, file, checks: [{ name: "forced", ok: false, details: ["forced checker failure"] }] }; }';
   const preload = path.join(cwd, 'failing-checker-preload.mjs');
   fs.writeFileSync(preload, `Bun.plugin({ setup(build) {
-  build.onLoad({ filter: /\\/scripts\\/check-render-output\\.mjs$/ }, () => ({ loader: 'js', contents: ${JSON.stringify(failingChecker)} }));
+  build.onLoad({ filter: /\\/scripts\\/check-render-output\\.ts$/ }, () => ({ loader: 'js', contents: ${JSON.stringify(failingChecker)} }));
 } });
 `);
   for (const command of ['validate', 'deliver']) {

@@ -61,7 +61,7 @@ function compare(t, base, head) {
   });
   const output = path.join(root, 'delta.html');
   const result = spawnSync(process.execPath, [
-    path.join(skillRoot, 'bin/schematics.mjs'), 'compare', 'architecture', ...inputs,
+    path.join(skillRoot, 'bin/schematics.ts'), 'compare', 'architecture', ...inputs,
     output, '--quality', 'standard', '--json',
   ], { cwd: skillRoot, encoding: 'utf8', timeout: 30000 });
   assert.ifError(result.error);
