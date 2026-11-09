@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const cases = {
@@ -24,7 +25,7 @@ for (const [mode, [example, collection, index = 0]] of Object.entries(cases)) {
       const output = path.join(dir, 'output.html');
       const render = () => {
         fs.writeFileSync(input, JSON.stringify(spec));
-        const result = spawnSync(process.execPath, [path.join(root, `packages/${mode}/render-${mode}.mjs`), input, output], { encoding: 'utf8' });
+        const result = spawnSync(process.execPath, [rendererEntry(root, mode), input, output], { encoding: 'utf8' });
         assert.equal(result.status, 0, result.stderr);
         return fs.readFileSync(output, 'utf8');
       };

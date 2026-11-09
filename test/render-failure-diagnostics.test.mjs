@@ -6,6 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
+import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
 const cli = path.join(skillRoot, 'bin/schematics.mjs');
@@ -58,7 +59,7 @@ for (const [type, example] of Object.entries(examples)) {
     // permission bits (which a privileged test process may bypass).
     fs.mkdirSync(output);
     assertHumanFailure(run([cli, 'render', type, input, output], cwd), 'output/target-not-regular-file');
-    const renderer = path.join(skillRoot, 'packages', type, `render-${type}.mjs`);
+    const renderer = rendererEntry(skillRoot, type);
     const machine = run([renderer, input, output], cwd, true);
     assert.equal(machine.status, 1);
     assert.equal(machine.stdout, '');
@@ -88,7 +89,7 @@ for (const [type, example] of Object.entries(examples)) {
     assert.equal(publicResult.stdout, `${output}\n`);
     assert.equal(publicResult.stderr, '');
     const bytes = fs.readFileSync(output);
-    const directResult = run([path.join(skillRoot, 'packages', type, `render-${type}.mjs`), input, output], cwd);
+    const directResult = run([rendererEntry(skillRoot, type), input, output], cwd);
     assert.equal(directResult.status, 0, directResult.stderr);
     assert.equal(directResult.stdout, `${output}\n`);
     assert.equal(directResult.stderr, '');

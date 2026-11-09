@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
@@ -27,7 +28,7 @@ function render(mode, preset) {
   const input = path.join(tmp, `${mode}-${fixtureName}.json`);
   const output = path.join(tmp, `${mode}-${fixtureName}.html`);
   fs.writeFileSync(input, JSON.stringify(source));
-  execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`), input, output]);
+  execFileSync(process.execPath, [rendererEntry(skillRoot, mode), input, output]);
   return fs.readFileSync(output, 'utf8');
 }
 

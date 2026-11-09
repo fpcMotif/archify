@@ -6,6 +6,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
@@ -288,7 +289,7 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
     ];
     try {
       for (const [mode, fixture] of fixtures) {
-        execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`), path.join(skillRoot, 'examples', fixture), file]);
+        execFileSync(process.execPath, [rendererEntry(skillRoot, mode), path.join(skillRoot, 'examples', fixture), file]);
         for (const theme of ['dark', 'light']) {
           await load({ theme });
           const dimensions = await run(`(()=>{const v=document.querySelector('.diagram-container svg').viewBox.baseVal;return [v.width,v.height];})()`);

@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
@@ -27,7 +28,7 @@ function run(mode, doc, suffix) {
   const output = path.join(tmp, `${mode}-${suffix}.html`);
   fs.writeFileSync(input, JSON.stringify(doc));
   const result = spawnSync(process.execPath, [
-    path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`), input, output,
+    rendererEntry(skillRoot, mode), input, output,
   ], { encoding: 'utf8' });
   return { result, html: fs.existsSync(output) ? fs.readFileSync(output, 'utf8') : '' };
 }

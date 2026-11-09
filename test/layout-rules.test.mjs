@@ -19,6 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { minimumReadableSourceTextPx } from '../schematics/packages/diagnostics/desktop-readability.ts';
 import { segmentRectClearanceWithin, segmentIntersectsRect } from '../schematics/packages/geometry/geometry.ts';
+import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
@@ -45,7 +46,7 @@ function render(mode, doc) {
   fs.writeFileSync(input, JSON.stringify(renderDoc));
   try {
     execFileSync(process.execPath, [
-      path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
+      rendererEntry(skillRoot, mode),
       input,
       outPath,
     ], { stdio: ['ignore', 'ignore', 'pipe'] });

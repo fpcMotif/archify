@@ -4,6 +4,7 @@
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { rendererEntry } from '../packages/svg/renderer-entry.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..');
@@ -29,7 +30,7 @@ const TARGETS = [
 
 for (const [mode, input, output] of TARGETS) {
   execFileSync(process.execPath, [
-    path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
+    rendererEntry(skillRoot, mode),
     path.join(skillRoot, 'examples', input),
     path.join(outputRoot, output),
   ], { stdio: 'inherit' });

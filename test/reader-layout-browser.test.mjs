@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 import { createViewerClick } from './helpers/viewer-click.mjs';
+import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'SCHEMATICS_CHROME');
@@ -36,7 +37,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
     if (process.env.SCHEMATICS_READER_BASELINE_DIR) {
       fs.copyFileSync(path.join(process.env.SCHEMATICS_READER_BASELINE_DIR, `${mode}.html`), output);
     } else {
-      execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
+      execFileSync(process.execPath, [rendererEntry(skillRoot, mode),
         path.join(skillRoot, 'examples', example), output]);
     }
     artifacts[mode] = output;

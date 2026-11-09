@@ -6,6 +6,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
@@ -48,7 +49,7 @@ test(`${diagramType} automatic crossover masks follow live relationship state wi
     flows: architecture.connections.map(edge => ({ ...edge, label: edge.id })),
   };
   fs.writeFileSync(input, JSON.stringify(diagramType === 'architecture' ? architecture : dataflow));
-  execFileSync(process.execPath, [path.join(skillRoot, `packages/${diagramType}/render-${diagramType}.mjs`), input, output]);
+  execFileSync(process.execPath, [rendererEntry(skillRoot, diagramType), input, output]);
 
   const rendered = fs.readFileSync(output, 'utf8');
   const svgMarkup = rendered.match(/<svg\b[\s\S]*?<\/svg>/i)?.[0] || '';

@@ -2246,7 +2246,12 @@ function rendererPath(type) {
       supportedFixes: [`use one of: ${[...TYPES].join(', ')}`],
     });
   }
-  return path.join(skillRoot, 'packages', type, `render-${type}.mjs`);
+  return rendererFile(type);
+}
+
+function rendererFile(type) {
+  const typed = path.join(skillRoot, 'packages', type, `render-${type}.ts`);
+  return fs.existsSync(typed) ? typed : path.join(skillRoot, 'packages', type, `render-${type}.mjs`);
 }
 
 // Default capture ceiling for piped child output. spawnSync's own default
@@ -6152,7 +6157,7 @@ async function commandDoctor(args) {
 
   for (const type of TYPES) {
     const required = [
-      path.join(skillRoot, 'packages', type, `render-${type}.mjs`),
+      rendererFile(type),
       path.join(skillRoot, 'schemas', `${type}.schema.json`),
       path.join(skillRoot, 'examples', examples[type]),
     ];

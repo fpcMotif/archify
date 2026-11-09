@@ -6,6 +6,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
@@ -32,7 +33,7 @@ test('Export cleanup preserves canonical artifacts and live interaction state', 
     if (process.env.SCHEMATICS_EXPORT_BASELINE_DIR) {
       fs.copyFileSync(path.join(process.env.SCHEMATICS_EXPORT_BASELINE_DIR, `${mode}.html`), file);
     } else {
-      execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`),
+      execFileSync(process.execPath, [rendererEntry(skillRoot, mode),
         path.join(skillRoot, 'examples', example), file]);
     }
     files[mode] = file;

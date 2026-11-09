@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
@@ -51,7 +52,7 @@ function render(mode, doc) {
   let code = 0;
   let stderr = '';
   try {
-    execFileSync(process.execPath, [path.join(installedRoot, `packages/${mode}/render-${mode}.mjs`), input, out],
+    execFileSync(process.execPath, [rendererEntry(installedRoot, mode), input, out],
       { stdio: ['ignore', 'ignore', 'pipe'] });
   } catch (err) {
     code = err.status ?? 1;

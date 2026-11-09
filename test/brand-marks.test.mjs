@@ -9,6 +9,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { BRAND_MARKS } from '../schematics/packages/svg/generated-brand-marks.ts';
 import { isPrivateBrandAddress, prepareDiagramBrandMarks } from '../schematics/packages/svg/brand-marks.ts';
+import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..', 'schematics');
@@ -52,7 +53,7 @@ function writeFixture(type, name, brand, customize) {
 function renderSync(type, input, name, env = {}) {
   const output = path.join(tmp, `${name}.html`);
   const result = spawnSync(process.execPath, [
-    path.join(skillRoot, `packages/${type}/render-${type}.mjs`),
+    rendererEntry(skillRoot, type),
     input,
     output,
   ], {
@@ -67,7 +68,7 @@ function renderAsync(type, input, name, env = {}) {
   const output = path.join(tmp, `${name}.html`);
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [
-      path.join(skillRoot, `packages/${type}/render-${type}.mjs`),
+      rendererEntry(skillRoot, type),
       input,
       output,
     ], {

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
@@ -35,12 +36,12 @@ test('Motion Governor preserves mode, ownership, continuous Live flow and real c
     const input = path.join(scratch, mode + '.json');
     fs.writeFileSync(input, JSON.stringify(doc));
     files[mode] = path.join(scratch, mode + '.html');
-    execFileSync(process.execPath, [path.join(skillRoot, `packages/${mode}/render-${mode}.mjs`), input, files[mode]]);
+    execFileSync(process.execPath, [rendererEntry(skillRoot, mode), input, files[mode]]);
     if (mode === 'tree') {
       doc.nodes.find(n=>n.id==='orders').collapsed=true;
       fs.writeFileSync(input, JSON.stringify(doc));
       files.treeCollapsed = path.join(scratch, 'tree-collapsed.html');
-      execFileSync(process.execPath, [path.join(skillRoot, 'packages/tree/render-tree.mjs'), input, files.treeCollapsed]);
+      execFileSync(process.execPath, [rendererEntry(skillRoot, 'tree'), input, files.treeCollapsed]);
     }
   }
   // Old standalone static HTML still has an inert Governor. New renders default to motion.

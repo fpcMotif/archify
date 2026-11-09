@@ -10,6 +10,7 @@ import { minimumNodeTextWidth } from '../svg/text-fit.ts';
 import { throwDiagnosticError } from '../diagnostics/diagnostics.ts';
 import { createOwnedTempDirectory } from '../output/owned-temp-directory.ts';
 import { checkDiagramArtifact } from '../artifact-check/check-diagram.mjs';
+import { rendererEntry } from '../svg/renderer-entry.ts';
 
 const runFile = promisify(execFile);
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -480,7 +481,7 @@ export async function prepareExplainerDiagrams(document, { repoRoot, baseDir, qu
       const spec = { ...original, meta: { ...original.meta, ...inheritedLocale, output: 'diagram.html', quality_profile: quality } };
       try { validateSchema(block.diagramType, spec); } catch (error) { rethrowNative(error, context, 'diagram-schema'); }
       fs.writeFileSync(input, JSON.stringify(spec), { flag: 'wx' });
-      await nativeProcess(path.join(skillRoot, 'packages', block.diagramType, `render-${block.diagramType}.mjs`), [input, output], { repoRoot, quality, cwd: temporary.path }, context, 'diagram-render');
+      await nativeProcess(rendererEntry(skillRoot, block.diagramType), [input, output], { repoRoot, quality, cwd: temporary.path }, context, 'diagram-render');
       const check = checkDiagramArtifact(fs.readFileSync(output), { file: output });
       if (check.ok === false) rethrowNative(check, context, 'diagram-check');
       const bytes = fs.readFileSync(output);
