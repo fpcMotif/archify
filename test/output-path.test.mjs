@@ -1044,7 +1044,7 @@ export const checkArtifact = () => ({
   }
 });
 `);
-  fs.writeFileSync(path.join(installedDelta, 'architecture-delta.mjs'), `
+  fs.writeFileSync(path.join(installedDelta, 'architecture-delta.ts'), `
 export class ArchitectureDeltaError extends Error {}
 export const annotateArchitectureSideSvg = (svg) => svg;
 export const buildDeltaSvg = () => '<svg role="img"></svg>';

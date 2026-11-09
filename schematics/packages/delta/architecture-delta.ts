@@ -5,8 +5,215 @@ import { parseRepositoryRemote } from '../repository/repository-location.ts';
 const COMPARATOR_VERSION = 1;
 const CANONICAL_VERSION = 1;
 
+export interface ArchitectureRepository {
+  url?: unknown;
+  revision?: unknown;
+  provider?: unknown;
+  link_mode?: unknown;
+}
+
+export interface NormalizedRepository {
+  url: string;
+  revision: string;
+  provider?: unknown;
+  link_mode?: unknown;
+}
+
+export interface ArchitectureMeta {
+  [key: string]: unknown;
+  title: string;
+  output?: string;
+  visual_preset?: string;
+  repository?: ArchitectureRepository;
+}
+
+export interface ArchitectureComponent {
+  [key: string]: unknown;
+  id?: string;
+  label?: string;
+  sources?: unknown;
+}
+
+export interface ArchitectureConnection {
+  [key: string]: unknown;
+  id?: string;
+  from?: string;
+  to?: string;
+  label?: string;
+}
+
+export interface ArchitectureBoundary {
+  [key: string]: unknown;
+  kind: string;
+  label: string;
+  wraps?: readonly string[];
+}
+
+export interface ArchitectureDiagram {
+  schema_version?: unknown;
+  diagram_type?: unknown;
+  meta?: ArchitectureMeta;
+  layout?: unknown;
+  components?: readonly ArchitectureComponent[];
+  boundaries?: readonly ArchitectureBoundary[];
+  connections?: readonly ArchitectureConnection[];
+  cards?: unknown;
+}
+
+export interface CompareEvidence {
+  baseVerified?: boolean;
+  headVerified?: boolean;
+  baseRawSha256?: string;
+  headRawSha256?: string;
+  baseSemanticSha256?: string;
+  headSemanticSha256?: string;
+  baseBytes?: number;
+  headBytes?: number;
+}
+
+export type ChangeStatus = 'added' | 'removed' | 'changed' | 'evidence-changed' | 'moved' | 'rerouted' | 'geometry-changed';
+
+export interface ChangeFields {
+  status: ChangeStatus;
+  classifications: string[];
+  changedFields: string[];
+}
+
+export interface ComponentChange extends ChangeFields {
+  id: string;
+  baseLabel?: string;
+  headLabel?: string;
+}
+
+export interface ConnectionEnd {
+  from?: string;
+  to?: string;
+  label: string;
+}
+
+export interface ConnectionChange extends ChangeFields {
+  id: string;
+  base?: ConnectionEnd;
+  head?: ConnectionEnd;
+}
+
+export interface BoundaryChange extends ChangeFields {
+  key: string;
+  kind: string;
+  label: string;
+}
+
+export interface ProvenanceSide {
+  revision: string;
+  provider?: unknown;
+  linkMode?: unknown;
+}
+
+export interface ProvenanceChange {
+  changedFields: string[];
+  base: ProvenanceSide | null;
+  head: ProvenanceSide | null;
+}
+
+export interface ReceiptSide {
+  title: string;
+  rawSha256?: string;
+  semanticSha256?: string;
+  bytes?: number;
+  revision?: string;
+}
+
+export interface ArchitectureDeltaChanges {
+  components: ComponentChange[];
+  connections: ConnectionChange[];
+  boundaries: BoundaryChange[];
+}
+
+export interface ArchitectureDeltaSummary {
+  components: Record<'added' | 'changed' | 'evidenceChanged' | 'removed' | 'moved', number>;
+  connections: Record<'added' | 'changed' | 'removed' | 'rerouted', number>;
+  boundaries: Record<'added' | 'changed' | 'removed' | 'geometryChanged', number>;
+  presentationChanged: boolean;
+  provenanceChanged: boolean;
+}
+
+export interface ArchitectureDeltaReceipt {
+  schemaVersion: number;
+  ok: boolean;
+  command: string;
+  type: string;
+  comparatorVersion: number;
+  canonicalVersion: number;
+  completeness: string;
+  proofLevel: string;
+  base: ReceiptSide;
+  head: ReceiptSide;
+  summary: ArchitectureDeltaSummary;
+  changes: ArchitectureDeltaChanges;
+  provenance?: ProvenanceChange;
+  identity: Record<'components' | 'connections' | 'boundaries', string>;
+  view: { visualPreset: string };
+  limitations: string[];
+}
+
+export interface ArchitectureDeltaChangeRow {
+  status: ChangeStatus;
+  classifications: string[];
+  changedFields: string[];
+  kind: 'Component' | 'Relationship' | 'Boundary';
+  kindKey: 'component' | 'relationship' | 'boundary';
+  key: string;
+  id: string;
+  baseLabel?: string;
+  headLabel?: string;
+  base?: ConnectionEnd;
+  head?: ConnectionEnd;
+  label?: string;
+}
+
+export interface RenderArchitectureDeltaInput {
+  receipt: ArchitectureDeltaReceipt;
+  baseSvg: string;
+  deltaSvg: string;
+  headSvg: string;
+  baseHtml?: string;
+  headHtml?: string;
+  artifactCss: string;
+}
+
+export interface ArchitectureDeltaValidation {
+  ok: true;
+  checksPassed: number;
+  checkCount: number;
+}
+
+interface StateChange {
+  status?: string;
+  classifications?: readonly string[];
+}
+
+type FieldGroups = Record<string, readonly string[]>;
+type BoundaryPart = 'frame' | 'label';
+
+interface BoundaryElement {
+  start: number;
+  end: number;
+  markup: string;
+  key: string;
+  part: BoundaryPart;
+}
+
+interface NodeGroupRange {
+  id: string;
+  start: number;
+  end: number;
+}
+
 export class ArchitectureDeltaError extends Error {
-  constructor(code, message, details = {}) {
+  code: string;
+  details: Record<string, unknown>;
+
+  constructor(code: string, message: string, details: Record<string, unknown> = {}) {
     super(message);
     this.name = 'ArchitectureDeltaError';
     this.code = code;
@@ -14,28 +221,37 @@ export class ArchitectureDeltaError extends Error {
   }
 }
 
-const codepointOrder = (left, right) => (left < right ? -1 : left > right ? 1 : 0);
-const sorted = (values) => [...values].sort((left, right) => codepointOrder(String(left), String(right)));
+const codepointOrder = (left: string, right: string): number => (left < right ? -1 : left > right ? 1 : 0);
+const sorted = <T>(values: Iterable<T>): T[] => [...values].sort((left, right) => codepointOrder(String(left), String(right)));
 
-function canonical(value) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object';
+}
+
+function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
-  if (value && typeof value === 'object') {
+  if (isRecord(value)) {
     return `{${Object.keys(value).sort(codepointOrder).map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
   }
   return JSON.stringify(value);
 }
 
-const equal = (left, right) => canonical(left) === canonical(right);
+const equal = (left: unknown, right: unknown): boolean => canonical(left) === canonical(right);
 
-function sortedObjects(values) {
+function sortedObjects<T>(values: readonly T[]): T[] {
   return [...values].sort((left, right) => codepointOrder(canonical(left), canonical(right)));
 }
 
-function sortedBy(values, keyFor) {
+function sortedBy<T>(values: readonly T[], keyFor: (value: T) => unknown): T[] {
   return [...values].sort((left, right) => codepointOrder(String(keyFor(left)), String(keyFor(right))));
 }
 
-function normalizeRepository(repository) {
+function present<T>(value: T | undefined, what: string): T {
+  if (value === undefined) throw new Error(`${what} is missing.`);
+  return value;
+}
+
+function normalizeRepository(repository: ArchitectureRepository | undefined): NormalizedRepository | undefined {
   if (!repository) return undefined;
   const location = parseRepositoryRemote(repository.url, { authored: true, provider: repository.provider });
   const url = location?.url || String(repository.url || '');
@@ -47,9 +263,9 @@ function normalizeRepository(repository) {
   };
 }
 
-const PROVENANCE_FIELDS = ['url', 'revision', 'provider', 'link_mode'];
+const PROVENANCE_FIELDS = ['url', 'revision', 'provider', 'link_mode'] as const;
 
-function provenanceSide(repository) {
+function provenanceSide(repository: NormalizedRepository | undefined): ProvenanceSide | null {
   if (!repository) return null;
   return {
     revision: repository.revision,
@@ -58,7 +274,7 @@ function provenanceSide(repository) {
   };
 }
 
-function provenanceChange(base, head) {
+function provenanceChange(base: NormalizedRepository | undefined, head: NormalizedRepository | undefined): ProvenanceChange | undefined {
   if (equal(base, head)) return undefined;
   const changedFields = !base || !head
     ? ['/repository']
@@ -73,19 +289,19 @@ function provenanceChange(base, head) {
   };
 }
 
-function normalizeComponent(component) {
+function normalizeComponent(component: ArchitectureComponent): ArchitectureComponent {
   return {
     ...component,
     ...(Array.isArray(component.sources) ? { sources: sortedObjects(component.sources) } : {}),
   };
 }
 
-function normalizeBoundary(boundary) {
+function normalizeBoundary(boundary: ArchitectureBoundary): ArchitectureBoundary {
   return { ...boundary, wraps: sorted(boundary.wraps || []) };
 }
 
-export function canonicalArchitecture(diagram) {
-  const meta = { ...(diagram.meta || {}) };
+export function canonicalArchitecture(diagram: ArchitectureDiagram) {
+  const meta: Partial<ArchitectureMeta> = { ...(diagram.meta || {}) };
   delete meta.output;
   if (meta.repository) meta.repository = normalizeRepository(meta.repository);
   return {
@@ -100,15 +316,15 @@ export function canonicalArchitecture(diagram) {
   };
 }
 
-export function canonicalArchitectureJson(diagram) {
+export function canonicalArchitectureJson(diagram: ArchitectureDiagram): string {
   return canonical(canonicalArchitecture(diagram));
 }
 
-function fail(code, message, details) {
+function fail(code: string, message: string, details?: Record<string, unknown>): never {
   throw new ArchitectureDeltaError(code, message, details);
 }
 
-function requireComparableShape(diagram, side) {
+function requireComparableShape(diagram: ArchitectureDiagram | null | undefined, side: string): void {
   if (diagram?.schema_version !== 1) {
     fail('delta/schema-version-mismatch', `${side} must use schema_version 1.`, { side, path: '/schema_version', actual: diagram?.schema_version });
   }
@@ -117,10 +333,15 @@ function requireComparableShape(diagram, side) {
   }
 }
 
-function stableIndex(items, collection, side, missingCode = 'delta/stable-id-required') {
-  const index = new Map();
-  const missing = [];
-  const duplicates = [];
+function stableIndex<T extends { id?: string }>(
+  items: readonly (T | null | undefined)[] | undefined,
+  collection: string,
+  side: string,
+  missingCode = 'delta/stable-id-required',
+): Map<string, T> {
+  const index = new Map<string, T>();
+  const missing: string[] = [];
+  const duplicates: string[] = [];
   (items || []).forEach((item, itemIndex) => {
     if (!item?.id) missing.push(`/${collection}/${itemIndex}/id`);
     else if (index.has(item.id)) duplicates.push(item.id);
@@ -144,11 +365,11 @@ function stableIndex(items, collection, side, missingCode = 'delta/stable-id-req
   return index;
 }
 
-const boundaryKey = (boundary) => `${boundary.kind}\u001f${boundary.label}`;
+const boundaryKey = (boundary: ArchitectureBoundary): string => `${boundary.kind}\u001f${boundary.label}`;
 
-function boundaryIndex(boundaries, side) {
-  const index = new Map();
-  const ambiguous = [];
+function boundaryIndex(boundaries: readonly ArchitectureBoundary[] | undefined, side: string): Map<string, ArchitectureBoundary> {
+  const index = new Map<string, ArchitectureBoundary>();
+  const ambiguous: string[] = [];
   for (const boundary of boundaries || []) {
     const key = boundaryKey(boundary);
     if (index.has(key)) ambiguous.push(`${boundary.kind}:${boundary.label}`);
@@ -164,16 +385,20 @@ function boundaryIndex(boundaries, side) {
   return index;
 }
 
-function normalizedField(item, field) {
+function normalizedField(item: Record<string, unknown> | undefined, field: string): unknown {
   const value = item?.[field];
   if (field === 'sources' && Array.isArray(value)) return sortedObjects(value);
   if (field === 'wraps' && Array.isArray(value)) return sorted(value);
   return value;
 }
 
-function fieldChanges(before, after, groups) {
-  const classifications = [];
-  const changedFields = [];
+function fieldChanges(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+  groups: FieldGroups,
+): Pick<ChangeFields, 'classifications' | 'changedFields'> {
+  const classifications: string[] = [];
+  const changedFields: string[] = [];
   for (const [classification, fields] of Object.entries(groups)) {
     const changed = fields.filter((field) => !equal(normalizedField(before, field), normalizedField(after, field)));
     if (changed.length) classifications.push(classification);
@@ -182,27 +407,35 @@ function fieldChanges(before, after, groups) {
   return { classifications: sorted(classifications), changedFields: sorted(changedFields) };
 }
 
-const COMPONENT_FIELDS = {
+const COMPONENT_FIELDS: FieldGroups = {
   semantic: ['type', 'label', 'sublabel', 'tag', 'brand', 'icon'],
   evidence: ['sources'],
   geometry: ['row', 'col', 'pos', 'size'],
 };
-const CONNECTION_FIELDS = {
+const CONNECTION_FIELDS: FieldGroups = {
   topology: ['from', 'to'],
   semantic: ['label', 'variant'],
   geometry: ['fromSide', 'toSide', 'route', 'via', 'labelAt', 'labelDx', 'labelDy', 'labelSegment', 'width'],
 };
-const BOUNDARY_FIELDS = { scope: ['wraps'], geometry: ['pad'] };
+const BOUNDARY_FIELDS: FieldGroups = { scope: ['wraps'], geometry: ['pad'] };
 
-function statusFor(classifications, kind) {
+type EntityKind = 'component' | 'connection' | 'boundary';
+
+function statusFor(classifications: readonly string[], kind: EntityKind): ChangeStatus | 'same' {
   if (classifications.some((value) => ['topology', 'semantic', 'scope'].includes(value))) return 'changed';
   if (classifications.includes('evidence')) return 'evidence-changed';
   if (classifications.includes('geometry')) return kind === 'connection' ? 'rerouted' : kind === 'component' ? 'moved' : 'geometry-changed';
   return 'same';
 }
 
-function compareEntities(baseIndex, headIndex, kind, groups, describe) {
-  const changes = [];
+function compareEntities<Entity extends Record<string, unknown>, Description>(
+  baseIndex: Map<string, Entity>,
+  headIndex: Map<string, Entity>,
+  kind: EntityKind,
+  groups: FieldGroups,
+  describe: (id: string, before: Entity | undefined, after: Entity | undefined) => Description,
+): (Description & ChangeFields)[] {
+  const changes: (Description & ChangeFields)[] = [];
   const identityClassification = kind === 'connection' ? 'topology' : kind === 'boundary' ? 'scope' : 'semantic';
   for (const id of sorted(new Set([...baseIndex.keys(), ...headIndex.keys()]))) {
     const base = baseIndex.get(id);
@@ -218,16 +451,17 @@ function compareEntities(baseIndex, headIndex, kind, groups, describe) {
   return changes;
 }
 
-function summaryFor(changes, shape) {
-  const summary = Object.fromEntries(shape.map((key) => [key, 0]));
+function summaryFor<Key extends string>(changes: readonly { status: string }[], shape: readonly Key[]): Record<Key, number> {
+  const summary = Object.fromEntries(shape.map((key) => [key, 0])) as Record<Key, number>;
   for (const change of changes) {
-    const key = change.status.replace(/-([a-z])/g, (_all, letter) => letter.toUpperCase());
-    if (Object.hasOwn(summary, key)) summary[key] += 1;
+    const key = change.status.replace(/-([a-z])/g, (_all, letter: string) => letter.toUpperCase());
+    const summaryKey = shape.find((candidate) => candidate === key);
+    if (summaryKey !== undefined) summary[summaryKey] += 1;
   }
   return summary;
 }
 
-function presentationChanged(base, head) {
+function presentationChanged(base: ArchitectureDiagram, head: ArchitectureDiagram): boolean {
   const basePresentation = {
     title: base.meta?.title,
     locale: base.meta?.locale,
@@ -257,7 +491,11 @@ function presentationChanged(base, head) {
   return !equal(basePresentation, headPresentation);
 }
 
-export function compareArchitecture(base, head, evidence = {}) {
+export function compareArchitecture(
+  base: ArchitectureDiagram,
+  head: ArchitectureDiagram,
+  evidence: CompareEvidence = {},
+): ArchitectureDeltaReceipt {
   requireComparableShape(base, 'base');
   requireComparableShape(head, 'head');
   const baseComponents = stableIndex(base.components, 'components', 'base');
@@ -276,7 +514,7 @@ export function compareArchitecture(base, head, evidence = {}) {
 
   const baseRepository = normalizeRepository(base.meta?.repository);
   const headRepository = normalizeRepository(head.meta?.repository);
-  const identity = (repository) => parseRepositoryRemote(repository.url, { authored: true, provider: repository.provider })?.identity || repository.url;
+  const identity = (repository: NormalizedRepository): string => parseRepositoryRemote(repository.url, { authored: true, provider: repository.provider })?.identity || repository.url;
   if (baseRepository && headRepository && identity(baseRepository) !== identity(headRepository)) {
     fail('delta/repository-mismatch', 'The snapshots name different repositories.', {
       baseRepository: baseRepository.url,
@@ -291,21 +529,24 @@ export function compareArchitecture(base, head, evidence = {}) {
     ? 'revision-pinned'
     : 'authored';
 
-  const components = compareEntities(baseComponents, headComponents, 'component', COMPONENT_FIELDS, (id, before, after) => ({
+  const components: ComponentChange[] = compareEntities(baseComponents, headComponents, 'component', COMPONENT_FIELDS, (id, before, after) => ({
     id,
     baseLabel: before?.label,
     headLabel: after?.label,
   }));
-  const connections = compareEntities(baseConnections, headConnections, 'connection', CONNECTION_FIELDS, (id, before, after) => ({
+  const connections: ConnectionChange[] = compareEntities(baseConnections, headConnections, 'connection', CONNECTION_FIELDS, (id, before, after) => ({
     id,
     ...(before ? { base: { from: before.from, to: before.to, label: before.label || '' } } : {}),
     ...(after ? { head: { from: after.from, to: after.to, label: after.label || '' } } : {}),
   }));
-  const boundaries = compareEntities(baseBoundaries, headBoundaries, 'boundary', BOUNDARY_FIELDS, (_key, before, after) => ({
-    key: `${(after || before).kind}:${(after || before).label}`,
-    kind: (after || before).kind,
-    label: (after || before).label,
-  }));
+  const boundaries: BoundaryChange[] = compareEntities(baseBoundaries, headBoundaries, 'boundary', BOUNDARY_FIELDS, (_key, before, after) => {
+    const boundary = present(after || before, 'Compared boundary');
+    return {
+      key: `${boundary.kind}:${boundary.label}`,
+      kind: boundary.kind,
+      label: boundary.label,
+    };
+  });
   const provenance = provenanceChange(baseRepository, headRepository);
   const provenanceChanged = Boolean(provenance);
 
@@ -354,49 +595,50 @@ export function compareArchitecture(base, head, evidence = {}) {
   };
 }
 
-function esc(value) {
+function esc(value: unknown): string {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 }
 
-const safeJson = (value) => JSON.stringify(value, null, 2).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e').replaceAll('&', '\\u0026');
+const safeJson = (value: unknown): string => JSON.stringify(value, null, 2).replaceAll('<', '\\u003c').replaceAll('>', '\\u003e').replaceAll('&', '\\u0026');
 
-export function extractArchitectureSvg(html) {
+export function extractArchitectureSvg(html: string): string {
   const match = html.match(/<svg viewBox="0 0 [^"]+" role="img"[\s\S]*?<\/svg>/);
   if (!match) fail('delta/svg-missing', 'A validated Architecture artifact did not contain its primary SVG.');
   return match[0];
 }
 
-export function extractArtifactCss(html) {
+export function extractArtifactCss(html: string): string {
   const match = html.match(/<style>([\s\S]*?)<\/style>/);
   if (!match) fail('delta/css-missing', 'A validated Architecture artifact did not contain its stylesheet.');
   return match[1];
 }
 
-function changeMap(changes) {
+function changeMap<T extends { id: string }>(changes: readonly T[]): Map<string, T> {
   return new Map(changes.map((change) => [change.id, change]));
 }
 
-function boundaryChangeMap(changes) {
+function boundaryChangeMap(changes: readonly BoundaryChange[]): Map<string, BoundaryChange> {
   return new Map(changes.map((change) => [`${change.kind}:${esc(change.label)}`, change]));
 }
 
-function addState(tag, change, side, forcedState) {
-  const append = (attributes) => tag.endsWith('/>')
+function addState(tag: string, change: StateChange | undefined, side: string, forcedState?: string): string {
+  const append = (attributes: string): string => tag.endsWith('/>')
     ? tag.replace(/\/>$/, `${attributes}/>`)
     : tag.replace(/>$/, `${attributes}>`);
   if (!change && !forcedState) return append(' data-delta-state="same"');
-  let state = forcedState || change.status;
+  let state = forcedState || change?.status;
   if (change?.status === 'added' && side === 'base') state = 'same';
   if (change?.status === 'removed' && side === 'head') state = 'same';
   const classes = change?.classifications?.join(',') || '';
   return append(` data-delta-state="${esc(state)}"${classes ? ` data-delta-classifications="${esc(classes)}"` : ''}`);
 }
 
-function markerFor(state) {
-  return ({ added: '+', removed: '−', changed: '~', moved: '↔', 'moved-from': '↔', rerouted: '↔', 'geometry-changed': '↔', 'evidence-changed': 'E' })[state] || '';
+function markerFor(state: string | undefined): string {
+  const markers: Record<string, string> = { added: '+', removed: '−', changed: '~', moved: '↔', 'moved-from': '↔', rerouted: '↔', 'geometry-changed': '↔', 'evidence-changed': 'E' };
+  return markers[String(state)] || '';
 }
 
-function addNodeMarker(group, state) {
+function addNodeMarker(group: string, state: string | undefined): string {
   const symbol = markerFor(state);
   if (!symbol) return group;
   const box = group.match(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)"/);
@@ -406,29 +648,29 @@ function addNodeMarker(group, state) {
   return group.replace(/<\/g>$/, `\n          <g class="delta-node-marker" aria-hidden="true"><circle cx="${x}" cy="${y}" r="8"/><text x="${x}" y="${y + 3}" text-anchor="middle">${symbol}</text></g>\n        </g>`);
 }
 
-function prefixSvgIds(svg, prefix) {
+function prefixSvgIds(svg: string, prefix: string): string {
   const ids = [...svg.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
-  let result = svg.replace(/(\s)id="([^"]+)"/g, (_match, space, id) => `${space}id="${prefix}-${id}"`);
+  let result = svg.replace(/(\s)id="([^"]+)"/g, (_match, space: string, id: string) => `${space}id="${prefix}-${id}"`);
   for (const id of ids) {
     result = result.replaceAll(`url(#${id})`, `url(#${prefix}-${id})`).replaceAll(`href="#${id}"`, `href="#${prefix}-${id}"`);
   }
-  result = result.replace(/aria-labelledby="([^"]+)"/g, (_match, value) => `aria-labelledby="${value.split(/\s+/).map((id) => `${prefix}-${id}`).join(' ')}"`);
+  result = result.replace(/aria-labelledby="([^"]+)"/g, (_match, value: string) => `aria-labelledby="${value.split(/\s+/).map((id) => `${prefix}-${id}`).join(' ')}"`);
   return result;
 }
 
-function staticize(svg) {
+function staticize(svg: string): string {
   return svg.replaceAll('tabindex="0" role="button"', 'role="group"').replaceAll(' aria-pressed="false"', '').replaceAll('aria-label="Focus ', 'aria-label="');
 }
 
-function nodeGroupRanges(svg) {
-  const ranges = [];
+function nodeGroupRanges(svg: string): NodeGroupRange[] {
+  const ranges: NodeGroupRange[] = [];
   const opener = /<g\s+[^>]*\bdata-node-id="([^"]+)"[^>]*>/g;
-  let open;
+  let open: RegExpExecArray | null;
   while ((open = opener.exec(svg))) {
     const tags = /<\/?g\b[^>]*>/g;
     tags.lastIndex = open.index;
     let depth = 0;
-    let tag;
+    let tag: RegExpExecArray | null;
     while ((tag = tags.exec(svg))) {
       depth += tag[0].startsWith('</') ? -1 : 1;
       if (depth === 0) {
@@ -441,10 +683,10 @@ function nodeGroupRanges(svg) {
   return ranges;
 }
 
-function transformNodeGroups(svg, transform) {
+function transformNodeGroups(svg: string, transform: (group: string, id: string) => string): string {
   const ranges = nodeGroupRanges(svg);
   let cursor = 0;
-  const parts = [];
+  const parts: string[] = [];
   for (const range of ranges) {
     parts.push(svg.slice(cursor, range.start));
     parts.push(transform(svg.slice(range.start, range.end), range.id));
@@ -457,8 +699,8 @@ function transformNodeGroups(svg, transform) {
 const BOUNDARY_FRAME_RE = /<rect data-graph-role="structural-frame"[^>]*data-composition-frame-kind="([^"]+)"[^>]*data-composition-frame-label="([^"]+)"[^>]*\/>/g;
 const BOUNDARY_LABEL_RE = /<g data-graph-role="structural-frame-label"[^>]*data-composition-frame-kind="([^"]+)"[^>]*data-composition-frame-label="([^"]+)"[^>]*>[\s\S]*?<\/g>/g;
 
-function boundaryElements(svg) {
-  const collect = (pattern, part) => [...svg.matchAll(pattern)].map((match) => ({
+function boundaryElements(svg: string): BoundaryElement[] {
+  const collect = (pattern: RegExp, part: BoundaryPart): BoundaryElement[] => [...svg.matchAll(pattern)].map((match) => ({
     start: match.index,
     end: match.index + match[0].length,
     markup: match[0],
@@ -471,9 +713,9 @@ function boundaryElements(svg) {
   ].sort((left, right) => left.start - right.start);
 }
 
-function transformBoundaryElements(svg, transform) {
+function transformBoundaryElements(svg: string, transform: (markup: string, key: string, part: BoundaryPart) => string): string {
   let cursor = 0;
-  const parts = [];
+  const parts: string[] = [];
   for (const element of boundaryElements(svg)) {
     parts.push(svg.slice(cursor, element.start));
     parts.push(transform(element.markup, element.key, element.part));
@@ -483,7 +725,7 @@ function transformBoundaryElements(svg, transform) {
   return parts.join('');
 }
 
-export function annotateArchitectureSideSvg(svg, receipt, side) {
+export function annotateArchitectureSideSvg(svg: string, receipt: Pick<ArchitectureDeltaReceipt, 'changes'>, side: string): string {
   const nodes = changeMap(receipt.changes.components);
   const edges = changeMap(receipt.changes.connections);
   const boundaries = boundaryChangeMap(receipt.changes.boundaries);
@@ -505,11 +747,11 @@ export function annotateArchitectureSideSvg(svg, receipt, side) {
     const tagged = group.replace(/^<g[^>]+>/, (tag) => addState(tag, change, side));
     return addNodeMarker(tagged, change?.status);
   });
-  result = result.replace(/<(?:path|g)\s+[^>]*\bdata-edge-id="([^"]+)"[^>]*>/g, (tag, id) => addState(tag, edges.get(id), side));
+  result = result.replace(/<(?:path|g)\s+[^>]*\bdata-edge-id="([^"]+)"[^>]*>/g, (tag, id: string) => addState(tag, edges.get(id), side));
   return prefixSvgIds(staticize(result), side);
 }
 
-function elementById(svg, kind, id) {
+function elementById(svg: string, kind: 'node' | 'edge', id: string): string {
   const safe = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   if (kind === 'node') {
     const range = nodeGroupRanges(svg).find((candidate) => candidate.id === id);
@@ -520,8 +762,8 @@ function elementById(svg, kind, id) {
   return [path, label].filter(Boolean).join('\n');
 }
 
-function forceElementState(markup, state, classifications = []) {
-  let result;
+function forceElementState(markup: string, state: string, classifications: readonly string[] = []): string {
+  let result: string;
   if (markup.includes('data-node-id=')) {
     result = markup.replace(/^<g\s+[^>]*>/, (tag) => addState(tag, { classifications }, 'delta', state));
   } else {
@@ -534,20 +776,20 @@ function forceElementState(markup, state, classifications = []) {
   return result;
 }
 
-function boundaryMarkupByKey(svg, key) {
+function boundaryMarkupByKey(svg: string, key: string): string {
   return boundaryElements(svg)
     .filter((element) => element.key === key)
     .map((element) => element.markup)
     .join('\n');
 }
 
-function boundaryMarkupParts(markup) {
-  const parts = { frame: '', label: '' };
+function boundaryMarkupParts(markup: string): Record<BoundaryPart, string> {
+  const parts: Record<BoundaryPart, string> = { frame: '', label: '' };
   for (const element of boundaryElements(markup)) parts[element.part] = element.markup;
   return parts;
 }
 
-function forceBoundaryState(markup, state, key, classifications = []) {
+function forceBoundaryState(markup: string, state: string, key: string, classifications: readonly string[] = []): string {
   return markup
     .replace(/^<rect[^>]+\/>/, (tag) => addState(tag, { classifications }, 'delta', state).replace(/\/>$/, () => ` data-delta-boundary-key="${esc(key)}"/>`))
     .replace(
@@ -558,12 +800,12 @@ function forceBoundaryState(markup, state, key, classifications = []) {
     .replace(/<text[^>]*>/, (tag) => tag.replace(/>$/, () => ` data-delta-state="${state}" data-delta-boundary-state="${state}" data-delta-boundary-key="${esc(key)}">`));
 }
 
-function viewBoxSize(svg) {
+function viewBoxSize(svg: string): [number, number] {
   const match = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
   return match ? [Number(match[1]), Number(match[2])] : [0, 0];
 }
 
-function edgeSymbolMarkup(markup, state) {
+function edgeSymbolMarkup(markup: string, state: string): string {
   const symbol = markerFor(state);
   const point = markup.match(/data-composition-points="([\d.-]+),([\d.-]+)/);
   const edgeId = markup.match(/\bdata-edge-id="([^"]+)"/)?.[1];
@@ -571,7 +813,7 @@ function edgeSymbolMarkup(markup, state) {
   return `<text class="delta-edge-marker" data-delta-state="${state}"${edgeId ? ` data-edge-id="${esc(edgeId)}"` : ''} x="${Number(point[1]) + 9}" y="${Number(point[2]) - 7}" aria-hidden="true">${symbol}</text>`;
 }
 
-function boundarySymbolMarkup(markup, state) {
+function boundarySymbolMarkup(markup: string, state: string): string {
   const symbol = markerFor(state);
   const frame = markup.match(/<rect[^>]*\bx="([\d.-]+)"\s+y="([\d.-]+)"\s+width="([\d.-]+)"/);
   if (!symbol || !frame) return '';
@@ -580,7 +822,7 @@ function boundarySymbolMarkup(markup, state) {
   return `<text class="delta-boundary-marker" data-delta-state="${state}" x="${x}" y="${y}" text-anchor="middle" aria-hidden="true">${symbol}</text>`;
 }
 
-export function buildDeltaSvg(baseSvg, headSvg, receipt) {
+export function buildDeltaSvg(baseSvg: string, headSvg: string, receipt: Pick<ArchitectureDeltaReceipt, 'changes'>): string {
   const [baseW, baseH] = viewBoxSize(baseSvg);
   const [headW, headH] = viewBoxSize(headSvg);
   // Baseline paths and their definitions must travel together in a namespace
@@ -589,12 +831,12 @@ export function buildDeltaSvg(baseSvg, headSvg, receipt) {
   const nodes = changeMap(receipt.changes.components);
   const edges = changeMap(receipt.changes.connections);
   const boundaries = boundaryChangeMap(receipt.changes.boundaries);
-  const baseNodePhantoms = [];
-  const baseEdgePhantoms = [];
-  const baseBoundaryFramePhantoms = [];
-  const baseBoundaryLabelPhantoms = [];
-  const edgeMarkers = [];
-  const boundaryMarkers = [];
+  const baseNodePhantoms: string[] = [];
+  const baseEdgePhantoms: string[] = [];
+  const baseBoundaryFramePhantoms: string[] = [];
+  const baseBoundaryLabelPhantoms: string[] = [];
+  const edgeMarkers: string[] = [];
+  const boundaryMarkers: string[] = [];
 
   for (const change of nodes.values()) {
     if (change.status === 'removed') baseNodePhantoms.push(forceElementState(elementById(baseSvg, 'node', change.id), 'removed', change.classifications));
@@ -655,15 +897,15 @@ export function buildDeltaSvg(baseSvg, headSvg, receipt) {
   return prefixSvgIds(staticize(delta), 'delta');
 }
 
-export function architectureDeltaChangeRows(receipt) {
-  const rows = [];
+export function architectureDeltaChangeRows(receipt: Pick<ArchitectureDeltaReceipt, 'changes'>): ArchitectureDeltaChangeRow[] {
+  const rows: ArchitectureDeltaChangeRow[] = [];
   for (const change of receipt.changes.components) rows.push({ ...change, kind: 'Component', kindKey: 'component', key: `component:${change.id}`, id: change.id });
   for (const change of receipt.changes.connections) rows.push({ ...change, kind: 'Relationship', kindKey: 'relationship', key: `relationship:${change.id}`, id: change.id });
   for (const change of receipt.changes.boundaries) rows.push({ ...change, kind: 'Boundary', kindKey: 'boundary', key: `boundary:${change.key}`, id: change.key });
   return rows.sort((left, right) => codepointOrder(`${left.status}:${left.kind}:${left.id}`, `${right.status}:${right.kind}:${right.id}`));
 }
 
-function reviewPrimaryStates(row) {
+function reviewPrimaryStates(row: ArchitectureDeltaChangeRow): string[] {
   if (row.kindKey === 'component' && row.classifications.includes('geometry')) return [row.status, 'moved-from'];
   if (row.kindKey === 'relationship' && row.status === 'changed' && row.classifications.includes('topology')) return ['changed', 'removed'];
   if (row.kindKey === 'relationship' && row.classifications.includes('geometry')) return ['moved-from', row.status];
@@ -671,12 +913,17 @@ function reviewPrimaryStates(row) {
   return [row.status];
 }
 
-function reviewIdentity(row) {
+function reviewIdentity(row: ArchitectureDeltaChangeRow): { attribute: string; value: string } {
   const attribute = row.kindKey === 'component' ? 'data-node-id' : row.kindKey === 'relationship' ? 'data-edge-id' : 'data-delta-boundary-key';
   return { attribute, value: esc(row.id) };
 }
 
-function reviewTargetTags(deltaMarkup, row) {
+interface ReviewTargetTag {
+  name: string;
+  tag: string;
+}
+
+function reviewTargetTags(deltaMarkup: string, row: ArchitectureDeltaChangeRow): ReviewTargetTag[] {
   const { attribute, value } = reviewIdentity(row);
   const safeValue = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const identity = new RegExp(`\\b${attribute}="${safeValue}"`);
@@ -685,12 +932,12 @@ function reviewTargetTags(deltaMarkup, row) {
     .filter(({ tag }) => identity.test(tag));
 }
 
-function primaryReviewTags(deltaMarkup, row) {
+function primaryReviewTags(deltaMarkup: string, row: ArchitectureDeltaChangeRow): string[] {
   const tagName = row.kindKey === 'component' ? 'g' : row.kindKey === 'relationship' ? 'path' : 'rect';
   return reviewTargetTags(deltaMarkup, row).filter(({ name }) => name === tagName).map(({ tag }) => tag);
 }
 
-function reviewTargetSignature(tags) {
+function reviewTargetSignature(tags: readonly ReviewTargetTag[]): string {
   return tags.map(({ name, tag }) => {
     const state = tag.match(/\bdata-delta-state="([^"]+)"/)?.[1] || '';
     const classifications = tag.match(/\bdata-delta-classifications="([^"]*)"/)?.[1] || '';
@@ -698,9 +945,9 @@ function reviewTargetSignature(tags) {
   }).sort(codepointOrder).join('|');
 }
 
-function expectedReviewTargetSignature(row) {
+function expectedReviewTargetSignature(row: ArchitectureDeltaChangeRow): string {
   const classifications = row.classifications.join(',');
-  const descriptors = [];
+  const descriptors: string[] = [];
   if (row.kindKey === 'component') {
     for (const state of reviewPrimaryStates(row)) descriptors.push(`g:${state}:${classifications}`);
   } else if (row.kindKey === 'boundary') {
@@ -731,11 +978,11 @@ function expectedReviewTargetSignature(row) {
   return descriptors.sort(codepointOrder).join('|');
 }
 
-const total = (summary, key) => summary.components[key] + summary.connections[key] + summary.boundaries[key];
+const total = (summary: ArchitectureDeltaSummary, key: 'added' | 'changed' | 'removed'): number => summary.components[key] + summary.connections[key] + summary.boundaries[key];
 
-function provenanceDetail(provenance) {
+function provenanceDetail(provenance: ProvenanceChange | undefined): string {
   if (provenance === undefined) return 'Repository metadata changed; field details are unavailable in this receipt.';
-  const value = (side, field) => {
+  const value = (side: ProvenanceSide | null, field: string): unknown => {
     if (!side) return 'undeclared';
     if (field === '/revision') return side.revision?.slice(0, 8) || 'none';
     if (field === '/provider') return side.provider ?? 'automatic';
@@ -749,7 +996,7 @@ function provenanceDetail(provenance) {
   }).join(' · ');
 }
 
-export function renderArchitectureDeltaHtml({ receipt, baseSvg, deltaSvg, headSvg, baseHtml = '', headHtml = '', artifactCss }) {
+export function renderArchitectureDeltaHtml({ receipt, baseSvg, deltaSvg, headSvg, baseHtml = '', headHtml = '', artifactCss }: RenderArchitectureDeltaInput): string {
   const rows = architectureDeltaChangeRows(receipt);
   const changed = total(receipt.summary, 'changed');
   const proof = receipt.proofLevel === 'revision-pinned' ? 'REVISION-PINNED INPUTS' : 'AUTHORED SNAPSHOTS';
@@ -1238,8 +1485,8 @@ html[data-theme="dark"] body{background:#071019!important;background-image:none!
   return html.replace(/[ \t]+$/gm, '');
 }
 
-export function validateArchitectureDeltaHtml(html, receipt) {
-  const failures = [];
+export function validateArchitectureDeltaHtml(html: string, receipt: ArchitectureDeltaReceipt): ArchitectureDeltaValidation {
+  const failures: string[] = [];
   const rows = architectureDeltaChangeRows(receipt);
   const deltaMarkup = html.match(/<section class="canvas" data-view="delta">([\s\S]*?)<\/section>/)?.[1] || '';
   const svgTags = [...deltaMarkup.matchAll(/<\/?svg\b[^>]*>/g)];

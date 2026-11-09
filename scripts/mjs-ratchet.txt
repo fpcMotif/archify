@@ -10,7 +10,6 @@ schematics/bin/recover-output.mjs
 schematics/bin/schematics.mjs
 schematics/bin/visual-check.mjs
 schematics/packages/artifact-check/check-diagram.mjs
-schematics/packages/delta/architecture-delta.mjs
 schematics/packages/migrations/workflow-v2.mjs
 schematics/recipes/scenarios.mjs
 schematics/scripts/check-render-output.mjs

@@ -3677,7 +3677,7 @@ async function commandCompare(args) {
   if (type !== 'architecture' || !baseInput || !headInput || options.positional.length > 4) fail(usage());
   let deltaRuntime;
   try {
-    deltaRuntime = await import(pathToFileURL(path.join(skillRoot, 'packages/delta/architecture-delta.mjs')).href);
+    deltaRuntime = await import(pathToFileURL(path.join(skillRoot, 'packages/delta/architecture-delta.ts')).href);
   } catch (error) {
     reportCompareFailure({ json: options.json, stage: 'prepare', error: 'Architecture compare runtime is unavailable.', code: 'delta/runtime-missing', details: { reason: error.message, supportedFixes: ['install the complete Schematics skill package'] } });
     return;
@@ -6111,7 +6111,7 @@ async function commandDoctor(args) {
     missing: authoringReferencesMissing,
   });
 
-  const compareRuntime = path.join(skillRoot, 'packages/delta/architecture-delta.mjs');
+  const compareRuntime = path.join(skillRoot, 'packages/delta/architecture-delta.ts');
   const compareFixtures = [
     path.join(skillRoot, 'examples/checkout-platform.base.architecture.json'),
     path.join(skillRoot, 'examples/checkout-platform.head.architecture.json'),
