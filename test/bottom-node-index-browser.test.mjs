@@ -5,21 +5,21 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 import { createViewerClick } from './helpers/viewer-click.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const skillRoot = path.join(root, 'archify');
-const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'ARCHIFY_CHROME');
+const skillRoot = path.join(root, 'schematics');
+const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'SCHEMATICS_CHROME');
 const chrome = chromeConfigured ? findChrome() : null;
-if (chromeConfigured && !chrome) throw new Error(`ARCHIFY_CHROME does not resolve to an executable browser: ${process.env.ARCHIFY_CHROME}`);
+if (chromeConfigured && !chrome) throw new Error(`SCHEMATICS_CHROME does not resolve to an executable browser: ${process.env.SCHEMATICS_CHROME}`);
 
 test('Bottom node index preserves readable rows and native Viewer interaction', {
-  skip: chrome ? false : 'Set ARCHIFY_CHROME to run the real-browser bottom-index check.',
+  skip: chrome ? false : 'Set SCHEMATICS_CHROME to run the real-browser bottom-index check.',
 }, async (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-bottom-index-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-bottom-index-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
-  const evidence = process.env.ARCHIFY_BOTTOM_INDEX_EVIDENCE;
+  const evidence = process.env.SCHEMATICS_BOTTOM_INDEX_EVIDENCE;
   if (evidence) fs.mkdirSync(evidence, { recursive: true });
   const artifact = path.join(scratch, 'architecture.html');
   execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'),
@@ -40,7 +40,7 @@ test('Bottom node index preserves readable rows and native Viewer interaction', 
   const loaded = browser.cdp.waitFor('Page.loadEventFired', session);
   await send('Page.navigate', { url: pathToFileURL(artifact).href + '?theme=dark' });
   await loaded;
-  await run('document.fonts.ready.then(() => Archify.readerLayout.whenStable())');
+  await run('document.fonts.ready.then(() => Schematics.readerLayout.whenStable())');
   const initialRail = await run('document.documentElement.getAttribute("data-reader-rail")');
   assert.ok(['true', 'bottom'].includes(initialRail));
 
@@ -48,15 +48,15 @@ test('Bottom node index preserves readable rows and native Viewer interaction', 
   // return to the ordinary side rail, then exercise the shipped toggle path.
   if (initialRail === 'bottom') {
     await click('#rail-placement');
-    await run('Archify.readerLayout.whenStable()');
+    await run('Schematics.readerLayout.whenStable()');
   }
   assert.equal(await run('document.documentElement.getAttribute("data-reader-rail")'), 'true');
   await click('#rail-placement');
-  await run('Archify.readerLayout.whenStable()');
+  await run('Schematics.readerLayout.whenStable()');
   // The bottom index rests folded to its summary line until the reader opens it.
   assert.equal(await run('getComputedStyle(document.getElementById("node-outline-list")).display'), 'none');
   await click('.node-outline-toggle');
-  await run('Archify.readerLayout.whenStable()');
+  await run('Schematics.readerLayout.whenStable()');
   assert.equal(await run('document.querySelector(".node-outline-toggle").getAttribute("aria-expanded")'), 'true');
   const bottom = await run(`(() => {
     const item = document.querySelector('[data-outline-node]');
@@ -137,19 +137,19 @@ test('Bottom node index preserves readable rows and native Viewer interaction', 
   await run(`new Promise((resolve, reject) => {
     const start = performance.now();
     (function waitForSelection() {
-      if (Archify.focus.active() === ${JSON.stringify(selectedId)}) return resolve();
+      if (Schematics.focus.active() === ${JSON.stringify(selectedId)}) return resolve();
       if (performance.now() - start > 10000) return reject(new Error('outline selection did not settle'));
       requestAnimationFrame(waitForSelection);
     })();
   })`);
   assert.equal(await run('document.documentElement.getAttribute("data-bottom-index-enter-trusted")'), 'true');
-  assert.equal(await run('Archify.focus.active()'), selectedId);
+  assert.equal(await run('Schematics.focus.active()'), selectedId);
   assert.equal(await run(`document.querySelector('[data-outline-node=${JSON.stringify(selectedId)}]').getAttribute('aria-current')`), 'true');
 
   const target = '[data-outline-node="api"]';
-  await run('Archify.focus.clear()');
+  await run('Schematics.focus.clear()');
   await run(`document.querySelector(${JSON.stringify(target)}).scrollIntoView({ block: 'center', behavior: 'instant' })`);
-  await run('Archify.readerLayout.whenStable()');
+  await run('Schematics.readerLayout.whenStable()');
   await run(`document.querySelector(${JSON.stringify(target)}).addEventListener('pointerenter', event => {
     document.documentElement.setAttribute('data-bottom-index-hover-trusted', String(event.isTrusted));
   }, { once: true })`);
@@ -162,10 +162,10 @@ test('Bottom node index preserves readable rows and native Viewer interaction', 
   assert.equal(await run('document.querySelector(".diagram-container > svg").getAttribute("data-intent-trace-active")'), 'api');
 
   await click('#rail-placement');
-  await run('Archify.readerLayout.whenStable()');
+  await run('Schematics.readerLayout.whenStable()');
   assert.equal(await run('document.documentElement.getAttribute("data-reader-rail")'), 'true');
   await click('#rail-placement');
-  await run('Archify.readerLayout.whenStable()');
+  await run('Schematics.readerLayout.whenStable()');
   assert.equal(await run('document.documentElement.getAttribute("data-reader-rail")'), 'bottom');
   assert.equal(await run('document.querySelectorAll("[data-outline-node]").length > 0'), true);
 
@@ -186,10 +186,10 @@ test('Bottom node index preserves readable rows and native Viewer interaction', 
   const wrappedLoaded = browser.cdp.waitFor('Page.loadEventFired', session);
   await send('Page.navigate', { url: pathToFileURL(wrappedArtifact).href + '?theme=light' });
   await wrappedLoaded;
-  await run('document.fonts.ready.then(() => Archify.readerLayout.whenStable())');
+  await run('document.fonts.ready.then(() => Schematics.readerLayout.whenStable())');
   if (await run('document.documentElement.getAttribute("data-reader-rail")') === 'true') {
     await click('#rail-placement');
-    await run('Archify.readerLayout.whenStable()');
+    await run('Schematics.readerLayout.whenStable()');
   }
   assert.equal(await run('document.documentElement.getAttribute("data-reader-rail")'), 'bottom');
   const wrappedItems = await assertStackedItemLayout();

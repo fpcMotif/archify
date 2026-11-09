@@ -18,8 +18,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-degraded-'));
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-degraded-'));
 
 const EXAMPLES = {
   workflow: 'agent-tool-call.workflow.json',

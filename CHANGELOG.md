@@ -6,7 +6,7 @@ All notable changes are documented here. Format loosely follows [Keep a Changelo
 
 ### Added
 
-- **Mermaid import.** `archify import mermaid <input.mmd> [output.json]` turns a flowchart, sequence, state, ER, class, timeline, mindmap or architecture-beta diagram into a workflow, sequence, lifecycle, ERD, class, timeline, tree or architecture candidate for `finalize`. It parses with a vendored subset of Pele 1.13.0 and prints a note for each lossy choice. Input with no faithful Archify form, such as concurrent state regions or a flowchart wider than six columns, fails with a stable `code` instead of a lossy diagram. The first import compiles the importer to Bun bytecode under `~/.cache/archify` (or `ARCHIFY_CACHE_DIR`), once per Bun version, and later imports load it: 23 ms drops to 17 ms.
+- **Mermaid import.** `schematics import mermaid <input.mmd> [output.json]` turns a flowchart, sequence, state, ER, class, timeline, mindmap or architecture-beta diagram into a workflow, sequence, lifecycle, ERD, class, timeline, tree or architecture candidate for `finalize`. It parses with a vendored subset of Pele 1.13.0 and prints a note for each lossy choice. Input with no faithful Schematics form, such as concurrent state regions or a flowchart wider than six columns, fails with a stable `code` instead of a lossy diagram. The first import compiles the importer to Bun bytecode under `~/.cache/schematics` (or `SCHEMATICS_CACHE_DIR`), once per Bun version, and later imports load it: 23 ms drops to 17 ms.
 
 - **Date axis for timelines.** `layout.scale: "date"` ticks a timeline on days, months, quarters or years and labels dates without clock times. Every event must sit on midnight in `meta.timezone`. Imported Mermaid timelines use it.
 
@@ -18,7 +18,7 @@ All notable changes are documented here. Format loosely follows [Keep a Changelo
 
 - **One visual base for every preset.** Blueprint and Editorial now share the Classic design. Blueprint keeps squarer corners and dashed lane frames, and Editorial keeps serif headings. The viewer drops its neon glows, gradient panel tints, header badges and blur behind solid panels. A selected node shows a 1.5px ring instead of a glow.
 - **Signal Flow is retired.** It is no longer in the style picker. A file that still sets `visual_preset: "signal-flow"` validates and renders as Classic.
-- **Faster renders.** `archify render` runs the renderer inside the CLI process instead of starting a second one, loads network modules only for brand capture, and loads only the schema validator a render needs. A sequence render drops from 62.3 to 44.5 ms and an architecture render from 66.6 to 48.4 ms, with byte-identical output.
+- **Faster renders.** `schematics render` runs the renderer inside the CLI process instead of starting a second one, loads network modules only for brand capture, and loads only the schema validator a render needs. A sequence render drops from 62.3 to 44.5 ms and an architecture render from 66.6 to 48.4 ms, with byte-identical output.
 - **Typed shared renderer modules.** Thirteen `renderers/shared/` modules, including `diagnostics`, `fixes`, `i18n` and `utils`, are now Bun TypeScript and pass `bun check -b`.
 
 ## [3.2.0] — 2026-10-18

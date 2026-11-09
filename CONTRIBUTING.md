@@ -1,4 +1,4 @@
-# Contributing to Archify
+# Contributing to Schematics
 
 This fork keeps one product: typed JSON in, a validated, self-contained HTML diagram out. Keep each change focused on one user-visible behavior. Reviews follow [Reviewing](REVIEWING.md). The runtime is Bun, and new code is TypeScript; see [ADR 0001](docs/adr/0001-bun-typescript-runtime.md).
 
@@ -49,17 +49,17 @@ Tests protect a user outcome or a real failure boundary. Prefer rendered content
 ## Product and compatibility contracts
 
 - Existing schema-v1 JSON stays valid unless a reviewed change adds a breaking rule and a migration path.
-- Preserve authored topology and intent. Explicit geometry stays authoritative; see the [authoring contract](archify/references/authoring-contract.md).
+- Preserve authored topology and intent. Explicit geometry stays authoritative; see the [authoring contract](schematics/references/authoring-contract.md).
 - `standard` keeps broad compatibility. A new `showcase` failure must name a real, repairable defect.
 - Agent-facing failures go in `diagnostics[]` with a stable `code`, a precise `subject`, concrete `evidence` and executable `supportedFixes`. Failed stages keep a non-zero exit and a machine-readable receipt.
 - Keep one canonical contract per behavior. Link it instead of copying it.
 
 ## Local setup and verification
 
-The renderer package is in `archify/`. Repository tests and their dependencies live at the root. Install both with Bun 1.4 or newer:
+The renderer package is in `schematics/`. Repository tests and their dependencies live at the root. Install both with Bun 1.4 or newer:
 
 ```sh
-bun install && bun install --cwd archify
+bun install && bun install --cwd schematics
 ```
 
 | Command | What it checks |
@@ -67,7 +67,7 @@ bun install && bun install --cwd archify
 | `bun run test` | The core smoke: all ten diagram types through the public CLI. |
 | `bun test test/<name>.test.mjs` | Only the selected files. Add `-t '<name pattern>'` to narrow further. |
 | `bun run test:generated` | The Viewer template, brand marks, validators and golden example renders match their sources. |
-| `bun run test:all` | Every test file, with a 120-second per-test timeout. Chrome suites skip unless `ARCHIFY_CHROME` is set. |
+| `bun run test:all` | Every test file, with a 120-second per-test timeout. Chrome suites skip unless `SCHEMATICS_CHROME` is set. |
 | `bun run test:browser` | The Chrome suites. It fails when no Chrome, Chromium or Edge is found. |
 | `bun check` | TypeScript types. |
 | `bun scripts/check-mjs-ratchet.ts` | No new `.mjs` file. Run it with `--update` after you convert or delete one. |
@@ -75,7 +75,7 @@ bun install && bun install --cwd archify
 A skipped browser test is skipped, not passed. To run one browser file:
 
 ```sh
-ARCHIFY_CHROME="/path/to/chrome" bun run test:browser ./test/desktop-reader-browser.test.mjs
+SCHEMATICS_CHROME="/path/to/chrome" bun run test:browser ./test/desktop-reader-browser.test.mjs
 ```
 
 Test through public behavior such as `render`, `validate`, `deliver`, `finalize` or the final SVG/HTML. A behavior fix includes a regression test that fails without the fix.
@@ -84,9 +84,9 @@ For geometry and layout changes, use the smallest redacted JSON reproduction and
 
 ## Packages and generated artifacts
 
-Viewer work starts in [`viewer/`](viewer/README.md). Edit its sources, then run `bun run generate:viewer` from `archify/`. `bun run test:generated` checks that the template is fresh.
+Viewer work starts in [`viewer/`](viewer/README.md). Edit its sources, then run `bun run generate:viewer` from `schematics/`. `bun run test:generated` checks that the template is fresh.
 
-Regenerate only outputs whose sources changed. `bun run render:examples` from `archify/` rebuilds the example pages. List the regenerated files in the PR.
+Regenerate only outputs whose sources changed. `bun run render:examples` from `schematics/` rebuilds the example pages. List the regenerated files in the PR.
 
 ## Final integration and follow-up
 

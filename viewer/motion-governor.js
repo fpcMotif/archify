@@ -3,8 +3,8 @@
        trace yields to the strongest semantic owner; Still also parks bounded
        viewer signals without discarding their static meaning.
        ============================================================ */
-    Archify.motionGovernor = (function () {
-      var STORAGE_KEY = 'archify-motion';
+    Schematics.motionGovernor = (function () {
+      var STORAGE_KEY = 'schematics-motion';
       var html = document.documentElement;
       var svg = document.querySelector('.diagram-container svg');
       var btn = document.getElementById('btn-motion');
@@ -186,7 +186,7 @@
         var attrs = { x1: x0.toFixed(1), x2: x0.toFixed(1), y1: (box.y - 10).toFixed(1), y2: (box.bottom + 10).toFixed(1) };
         ['playhead-glow', 'playhead'].forEach(function (kind) {
           var line = overlay('line', 'ambient-flow-' + kind, attrs, parent, anchor);
-          line.style.setProperty('--flow-name', 'archify-motion-playhead');
+          line.style.setProperty('--flow-name', 'schematics-motion-playhead');
           extras.push(line);
         });
         extras.playhead = { distance: x1 - x0, lead: lead, sweep: sweep };
@@ -256,7 +256,7 @@
         }
         var ease = 'animation-timing-function: cubic-bezier(0.45, 0.05, 0.35, 1);';
         var rules = [
-          '@keyframes archify-relay-ripple {',
+          '@keyframes schematics-relay-ripple {',
           '  0% { r: 2px; opacity: var(--flow-peak, 0.6); }',
           '  ' + at(0.75) + ', 100% { r: 20px; opacity: 0; }',
           '}'
@@ -265,7 +265,7 @@
           if (!record.active) return;
           var travel = record.travel;
           rules.push(
-            '@keyframes archify-relay-comet-' + record.index + ' {',
+            '@keyframes schematics-relay-comet-' + record.index + ' {',
             '  0% { stroke-dashoffset: calc(var(--flow-len, 0px) + var(--flow-shift, 0px)); opacity: 0; ' + ease + ' }',
             '  ' + at(Math.min(0.12, travel * 0.2)) + ' { opacity: var(--flow-peak, 0.9); }',
             '  ' + at(travel) + ' { stroke-dashoffset: var(--flow-shift, 0px); opacity: var(--flow-peak, 0.9); }',
@@ -273,7 +273,7 @@
             '}',
             // A solid wake draws the travelled path behind the head on the same
             // easing; a dashed wake only brightens its authored segments.
-            '@keyframes archify-relay-wake-' + record.index + ' {',
+            '@keyframes schematics-relay-wake-' + record.index + ' {',
             record.dashed
               ? '  0%, ' + at(travel * 0.3) + ' { opacity: 0; }'
               : '  0% { stroke-dashoffset: var(--flow-len, 0px); opacity: var(--flow-peak, 0.3); ' + ease + ' }',
@@ -306,13 +306,13 @@
               '  ' + at(window.peakEnd + 0.78) + ' { ' + base + ' }'
             );
           });
-          rules.push('@keyframes archify-relay-node-' + index + ' {', frames.join('\n'), '}');
-          windows[id].keyframes = 'archify-relay-node-' + index;
+          rules.push('@keyframes schematics-relay-node-' + index + ' {', frames.join('\n'), '}');
+          windows[id].keyframes = 'schematics-relay-node-' + index;
         });
         if (extras.playhead) {
           var p = extras.playhead;
           rules.push(
-            '@keyframes archify-motion-playhead {',
+            '@keyframes schematics-motion-playhead {',
             '  0% { transform: translateX(0px); opacity: 0; }',
             '  ' + at(Math.max(0.05, p.lead - 0.2)) + ' { transform: translateX(0px); opacity: 0; }',
             '  ' + at(p.lead) + ' { transform: translateX(0px); opacity: var(--flow-peak, 0.9); }',
@@ -325,13 +325,13 @@
           if (!element.timing) return;
           var t = element.timing;
           rules.push(
-            '@keyframes archify-replay-fill-' + index + ' {',
+            '@keyframes schematics-replay-fill-' + index + ' {',
             '  0%, ' + at(t.start) + ' { transform: scaleX(0); opacity: var(--flow-peak, 0.4); }',
             '  ' + at(t.end) + ', ' + at(t.settle) + ' { transform: scaleX(1); opacity: var(--flow-peak, 0.4); }',
             '  ' + at(t.settle + 0.7) + ', 100% { transform: scaleX(1); opacity: 0; }',
             '}'
           );
-          element.style.setProperty('--flow-name', 'archify-replay-fill-' + index);
+          element.style.setProperty('--flow-name', 'schematics-replay-fill-' + index);
         });
         var style = document.createElement('style');
         style.setAttribute('data-ambient-flow-keyframes', 'true');
@@ -465,12 +465,12 @@
             flow.style.setProperty('--flow-delay', (record.depart + (layer.packet || 0) * gap).toFixed(3) + 's');
             flow.style.setProperty('--flow-dash', layer.dash.toFixed(1) + 'px');
             flow.style.setProperty('--flow-shift', layer.shift.toFixed(1) + 'px');
-            flow.style.setProperty('--flow-name', 'archify-relay-' + layer.kind + '-' + record.index);
+            flow.style.setProperty('--flow-name', 'schematics-relay-' + layer.kind + '-' + record.index);
             if (layer.dasharray) flow.style.setProperty('--flow-dasharray', layer.dasharray);
           });
           if (record.ripple) {
             record.ripple.style.setProperty('--flow-delay', (record.depart + record.travel).toFixed(3) + 's');
-            record.ripple.style.setProperty('--flow-name', 'archify-relay-ripple');
+            record.ripple.style.setProperty('--flow-name', 'schematics-relay-ripple');
           }
         });
         var shapes = nodeShapes();
@@ -548,11 +548,11 @@
         btn.setAttribute('aria-pressed', paused ? 'false' : 'true');
         btn.disabled = systemPaused;
         label.textContent = viewerText(paused ? 'viewer.motion.still' : 'viewer.motion.live');
-        if (paused && lastEffectivePaused !== true && Archify.routeProbe && Archify.routeProbe.isJourneyPlaying && Archify.routeProbe.isJourneyPlaying()) {
-          Archify.routeProbe.pauseJourney({ preserveElapsed: true, reason: systemPaused ? 'reduced-motion' : (hasSuspension() ? 'hidden' : 'still') });
+        if (paused && lastEffectivePaused !== true && Schematics.routeProbe && Schematics.routeProbe.isJourneyPlaying && Schematics.routeProbe.isJourneyPlaying()) {
+          Schematics.routeProbe.pauseJourney({ preserveElapsed: true, reason: systemPaused ? 'reduced-motion' : (hasSuspension() ? 'hidden' : 'still') });
         }
         lastEffectivePaused = paused;
-        if (Archify.routeProbe && typeof Archify.routeProbe.syncMotion === 'function') Archify.routeProbe.syncMotion();
+        if (Schematics.routeProbe && typeof Schematics.routeProbe.syncMotion === 'function') Schematics.routeProbe.syncMotion();
         if (systemPaused) {
           btn.setAttribute('aria-label', viewerText('viewer.motion.reduced'));
           btn.title = viewerText('viewer.motion.reduced');

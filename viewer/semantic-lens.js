@@ -4,7 +4,7 @@
        Two selected kinds compare only direct cross-kind relationships while
        preserving the full diagram as a dimmed spatial reference.
        ============================================================ */
-    Archify.semanticLens = (function () {
+    Schematics.semanticLens = (function () {
       var html = document.documentElement;
       var container = document.querySelector('.diagram-container');
       var svg = container.querySelector(':scope > svg');
@@ -451,14 +451,14 @@
       }
       function prepareForLens() {
         clearLegendPreview();
-        if (Archify.focus && typeof Archify.focus.clear === 'function') {
-          Archify.focus.clear({ updateUrl: false, preserveView: true });
+        if (Schematics.focus && typeof Schematics.focus.clear === 'function') {
+          Schematics.focus.clear({ updateUrl: false, preserveView: true });
         }
-        if (Archify.routeProbe && typeof Archify.routeProbe.clear === 'function') {
-          Archify.routeProbe.clear({ updateUrl: false, restoreFocus: false });
+        if (Schematics.routeProbe && typeof Schematics.routeProbe.clear === 'function') {
+          Schematics.routeProbe.clear({ updateUrl: false, restoreFocus: false });
         }
-        if (Archify.intentTrace && typeof Archify.intentTrace.clear === 'function') {
-          Archify.intentTrace.clear({ announce: false });
+        if (Schematics.intentTrace && typeof Schematics.intentTrace.clear === 'function') {
+          Schematics.intentTrace.clear({ announce: false });
         }
       }
       function select(kind, options) {
@@ -487,10 +487,10 @@
         options = options || {};
         if (html.getAttribute('data-embed') === 'true') return false;
         lensOpener = options.opener || trigger;
-        if (Archify.exportMenu && Archify.exportMenu.isOpen()) Archify.exportMenu.close(false);
-        if (Archify.finder && Archify.finder.isOpen()) Archify.finder.close({ restoreFocus: false });
-        if (Archify.radar && Archify.radar.isOpen()) Archify.radar.close({ restoreFocus: false });
-        if (Archify.guide && Archify.guide.isOpen()) Archify.guide.close({ restoreFocus: false });
+        if (Schematics.exportMenu && Schematics.exportMenu.isOpen()) Schematics.exportMenu.close(false);
+        if (Schematics.finder && Schematics.finder.isOpen()) Schematics.finder.close({ restoreFocus: false });
+        if (Schematics.radar && Schematics.radar.isOpen()) Schematics.radar.close({ restoreFocus: false });
+        if (Schematics.guide && Schematics.guide.isOpen()) Schematics.guide.close({ restoreFocus: false });
         renderKinds();
         panel.hidden = false;
         trigger.setAttribute('aria-expanded', 'true');
@@ -513,8 +513,8 @@
         renderKinds();
         status.textContent = viewerText('viewer.lens.choose');
         if (options.updateUrl !== false) updateHash();
-        if (options.preserveView !== true && Archify.view && typeof Archify.view.reset === 'function') {
-          Archify.view.reset({ automatic: true });
+        if (options.preserveView !== true && Schematics.view && typeof Schematics.view.reset === 'function') {
+          Schematics.view.reset({ automatic: true });
         }
         if (options.closePanel === true) close({ restoreFocus: false });
         return false;

@@ -5,12 +5,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 import { assertFontCss, inspectDocuments } from './helpers/offline-fonts.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chrome = process.env.ARCHIFY_CHROME ? findChrome() : null;
-const options = { skip: chrome ? false : 'Set ARCHIFY_CHROME for offline font and export browser acceptance.' };
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
+const options = { skip: chrome ? false : 'Set SCHEMATICS_CHROME for offline font and export browser acceptance.' };
 
 async function evaluate(browser, expression) {
   const result = await browser.cdp.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true }, await browser.sessionPromise, 30000);
@@ -49,7 +49,7 @@ async function actualFonts(browser, selector) {
 }
 
 function render(input, output, quality = 'standard') {
-  execFileSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'render', 'architecture', input, output, '--quality', quality], { stdio: 'pipe' });
+  execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'render', 'architecture', input, output, '--quality', quality], { stdio: 'pipe' });
 }
 
 const exportCapture = `(() => {
@@ -68,8 +68,8 @@ const exportCapture = `(() => {
 async function exported(browser, format) {
   return evaluate(browser, `(async () => {
     window.__download = null; window.__svgBlob = null;
-    ${format === 'route-share-card' ? `Archify.routeProbe.begin({ source: 'users', focusNode: false });
-    Archify.routeProbe.choose('api', { updateUrl: false });
+    ${format === 'route-share-card' ? `Schematics.routeProbe.begin({ source: 'users', focusNode: false });
+    Schematics.routeProbe.choose('api', { updateUrl: false });
     document.querySelector('[data-action="route-share-card"]').click();` : `document.querySelector('[data-format="${format}"]').click();`}
     for (let i = 0; i < 1000 && !window.__download; i++) await new Promise(r => setTimeout(r, 10));
     if (!window.__download) throw new Error('Export did not finish: ' + document.documentElement.dataset.lastExportError);
@@ -81,7 +81,7 @@ async function exported(browser, format) {
 }
 
 test('fresh viewers use bundled fonts with local fonts disabled and identical offline layout', options, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-font-layout-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-font-layout-'));
   const fixtures = [
     ['production', 'production-deployment.architecture.json', 'showcase'],
     ['web', 'web-app.architecture.json', 'standard'],
@@ -93,7 +93,7 @@ test('fresh viewers use bundled fonts with local fonts disabled and identical of
     fs.writeFileSync(path.join(tmp, 'mixed.json'), JSON.stringify(mixed));
     render(path.join(tmp, 'mixed.json'), path.join(tmp, 'mixed.html'));
     const compare = path.join(tmp, 'compare.html');
-    execFileSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'compare', 'architecture', path.join(skillRoot, 'examples/checkout-platform.base.architecture.json'), path.join(skillRoot, 'examples/checkout-platform.head.architecture.json'), compare], { stdio: 'pipe' });
+    execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'compare', 'architecture', path.join(skillRoot, 'examples/checkout-platform.base.architecture.json'), path.join(skillRoot, 'examples/checkout-platform.head.architecture.json'), compare], { stdio: 'pipe' });
     const online = new Map();
     for (const blocked of [false, true]) {
       const browser = new ChromeVisualBrowser(chrome);
@@ -127,7 +127,7 @@ test('fresh viewers use bundled fonts with local fonts disabled and identical of
 });
 
 test('SVG and raster exports preserve the viewer font with local fonts and network disabled', options, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-font-export-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-font-export-'));
   const browser = new ChromeVisualBrowser(chrome);
   try {
     const requests = await prepare(browser, true);
@@ -173,7 +173,7 @@ test('SVG and raster exports preserve the viewer font with local fonts and netwo
 });
 
 for (const format of ['png', 'route-share-card']) test(`${format} requested at DOMContentLoaded matches a font-settled repeat`, options, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-font-early-export-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-font-early-export-'));
   const browser = new ChromeVisualBrowser(chrome);
   try {
     const requests = await prepare(browser, true);
@@ -189,8 +189,8 @@ for (const format of ['png', 'route-share-card']) test(`${format} requested at D
       };
       document.addEventListener('DOMContentLoaded', () => {
         window.__fontStatusAtClick = document.fonts.status;
-        ${format === 'route-share-card' ? `Archify.routeProbe.begin({ source: 'users', focusNode: false });
-    Archify.routeProbe.choose('api', { updateUrl: false });
+        ${format === 'route-share-card' ? `Schematics.routeProbe.begin({ source: 'users', focusNode: false });
+    Schematics.routeProbe.choose('api', { updateUrl: false });
     document.querySelector('[data-action="route-share-card"]').click();` : `document.querySelector('[data-format="${format}"]').click();`}
       }, { once: true });
     ` }, session);

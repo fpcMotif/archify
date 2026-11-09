@@ -3,7 +3,7 @@
        Renderer IDs become deep-linkable semantic hooks without turning the
        standalone artifact into a canvas editor.
        ============================================================ */
-    Archify.focus = (function () {
+    Schematics.focus = (function () {
       var html = document.documentElement;
       var container = document.querySelector('.diagram-container');
       var svg = container.querySelector('svg');
@@ -143,8 +143,8 @@
         resetReachabilityButtons();
         reachStatus.textContent = '';
         reachStatus.hidden = true;
-        if (Archify.exportMenu && typeof Archify.exportMenu.syncReachShare === 'function') {
-          Archify.exportMenu.syncReachShare();
+        if (Schematics.exportMenu && typeof Schematics.exportMenu.syncReachShare === 'function') {
+          Schematics.exportMenu.syncReachShare();
         }
         if (options.updateUrl === true && activeIds.length === 1) {
           try {
@@ -219,8 +219,8 @@
           hops: result.maxDepth
         });
         reachStatus.hidden = false;
-        if (Archify.exportMenu && typeof Archify.exportMenu.syncReachShare === 'function') {
-          Archify.exportMenu.syncReachShare();
+        if (Schematics.exportMenu && typeof Schematics.exportMenu.syncReachShare === 'function') {
+          Schematics.exportMenu.syncReachShare();
         }
         if (options.updateUrl !== false) {
           try {
@@ -228,8 +228,8 @@
               encodeURIComponent(activeIds[0]) + '&reach=' + direction);
           } catch (_) {}
         }
-        if (options.reveal !== false && Archify.view && typeof Archify.view.reveal === 'function') {
-          Archify.view.reveal(result.nodeIds, { includeNeighbors: false, reason: 'reachability' });
+        if (options.reveal !== false && Schematics.view && typeof Schematics.view.reveal === 'function') {
+          Schematics.view.reveal(result.nodeIds, { includeNeighbors: false, reason: 'reachability' });
         }
         placeRelationshipLens();
         return true;
@@ -336,8 +336,8 @@
         repositoryLink.removeAttribute('href');
         repositoryLink.removeAttribute('aria-label');
         repositoryLink.textContent = '';
-        var sources = Archify.sourceEvidence.node(id);
-        var repository = Archify.sourceEvidence.repository();
+        var sources = Schematics.sourceEvidence.node(id);
+        var repository = Schematics.sourceEvidence.repository();
         if (!repository || !sources.length) {
           evidence.hidden = true;
           return;
@@ -634,7 +634,7 @@
         );
         return relationshipTokenGeometry(shape, relationshipTokenKind(edge), key, options);
       }
-      Archify.flowTokens = {
+      Schematics.flowTokens = {
         create: createSemanticFlowToken,
         kind: function (edge) { return relationshipTokenKind(edge); },
         path: relationshipTokenPath
@@ -642,7 +642,7 @@
       function renderRelationshipPulse(key) {
         removeRelationshipPulse();
         if (!key || document.documentElement.getAttribute('data-embed') === 'true') return false;
-        if (document.hidden || (Archify.motionGovernor && Archify.motionGovernor.isPaused())) return false;
+        if (document.hidden || (Schematics.motionGovernor && Schematics.motionGovernor.isPaused())) return false;
         if (reducedMotionQuery && reducedMotionQuery.matches) return false;
         var matchingEdges = edges().filter(function (edge) {
           return edge.getAttribute('data-edge-key') === key;
@@ -771,8 +771,8 @@
       function revealPinnedRelationship(record) {
         function reveal() {
           if (!record || pinnedRelationshipKey !== record.key) return true;
-          if (!Archify.view || typeof Archify.view.reveal !== 'function') return false;
-          Archify.view.reveal([record.from, record.to], { reason: 'relationship-direct' });
+          if (!Schematics.view || typeof Schematics.view.reveal !== 'function') return false;
+          Schematics.view.reveal([record.from, record.to], { reason: 'relationship-direct' });
           return true;
         }
         if (!reveal()) requestAnimationFrame(reveal);
@@ -828,7 +828,7 @@
         relationshipHitOverlay.setAttribute('role', 'group');
         relationshipHitOverlay.setAttribute('aria-label', viewerText('viewer.passport.relationship.explorer'));
         var relationshipHelp = document.createElementNS(svgNamespace, 'desc');
-        relationshipHelp.id = 'archify-relationship-help';
+        relationshipHelp.id = 'schematics-relationship-help';
         relationshipHelp.textContent = viewerText('viewer.passport.relationship.help');
         relationshipHitOverlay.appendChild(relationshipHelp);
         records.forEach(function (record, index) {
@@ -1049,7 +1049,7 @@
         chip.setAttribute('data-manual-placement', 'true');
         chip.style.left = Math.round(clamped.left) + 'px';
         chip.style.top = Math.round(clamped.top) + 'px';
-        if (Archify.radar && typeof Archify.radar.sync === 'function') Archify.radar.sync();
+        if (Schematics.radar && typeof Schematics.radar.sync === 'function') Schematics.radar.sync();
         return true;
       }
       function resetLensPlacement(options) {
@@ -1221,7 +1221,7 @@
           if (valid.length) top = valid[0];
         }
         chip.style.top = Math.round(top) + 'px';
-        if (Archify.radar && typeof Archify.radar.sync === 'function') Archify.radar.sync();
+        if (Schematics.radar && typeof Schematics.radar.sync === 'function') Schematics.radar.sync();
       }
       function requestLensPlacement() {
         if (lensFrame) return;
@@ -1239,8 +1239,8 @@
           ? svg.querySelector('[data-node-id="' + activeIds[0] + '"]')
           : null;
         clearReachability({ updateUrl: false });
-        if (Archify.intentTrace && typeof Archify.intentTrace.clear === 'function') {
-          Archify.intentTrace.clear({ announce: false });
+        if (Schematics.intentTrace && typeof Schematics.intentTrace.clear === 'function') {
+          Schematics.intentTrace.clear({ announce: false });
         }
         hoveredRelationship = null;
         focusedRelationship = null;
@@ -1281,8 +1281,8 @@
         relationsBtn.setAttribute('aria-expanded', 'false');
         chip.removeAttribute('data-relations-expanded');
         if (options.preserveLensPlacement !== true) resetLensPlacement({ reposition: false });
-        if (options.preserveView !== true && Archify.view && typeof Archify.view.reset === 'function') {
-          Archify.view.reset({ automatic: true });
+        if (options.preserveView !== true && Schematics.view && typeof Schematics.view.reset === 'function') {
+          Schematics.view.reset({ automatic: true });
         }
         if (options.updateUrl !== false) {
           try { history.replaceState(null, '', location.pathname + location.search); } catch (_) {}
@@ -1295,12 +1295,12 @@
 
       function setMany(ids, options) {
         options = options || {};
-        if (Archify.semanticLens && typeof Archify.semanticLens.clearPreview === 'function') Archify.semanticLens.clearPreview();
-        if (Archify.semanticLens && Archify.semanticLens.active()) {
-          Archify.semanticLens.clear({ updateUrl: false, preserveView: true, closePanel: true });
+        if (Schematics.semanticLens && typeof Schematics.semanticLens.clearPreview === 'function') Schematics.semanticLens.clearPreview();
+        if (Schematics.semanticLens && Schematics.semanticLens.active()) {
+          Schematics.semanticLens.clear({ updateUrl: false, preserveView: true, closePanel: true });
         }
-        if (options.preserveRoute !== true && Archify.routeProbe && typeof Archify.routeProbe.clear === 'function') {
-          Archify.routeProbe.clear({ updateUrl: false, restoreFocus: false });
+        if (options.preserveRoute !== true && Schematics.routeProbe && typeof Schematics.routeProbe.clear === 'function') {
+          Schematics.routeProbe.clear({ updateUrl: false, restoreFocus: false });
         }
         var nodeList = nodes();
         var byId = Object.create(null);
@@ -1312,8 +1312,8 @@
         if (!normalized.length) return false;
         // Hash restoration and internal selections use this path too. Reveal
         // tree ancestors before measuring the selected node for its lens.
-        if (Archify.treeBranches && Archify.treeBranches.active) {
-          normalized.forEach(function (id) { Archify.treeBranches.reveal(id); });
+        if (Schematics.treeBranches && Schematics.treeBranches.active) {
+          normalized.forEach(function (id) { Schematics.treeBranches.reveal(id); });
         }
         if (normalized.length === activeIds.length && normalized.every(function (id, index) { return activeIds[index] === id; }) && options.toggle !== false) {
           clear();
@@ -1397,8 +1397,8 @@
         if (node) {
           var id = node.getAttribute('data-node-id');
           set(id);
-          if (activeIds.indexOf(id) !== -1 && Archify.view && typeof Archify.view.reveal === 'function') {
-            Archify.view.reveal([id], { includeNeighbors: true, reason: 'focus' });
+          if (activeIds.indexOf(id) !== -1 && Schematics.view && typeof Schematics.view.reveal === 'function') {
+            Schematics.view.reveal([id], { includeNeighbors: true, reason: 'focus' });
           }
         }
         else if (activeIds.length) clear();
@@ -1409,8 +1409,8 @@
         event.preventDefault();
         var id = node.getAttribute('data-node-id');
         set(id);
-        if (activeIds.indexOf(id) !== -1 && Archify.view && typeof Archify.view.reveal === 'function') {
-          Archify.view.reveal([id], { includeNeighbors: true, reason: 'focus' });
+        if (activeIds.indexOf(id) !== -1 && Schematics.view && typeof Schematics.view.reveal === 'function') {
+          Schematics.view.reveal([id], { includeNeighbors: true, reason: 'focus' });
         }
       });
       moveBtn.addEventListener('pointerdown', beginLensDrag);
@@ -1443,8 +1443,8 @@
         if (!button) return;
         var id = button.getAttribute('data-relationship-target');
         set(id, { toggle: false });
-        if (Archify.view && typeof Archify.view.reveal === 'function') {
-          Archify.view.reveal([id], { includeNeighbors: true, reason: 'relationship' });
+        if (Schematics.view && typeof Schematics.view.reveal === 'function') {
+          Schematics.view.reveal([id], { includeNeighbors: true, reason: 'relationship' });
         }
         var node = svg.querySelector('[data-node-id="' + id + '"]');
         if (node) {

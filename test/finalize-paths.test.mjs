@@ -5,19 +5,19 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { defaultFinalizeReceiptPath, defaultFinalizeSummaryPath, runFinalize } from '../archify/bin/finalize.mjs';
+import { defaultFinalizeReceiptPath, defaultFinalizeSummaryPath, runFinalize } from '../schematics/bin/finalize.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 const example = path.join(skillRoot, 'examples/web-app.architecture.json');
 function workspace(t) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-finalize-paths-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-finalize-paths-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
 function finalize(output, options = []) {
   const result = spawnSync(process.execPath, [cli, 'finalize', 'architecture', example, output, '--quality', 'showcase', '--json', ...options], {
-    cwd: skillRoot, encoding: 'utf8', env: { ...process.env, ARCHIFY_CHROME: path.join(os.tmpdir(), 'archify-definitely-missing-chrome') },
+    cwd: skillRoot, encoding: 'utf8', env: { ...process.env, SCHEMATICS_CHROME: path.join(os.tmpdir(), 'schematics-definitely-missing-chrome') },
   });
   return { ...result, receipt: JSON.parse(result.stdout) };
 }
@@ -42,7 +42,7 @@ test('finalize uses bounded canonical delivery and evidence names for long outpu
 test('finalize receipt paths cannot replace a delivery journal or directory lock', t => {
   const dir = workspace(t);
   const output = path.join(dir, 'diagram.html');
-  for (const name of ['diagram.delivery.json', 'diagram.delivery-pending.json', 'diagram.delivery-lock.json', '.archify-delivery-lock.json']) {
+  for (const name of ['diagram.delivery.json', 'diagram.delivery-pending.json', 'diagram.delivery-lock.json', '.schematics-delivery-lock.json']) {
     const receiptPath = path.join(dir, name);
     const result = finalize(output, ['--receipt', receiptPath]);
     assert.equal(result.status, 1, name);

@@ -7,8 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-relationship-lens-'));
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-relationship-lens-'));
 
 const CASES = {
   architecture: { example: 'web-app.architecture.json', collection: 'connections' },

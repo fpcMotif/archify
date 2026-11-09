@@ -5,12 +5,12 @@ import os from 'node:os';
 import path from 'node:path';
 import test, { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { startPreview } from '../archify/bin/preview.mjs';
-import { validateSchema } from '../archify/renderers/shared/validator.mjs';
+import { startPreview } from '../schematics/bin/preview.mjs';
+import { validateSchema } from '../schematics/renderers/shared/validator.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(here, '..', 'archify');
-const cli = path.join(skillRoot, 'bin', 'archify.mjs');
+const skillRoot = path.resolve(here, '..', 'schematics');
+const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
 
 // One table for the whole file: every diagram type names its node array
 // differently, and repository evidence must behave identically across all of
@@ -38,7 +38,7 @@ function run(args) {
 }
 
 function evidencePayload(html) {
-  const match = html.match(/<script id="archify-source-evidence-data" type="application\/json">([\s\S]*?)<\/script>/);
+  const match = html.match(/<script id="schematics-source-evidence-data" type="application\/json">([\s\S]*?)<\/script>/);
   assert.ok(match, 'verified evidence payload missing');
   return JSON.parse(match[1]);
 }
@@ -58,14 +58,14 @@ after(() => {
 });
 function repositorySeed() {
   if (sourceSeed) return sourceSeed;
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-evidence-seed-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-evidence-seed-'));
   seedRoot = root;
   fs.mkdirSync(path.join(root, 'src', 'nested'), { recursive: true });
   fs.writeFileSync(path.join(root, 'src', 'router.js'), 'export function route(input) {\n  return input.kind;\n}\n');
   fs.writeFileSync(path.join(root, 'src', 'store.js'), 'export const store = new Map();\n');
   git(root, 'init');
-  git(root, 'config', 'user.name', 'Archify Tests');
-  git(root, 'config', 'user.email', 'archify@example.test');
+  git(root, 'config', 'user.name', 'Schematics Tests');
+  git(root, 'config', 'user.email', 'schematics@example.test');
   git(root, 'remote', 'add', 'origin', 'git@github.com:example/evidence-repo.git');
   git(root, 'add', '.');
   git(root, 'commit', '-m', 'fixture');
@@ -77,7 +77,7 @@ function repositorySeed() {
 // A throwaway origin-matched checkout plus the typed diagram that points at it.
 function fixture(t, { type, collection, example, first }) {
   const seed = repositorySeed();
-  const root = temporaryDirectory(t, 'archify-evidence-types-');
+  const root = temporaryDirectory(t, 'schematics-evidence-types-');
   // cpSync copies files rather than hardlinking them or sharing a Git common dir.
   fs.cpSync(seed.root, root, { recursive: true });
   const { revision } = seed;
@@ -211,7 +211,7 @@ for (const [typeIndex, shape] of TYPES.entries()) {
 
     // Evidence stays keyed to the rendered subject for Focus/Finder lookup.
     assert.match(html, new RegExp(`data-node-id="${first}"`));
-    assert.doesNotMatch(html, /Archify\.sourceEvidence\.installBeacons\(\)|classList\.add\('source-evidence-beacon'\)/);
+    assert.doesNotMatch(html, /Schematics\.sourceEvidence\.installBeacons\(\)|classList\.add\('source-evidence-beacon'\)/);
 
     const svg = html.match(/<svg\b[\s\S]*?<\/svg>/)?.[0] || '';
     assert.doesNotMatch(svg, /src\/router\.js|github\.com\/example\/evidence-repo|source-evidence/);
@@ -336,7 +336,7 @@ for (const [typeIndex, shape] of TYPES.entries()) {
       node.sources = sources;
       assert.throws(() => validateSchema(type, diagram), (error) => {
         assert.match(error.message, pattern);
-        const diagnostic = error.archifyDiagnostics.find(entry => entry.code === code);
+        const diagnostic = error.schematicsDiagnostics.find(entry => entry.code === code);
         assert.ok(diagnostic, `${type}: missing ${code}`);
         assert.equal(diagnostic.subject.diagramType, type);
         assert.equal(diagnostic.subject.path, `/${collection}/${nodeIndex}/sources${sourceSuffix}`);
@@ -386,11 +386,11 @@ test('--repo-root is accepted for every diagram type', () => {
 
 test('ordinary typed artifacts still carry no repository evidence', (t) => {
   for (const { type, example } of TYPES) {
-    const output = path.join(temporaryDirectory(t, 'archify-no-evidence-types-'), `${type}.html`);
+    const output = path.join(temporaryDirectory(t, 'schematics-no-evidence-types-'), `${type}.html`);
     const result = run(['render', type, path.join(skillRoot, 'examples', example), output]);
     assert.equal(result.status, 0, result.stderr);
     const html = fs.readFileSync(output, 'utf8');
-    assert.doesNotMatch(html, /id="archify-source-evidence-data"/);
+    assert.doesNotMatch(html, /id="schematics-source-evidence-data"/);
   }
 });
 

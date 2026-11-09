@@ -5,10 +5,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { compileWorkflow } from '../archify/renderers/workflow/workflow-compiler.mjs';
+import { compileWorkflow } from '../schematics/renderers/workflow/workflow-compiler.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const cli = path.resolve(__dirname, '..', 'archify', 'bin', 'archify.mjs');
+const cli = path.resolve(__dirname, '..', 'schematics', 'bin', 'schematics.mjs');
 // An unedited first draft: the long "no approval needed" branch from the agent
 // lane to the execution lane was planned before the same-lane "denied" edge
 // and took the gap between Human Approval and Blocked, so "denied" could only

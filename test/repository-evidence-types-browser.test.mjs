@@ -5,22 +5,22 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chrome = Object.hasOwn(process.env, 'ARCHIFY_CHROME') ? findChrome() : null;
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chrome = Object.hasOwn(process.env, 'SCHEMATICS_CHROME') ? findChrome() : null;
 
 test('verified sources remain in Focus and Finder with accessible counts and no node badges', {
   skip: !chrome,
   timeout: 120000,
 }, async (t) => {
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-typed-evidence-browser-'));
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-typed-evidence-browser-'));
   t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
   const git = (...args) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   fs.writeFileSync(path.join(repo, 'source.js'), 'export function source() {\n  return true;\n}\n');
   git('init');
-  git('config', 'user.name', 'Archify Tests');
-  git('config', 'user.email', 'archify@example.test');
+  git('config', 'user.name', 'Schematics Tests');
+  git('config', 'user.email', 'schematics@example.test');
   git('add', 'source.js');
   git('commit', '-m', 'source fixture');
   git('remote', 'add', 'origin', 'https://github.com/example/evidence-repo');
@@ -66,7 +66,7 @@ test('verified sources remain in Focus and Finder with accessible counts and no 
     diagram.meta.repository = { url, revision, ...(localOnly ? { link_mode: 'local-only' } : {}) };
     const input = path.join(repo, `${type}.json`), artifactPath = path.join(repo, `${type}.html`);
     fs.writeFileSync(input, JSON.stringify(diagram));
-    execFileSync(process.execPath, [path.join(root, 'bin/archify.mjs'), 'deliver', type, input, artifactPath, '--repo-root', repo, '--json'], { encoding: 'utf8' });
+    execFileSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'deliver', type, input, artifactPath, '--repo-root', repo, '--json'], { encoding: 'utf8' });
     const svg = fs.readFileSync(artifactPath, 'utf8').match(/<svg\b[\s\S]*?<\/svg>/)[0];
     await browser.inspect({ artifactPath, width: 1440, height: 900, theme });
     const session = await browser.sessionPromise;
@@ -74,14 +74,14 @@ test('verified sources remain in Focus and Finder with accessible counts and no 
       expression: `(() => {
         const node = [...document.querySelectorAll('[data-node-id]')].find(n => n.dataset.nodeId === ${JSON.stringify(node.id)});
         const box = el => el && el.getBoundingClientRect();
-        const legacyMethodPresent = Object.hasOwn(Archify.sourceEvidence, 'installBeacons');
+        const legacyMethodPresent = Object.hasOwn(Schematics.sourceEvidence, 'installBeacons');
         const badgeCount = document.querySelectorAll('[data-source-evidence-beacon]').length;
         const originalSvg = new DOMParser().parseFromString(${JSON.stringify(svg)}, 'image/svg+xml');
         const ariaChanges = [...document.querySelectorAll('.diagram-container svg [data-node-id]')].filter(actual => {
           const original = [...originalSvg.querySelectorAll('[data-node-id]')].find(n => n.getAttribute('data-node-id') === actual.getAttribute('data-node-id'));
           return !original || original.getAttribute('aria-label') !== actual.getAttribute('aria-label');
         }).map(n => n.dataset.nodeId);
-        const evidence = Archify.sourceEvidence.node(${JSON.stringify(node.id)});
+        const evidence = Schematics.sourceEvidence.node(${JSON.stringify(node.id)});
         const texts = [...node.querySelectorAll('text')];
         // Fine-detail tags/steps must also fit when zoom reveals them.
         texts.forEach(text => {

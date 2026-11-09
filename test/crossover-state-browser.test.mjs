@@ -5,16 +5,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chrome = process.env.ARCHIFY_CHROME ? findChrome() : null;
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
 
 for (const diagramType of ['architecture', 'dataflow']) {
 test(`${diagramType} automatic crossover masks follow live relationship state without becoming semantic edges`, {
-  skip: chrome ? false : 'Set ARCHIFY_CHROME to run real-browser crossover checks.',
+  skip: chrome ? false : 'Set SCHEMATICS_CHROME to run real-browser crossover checks.',
 }, async (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-crossover-state-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-crossover-state-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const input = path.join(scratch, `crossing.${diagramType}.json`);
   const output = path.join(scratch, `crossing.${diagramType}.html`);
@@ -72,7 +72,7 @@ test(`${diagramType} automatic crossover masks follow live relationship state wi
     const loaded = browser.cdp.waitFor('Page.loadEventFired', session);
     await send('Page.navigate', { url: pathToFileURL(output).href });
     await loaded;
-    await run('(async () => { await document.fonts.ready; await Archify.viewerChromeLayout.whenStable(); })()', true);
+    await run('(async () => { await document.fonts.ready; await Schematics.viewerChromeLayout.whenStable(); })()', true);
   }
   async function pairedOpacity() {
     return run(`(() => [...document.querySelectorAll('[data-graph-role="automatic-crossover"]')].map(wrapper => {
@@ -127,7 +127,7 @@ test(`${diagramType} automatic crossover masks follow live relationship state wi
   }
 
   await load();
-  await run(`Archify.motionGovernor.resume()`);
+  await run(`Schematics.motionGovernor.resume()`);
   assert.equal(await run(`CSS.supports('selector(g:has(> path))')`), true);
   const trace = await samplePairs(8);
   assertTimedPairs(trace);
@@ -141,7 +141,7 @@ test(`${diagramType} automatic crossover masks follow live relationship state wi
   }))()`);
   assert.equal(liveCrossings.length, 2);
   assert.ok(liveCrossings.every(c=>c.sameLayer&&c.afterEdge&&c.underlayFirst&&c.decorative&&c.running), JSON.stringify(liveCrossings));
-  await run(`Archify.focus.set('left', { toggle: false, updateUrl: false })`);
+  await run(`Schematics.focus.set('left', { toggle: false, updateUrl: false })`);
   const focusTransition = await samplePairs(8);
   assertTimedPairs(focusTransition);
   assert.equal(focusTransition.some((sample) => sample.some((relation) => relation.edgeTransition)), true);
@@ -150,13 +150,13 @@ test(`${diagramType} automatic crossover masks follow live relationship state wi
   assertPaired(focus, { horizontal: 1, vertical: 0.13 });
   assert.deepEqual(focus.map((relation) => relation.id), ['horizontal', 'vertical']);
 
-  await run(`Archify.focus.inspectRelationshipById('horizontal', { updateUrl: false })`);
+  await run(`Schematics.focus.inspectRelationshipById('horizontal', { updateUrl: false })`);
   const preview = await pairedOpacity();
   assertPaired(preview, { horizontal: 1, vertical: 0.13 });
   assert.equal(preview.find((relation) => relation.id === 'horizontal').preview, true);
 
   await load();
-  await run(`Archify.routeProbe.begin({ source: 'left', focusNode: false }); Archify.routeProbe.choose('right', { updateUrl: false })`);
+  await run(`Schematics.routeProbe.begin({ source: 'left', focusNode: false }); Schematics.routeProbe.choose('right', { updateUrl: false })`);
   async function shareExport(method) {
     return run(`(async () => {
     const original = URL.createObjectURL;
@@ -165,7 +165,7 @@ test(`${diagramType} automatic crossover masks follow live relationship state wi
       if (value.type.startsWith('image/svg+xml')) source = value;
       return original.call(URL, value);
     };
-    try { await Archify.exportMenu[${JSON.stringify(method)}](); }
+    try { await Schematics.exportMenu[${JSON.stringify(method)}](); }
     finally { URL.createObjectURL = original; }
     if (!source) throw new Error('Share export did not create its SVG source');
     const text = await source.text();
@@ -201,7 +201,7 @@ test(`${diagramType} automatic crossover masks follow live relationship state wi
   ]);
 
   await load();
-  await run(`Archify.focus.set('left', { toggle: false, updateUrl: false }); Archify.focus.reach('downstream', { toggle: false, updateUrl: false, reveal: false })`);
+  await run(`Schematics.focus.set('left', { toggle: false, updateUrl: false }); Schematics.focus.reach('downstream', { toggle: false, updateUrl: false, reveal: false })`);
   const reachExported = await shareExport('downloadReachShareCard');
   assert.deepEqual(reachExported.rendered, [
     { id: 'horizontal', edge: 1, underlay: 1 },

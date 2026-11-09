@@ -7,10 +7,10 @@ import path from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const checker = path.join(skillRoot, 'scripts/check-render-output.mjs');
-const cli = path.join(skillRoot, 'bin/archify.mjs');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-receipt-flush-'));
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-receipt-flush-'));
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 function run(script, args, options = {}) {

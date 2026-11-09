@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
-import { labelPoint, segmentRectClearanceWithin } from '../archify/renderers/shared/geometry.ts';
+import { labelPoint, segmentRectClearanceWithin } from '../schematics/renderers/shared/geometry.ts';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -8,16 +8,16 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
 function inspect(t, diagram, { quality, envQuality } = {}) {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-dataflow-auto-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-dataflow-auto-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const input = path.join(cwd, 'source.json');
   const source = JSON.stringify(diagram);
   fs.writeFileSync(input, source);
   const env = { ...process.env };
-  delete env.ARCHIFY_QUALITY_PROFILE;
-  if (envQuality !== undefined) env.ARCHIFY_QUALITY_PROFILE = envQuality;
+  delete env.SCHEMATICS_QUALITY_PROFILE;
+  if (envQuality !== undefined) env.SCHEMATICS_QUALITY_PROFILE = envQuality;
   const qualityArgs = quality ? ['--quality', quality] : [];
   const result = spawnSync(process.execPath, [cli, 'validate', 'dataflow', input, '--json', ...qualityArgs], { encoding: 'utf8', env });
   assert.equal(fs.readFileSync(input, 'utf8'), source, 'automatic layout must not rewrite authored input');
@@ -465,10 +465,10 @@ for (const [name, flow, expectedPoints, expectedHeight] of [
 // comparison is recorded in the PR evidence; SVG isolates renderer behavior
 // from unrelated future Viewer-template changes.
 for (const [name, mutate, expectedSha256] of [
-  ['standard-auto', diagram => { diagram.meta.quality_profile = 'standard'; }, '99637c1e91964415abeff668d89e7126ff12960d69d535a570f7a452b088f528'],
-  ['explicit-viewbox', diagram => { diagram.meta.viewBox = [1080, 720]; }, 'd738f4c38e336886aaf86bc769ea8b401e540da0f9566330b559408340968879'],
-  ['explicit-one-width', diagram => { diagram.nodes[0].width = 152; }, '0533eb9cfbd3a6a5bbd99c01342a3cf07429dc834fd2d446409eb35448a601ec'],
-  ['explicit-both', diagram => { diagram.meta.viewBox = [1080, 720]; diagram.nodes[0].width = 152; }, '0d2ee82e89eeb9e1c83e2002f72b004adfe876fb6d50dc91d465f8e778d3e8dd'],
+  ['standard-auto', diagram => { diagram.meta.quality_profile = 'standard'; }, 'a80284753b63895eb9c0164a6706b307743695940f0f360350697f39f21835d8'],
+  ['explicit-viewbox', diagram => { diagram.meta.viewBox = [1080, 720]; }, '303f9e767da7b2dfdaab0c6262c3d4866cfbbc05428ad1f3781b4167c0137549'],
+  ['explicit-one-width', diagram => { diagram.nodes[0].width = 152; }, 'cbf90e6526403fc0909a9632686e6dceddcbdf50d44d9b26b2a72e89aac5ca49'],
+  ['explicit-both', diagram => { diagram.meta.viewBox = [1080, 720]; diagram.nodes[0].width = 152; }, '3a037bdefebffe4f675478db190f23e79c8196104dbcb3fe3d02f3b5d36e1c59'],
 ]) {
   test(`dev geometry compatibility outside default motion for ${name}`, t => {
     const diagram = smallFootprintDiagram({ id: 'f' });

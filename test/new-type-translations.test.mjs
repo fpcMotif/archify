@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('../archify/', import.meta.url));
+const root = fileURLToPath(new URL('../schematics/', import.meta.url));
 const examples = {
   tree: 'payment-platform.tree.json', class: 'payments.class.json',
   timeline: 'payment-incident.timeline.json', waterfall: 'checkout-request.waterfall.json',
@@ -14,7 +14,7 @@ const examples = {
 
 for (const [type, example] of Object.entries(examples)) {
   test(`${type}: shared Viewer translation overrides work through the public CLI`, (t) => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-translations-'));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-translations-'));
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
     const doc = JSON.parse(fs.readFileSync(path.join(root, 'examples', example), 'utf8'));
     doc.meta.locale = 'en';
@@ -23,12 +23,12 @@ for (const [type, example] of Object.entries(examples)) {
     const output = path.join(directory, 'diagram.html');
     const run = () => {
       fs.writeFileSync(input, JSON.stringify(doc));
-      return spawnSync(process.execPath, [path.join(root, 'bin/archify.mjs'), 'render', type, input, output], { encoding: 'utf8' });
+      return spawnSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'render', type, input, output], { encoding: 'utf8' });
     };
     let result = run();
     assert.equal(result.status, 0, result.stderr);
     const html = fs.readFileSync(output, 'utf8');
-    const payload = html.match(/<script id="archify-i18n-data" type="application\/json">([\s\S]*?)<\/script>/);
+    const payload = html.match(/<script id="schematics-i18n-data" type="application\/json">([\s\S]*?)<\/script>/);
     assert.ok(payload);
     const messages = JSON.parse(payload[1]).messages;
     assert.equal(messages['viewer.common.close'], 'Close this panel');

@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { extractSvgs, parseXml } from './helpers/xml.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const repoRoot = path.resolve(skillRoot, '..');
-const artifactRoots = ['archify/examples'];
+const artifactRoots = ['schematics/examples'];
 
 function trackedHtmlArtifacts() {
   const tracked = spawnSync('git', ['ls-files', '-z', '--', ...artifactRoots], {

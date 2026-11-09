@@ -5,16 +5,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
-const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
 const fixture = fileURLToPath(new URL('./fixtures/dataflow-label-visibility.json', import.meta.url));
 
 test('dataflow classification plates preserve their own connector in Read and Detail', async (t) => {
-  if (!Object.hasOwn(process.env, 'ARCHIFY_CHROME')) return t.skip('Set ARCHIFY_CHROME for real browser checks');
+  if (!Object.hasOwn(process.env, 'SCHEMATICS_CHROME')) return t.skip('Set SCHEMATICS_CHROME for real browser checks');
   const chrome = findChrome();
   assert.ok(chrome, 'The configured browser regression requires Chrome');
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-dataflow-label-visibility-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-dataflow-label-visibility-'));
   const browser = new ChromeVisualBrowser(chrome);
   try {
     const artifact = path.join(dir, 'diagram.html');
@@ -30,7 +30,7 @@ test('dataflow classification plates preserve their own connector in Read and De
               const panel = document.querySelector('.diagram-container');
               if (${JSON.stringify(mode)} === 'full') {
                 const zoomIn = panel.querySelector('button[data-view="in"]');
-                for (let click = 0; click < 5 && Archify.view.state().scale < 1.75; click++) zoomIn.click();
+                for (let click = 0; click < 5 && Schematics.view.state().scale < 1.75; click++) zoomIn.click();
               }
               await document.fonts.ready;
               // Detail opacity transitions must finish before measuring visibility.
@@ -56,7 +56,7 @@ test('dataflow classification plates preserve their own connector in Read and De
               }
               return {
                 theme: document.documentElement.dataset.theme,
-                mode: panel.dataset.detailLevel, scale: Archify.view.state().scale,
+                mode: panel.dataset.detailLevel, scale: Schematics.view.state().scale,
                 stroke: stroke.stroke, strokeOpacity: Number(stroke.strokeOpacity),
                 mask: { box: maskBox, fill: getComputedStyle(mask).fill, opacity: Number(getComputedStyle(mask).opacity) },
                 coveredSamples: covered.length,

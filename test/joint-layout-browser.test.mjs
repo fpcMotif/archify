@@ -5,12 +5,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome, runVisualCheck } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome, runVisualCheck } from '../schematics/bin/visual-check.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const configured = Object.prototype.hasOwnProperty.call(process.env, 'ARCHIFY_CHROME');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const configured = Object.prototype.hasOwnProperty.call(process.env, 'SCHEMATICS_CHROME');
 const chrome = configured ? findChrome() : null;
-if (configured && !chrome) throw new Error(`ARCHIFY_CHROME is not executable: ${process.env.ARCHIFY_CHROME}`);
+if (configured && !chrome) throw new Error(`SCHEMATICS_CHROME is not executable: ${process.env.SCHEMATICS_CHROME}`);
 
 // This observer deliberately has no access to either owner's receipt(),
 // measure(), stageRect(), or scheduler. In particular, a stale receipt cannot
@@ -29,16 +29,16 @@ const pageHelpers = `(() => {
     const nav = panel.querySelector('.diagram-nav');
     const stage = svg.getBoundingClientRect();
     // The dock may lift to the viewport floor; layout contracts use its resting box.
-    const dock = Archify.viewerChromeLayout.dockRect();
+    const dock = Schematics.viewerChromeLayout.dockRect();
     return {
       boxes: ['.container', '.header', '.guided-views', '.cards', '.diagram-container',
         '.diagram-container > svg', '.diagram-nav', '[data-legend]']
         .map(selector => [selector, selector === '.diagram-nav'
           ? ['left', 'top', 'right', 'bottom', 'width', 'height'].map(key => rounded(dock[key]))
           : rect(document.querySelector(selector))]),
-      reserve: parseFloat(getComputedStyle(panel).getPropertyValue('--archify-nav-reserve')) || 0,
+      reserve: parseFloat(getComputedStyle(panel).getPropertyValue('--schematics-nav-reserve')) || 0,
       rail: panel.getAttribute('data-nav-stage-rail'), rootRail: html.getAttribute('data-nav-stage-rail'),
-      readerWidth: html.style.getPropertyValue('--archify-reader-width'),
+      readerWidth: html.style.getPropertyValue('--schematics-reader-width'),
       reader: html.getAttribute('data-reader-layout'), overflow: html.getAttribute('data-reader-overflow'),
       readerFit: svg.getAttribute('data-reader-fit'), theme: html.getAttribute('data-theme'), preset: html.getAttribute('data-preset'),
       dimensions: [innerWidth, innerHeight, html.scrollWidth, html.scrollHeight, document.body.scrollWidth, document.body.scrollHeight],
@@ -92,12 +92,12 @@ const pageHelpers = `(() => {
     // The read-only oracle runs BEFORE any extra readiness API. Otherwise
     // legacy scheduling could repair a missed observer before it is noticed.
     const observation = await __jointOracle(immediate);
-    await Archify.readerLayout.whenStable();
-    await Archify.viewerChromeLayout.whenStable();
-    await Archify.readerLayout.whenStable();
-    await Archify.viewerChromeLayout.whenStable();
+    await Schematics.readerLayout.whenStable();
+    await Schematics.viewerChromeLayout.whenStable();
+    await Schematics.readerLayout.whenStable();
+    await Schematics.viewerChromeLayout.whenStable();
     const legacy = __jointRaw();
-    await Archify.layoutStability.whenStable();
+    await Schematics.layoutStability.whenStable();
     const second = __jointRaw();
     return { immediate, later: observation.raw, firstDeviation: observation.firstDeviation,
       legacy, second, errors: window.__jointErrors || [] };
@@ -139,17 +139,17 @@ const observerCounters = `(() => {
 })()`;
 
 test('one joint wait preserves real Reader/Chrome convergence at the CLI boundary', {
-  skip: chrome ? false : 'Set ARCHIFY_CHROME to run the real joint-layout browser regression.',
+  skip: chrome ? false : 'Set SCHEMATICS_CHROME to run the real joint-layout browser regression.',
 }, async (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-joint-layout-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-joint-layout-'));
   const records = [];
-  const evidence = process.env.ARCHIFY_JOINT_LAYOUT_EVIDENCE;
+  const evidence = process.env.SCHEMATICS_JOINT_LAYOUT_EVIDENCE;
   if (evidence) fs.mkdirSync(evidence, { recursive: true });
   let browser;
   try {
     function render(name, input, repoRoot) {
       const file = path.join(scratch, `${name}.html`);
-      execFileSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'),
+      execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'),
         'render', 'architecture', path.resolve(skillRoot, input), file,
         ...(repoRoot ? ['--repo-root', repoRoot] : [])], { stdio: 'pipe' });
       return file;
@@ -162,7 +162,7 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
     const git = (...args) => execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
     git('init');
     git('add', 'source.js');
-    git('-c', 'user.name=Archify Tests', '-c', 'user.email=archify@example.test', '-c', 'commit.gpgsign=false', 'commit', '-m', 'source fixture');
+    git('-c', 'user.name=Schematics Tests', '-c', 'user.email=schematics@example.test', '-c', 'commit.gpgsign=false', 'commit', '-m', 'source fixture');
     git('remote', 'add', 'origin', 'https://github.com/example/evidence-repo');
     const wideSource = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples/web-app.architecture.json'), 'utf8'));
     wideSource.meta.repository = { url: 'https://github.com/example/evidence-repo', revision: git('rev-parse', 'HEAD') };
@@ -174,7 +174,7 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
     const pristine = new Map([wide, intrinsic].map(file => [file, fs.readFileSync(file, 'utf8')]));
     function variant(name, base, { before = '', after = '' } = {}) {
       let html = pristine.get(base);
-      const anchor = '  <script>\n    var Archify = {};';
+      const anchor = '  <script>\n    var Schematics = {};';
       assert.ok(html.includes(anchor), 'Viewer fixture anchor');
       if (before) html = html.replace(anchor, () => `  <script>${before}</script>\n${anchor}`);
       if (after) html = html.replace('</body>', () => `<script>${after}</script>\n</body>`);
@@ -218,7 +218,7 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
     async function joint(label, setup = '') {
       return compare(await evaluate(`(async () => {
         ${setup}
-        await Archify.layoutStability.whenStable();
+        await Schematics.layoutStability.whenStable();
         const immediate = __jointRaw();
         return __jointCompare(immediate);
       })()`, true), label);
@@ -271,7 +271,7 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
         };
         HTMLAnchorElement.prototype.click = function() {};
         try {
-          await Archify.exportMenu.run('svg');
+          await Schematics.exportMenu.run('svg');
           if (!svg) throw new Error('Canonical SVG export was not captured');
           return { text: await svg.text(), canonical: document.documentElement.getAttribute('data-last-export-canonical') };
         } finally { URL.createObjectURL = create; HTMLAnchorElement.prototype.click = click; }
@@ -282,13 +282,13 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
       const instrumented = variant('cli', intrinsic, { after: `
         ${helperSetupAssertion}
         window.__jointCalls = { joint: 0, chrome: 0 };
-        const joint = Archify.layoutStability.whenStable;
-        const chrome = Archify.viewerChromeLayout.whenStable;
-        Archify.layoutStability.whenStable = function() {
+        const joint = Schematics.layoutStability.whenStable;
+        const chrome = Schematics.viewerChromeLayout.whenStable;
+        Schematics.layoutStability.whenStable = function() {
           __jointCalls.joint++;
           return joint().then(result => { window.__jointAtResolution = __jointRaw(); return result; });
         };
-        Archify.viewerChromeLayout.whenStable = function() { __jointCalls.chrome++; return chrome(); };
+        Schematics.viewerChromeLayout.whenStable = function() { __jointCalls.chrome++; return chrome(); };
       ` });
       const states = [];
       let reservedCliStates = 0;
@@ -328,7 +328,7 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
       const before = await joint('feedback-before');
       clearStage(before, 'feedback-before');
       assert.equal(before.reader, 'adaptive');
-      const sourcePayload = before.payloads.find(([id]) => id === 'archify-source-evidence-data');
+      const sourcePayload = before.payloads.find(([id]) => id === 'schematics-source-evidence-data');
       assert.ok(sourcePayload, 'fixture has embedded verified source evidence');
       assert.equal(JSON.parse(sourcePayload[1]).verified, true);
       const exportedBefore = await canonicalExport();
@@ -361,23 +361,23 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
         await load();
         const before = await joint(`probe-before-${reject}`);
         const result = await evaluate(`(async () => {
-          const original = Archify.readerLayout.whenStable;
+          const original = Schematics.readerLayout.whenStable;
           let release;
           const gate = new Promise((resolve, reject) => { release = ${reject} ? () => reject(new Error('held reader probe')) : resolve; });
-          Archify.readerLayout.whenStable = () => gate;
+          Schematics.readerLayout.whenStable = () => gate;
           try {
-            const first = Archify.viewerChromeLayout.reprobe();
-            const second = Archify.viewerChromeLayout.reprobe();
+            const first = Schematics.viewerChromeLayout.reprobe();
+            const second = Schematics.viewerChromeLayout.reprobe();
             let resolved = false;
-            const waiting = Archify.layoutStability.whenStable().then(() => { resolved = true; return __jointRaw(); });
+            const waiting = Schematics.layoutStability.whenStable().then(() => { resolved = true; return __jointRaw(); });
             await __jointFrames(12);
             const pending = { resolved, same: first === second,
-              reserve: document.querySelector('.diagram-container').style.getPropertyValue('--archify-nav-reserve') };
-            Archify.readerLayout.whenStable = original;
+              reserve: document.querySelector('.diagram-container').style.getPropertyValue('--schematics-nav-reserve') };
+            Schematics.readerLayout.whenStable = original;
             release();
             const immediate = await waiting;
             return { pending, probeResult: await first, comparisons: await __jointCompare(immediate) };
-          } finally { Archify.readerLayout.whenStable = original; release(); }
+          } finally { Schematics.readerLayout.whenStable = original; release(); }
         })()`, true);
         assert.deepEqual(result.pending, { resolved: false, same: true, reserve: '' });
         assert.equal(result.probeResult, true);
@@ -396,7 +396,7 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
       await load(delayed);
       const result = await evaluate(`(async () => {
         let resolved = false;
-        const waiting = Archify.layoutStability.whenStable().then(() => { resolved = true; return __jointRaw(); });
+        const waiting = Schematics.layoutStability.whenStable().then(() => { resolved = true; return __jointRaw(); });
         document.querySelector('.diagram-nav').style.height = '100px';
         document.querySelector('.cards').style.minHeight = '450px';
         await __jointFrames(12);
@@ -418,7 +418,7 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
       // The final bundled face is the Latin subset, including the title text.
       const encoded = [...pristine.get(wide).matchAll(/data:font\/woff2;base64,([A-Za-z0-9+/=]+)/g)].at(-1)?.[1];
       assert.ok(encoded, 'use the artifact own bundled WOFF2 bytes');
-      await send('Fetch.enable', { patterns: [{ urlPattern: 'https://archify-joint-font.test/*', resourceType: 'Font', requestStage: 'Request' }] });
+      await send('Fetch.enable', { patterns: [{ urlPattern: 'https://schematics-joint-font.test/*', resourceType: 'Font', requestStage: 'Request' }] });
       const requested = browser.cdp.waitFor('Fetch.requestPaused', session);
       // Observe both outcomes immediately so a request timeout cannot become an
       // unhandled rejection if a preceding page assertion fails.
@@ -426,7 +426,7 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
       try {
         const held = await evaluate(`(async () => {
           const run = window.__jointFontRun = { resolved: false };
-          run.ready = Archify.layoutStability.whenStable().then(() => {
+          run.ready = Schematics.layoutStability.whenStable().then(() => {
             run.resolved = true;
             run.immediate = __jointRaw();
             run.faceAtResolution = run.face.status;
@@ -434,7 +434,7 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
           });
           await __jointFrames(1);
           run.resolvedAtStart = run.resolved;
-          run.face = new FontFace('JointLateFont', 'url("https://archify-joint-font.test/native.woff2")');
+          run.face = new FontFace('JointLateFont', 'url("https://schematics-joint-font.test/native.woff2")');
           document.fonts.add(run.face);
           document.querySelector('.header h1').style.fontFamily = 'JointLateFont, monospace';
           run.loaded = run.face.load().then(() => {
@@ -481,7 +481,7 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
         if (mode === 'print') {
           await send('Emulation.setEmulatedMedia', { media: 'print' });
           await evaluate(`dispatchEvent(new Event('beforeprint'))`);
-        } else await evaluate(mode === 'present' ? 'Archify.presentation.enter()'
+        } else await evaluate(mode === 'present' ? 'Schematics.presentation.enter()'
           : `document.documentElement.setAttribute('data-embed', 'true')`);
         const entered = await joint(`${mode}-entered`);
         assert.equal(entered.reader, null);
@@ -489,7 +489,7 @@ test('one joint wait preserves real Reader/Chrome convergence at the CLI boundar
         if (mode === 'print') {
           await send('Emulation.setEmulatedMedia', { media: '' });
           await evaluate(`dispatchEvent(new Event('afterprint'))`);
-        } else await evaluate(mode === 'present' ? 'Archify.presentation.exit()'
+        } else await evaluate(mode === 'present' ? 'Schematics.presentation.exit()'
           : `document.documentElement.removeAttribute('data-embed')`);
         const returned = await joint(`${mode}-returned`);
         clearStage(returned, `${mode} return`);

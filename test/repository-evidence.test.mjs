@@ -4,8 +4,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { startPreview } from '../archify/bin/preview.mjs';
-import { verifyRepositoryEvidence } from '../archify/renderers/shared/repository-evidence.mjs';
+import { startPreview } from '../schematics/bin/preview.mjs';
+import { verifyRepositoryEvidence } from '../schematics/renderers/shared/repository-evidence.mjs';
 import { skillRoot, cli, git, fixture, run, evidencePayload } from './helpers/repository-evidence-fixture.mjs';
 
 // Address variants exercise the same real Git verifier. Keep representative
@@ -142,7 +142,7 @@ test('repository root rejects a different physical directory inside the reposito
   const data = fixture();
   assert.throws(
     () => verifyRepositoryEvidence('architecture', data.diagram, path.join(data.root, 'src')),
-    (error) => error?.archifyDiagnostics?.some(({ code }) => code === 'repository-evidence/root-not-top-level'),
+    (error) => error?.schematicsDiagnostics?.some(({ code }) => code === 'repository-evidence/root-not-top-level'),
   );
 });
 
@@ -152,7 +152,7 @@ test('repository url carrying a local path names the origin-discovery fix', () =
   assert.throws(
     () => verifyRepositoryEvidence('architecture', data.diagram, data.root),
     (error) => {
-      const diagnostic = error?.archifyDiagnostics?.find(({ code }) => code === 'repository-evidence/url-invalid');
+      const diagnostic = error?.schematicsDiagnostics?.find(({ code }) => code === 'repository-evidence/url-invalid');
       assert.ok(diagnostic);
       assert.equal(diagnostic.evidence.authoredValueLooksLike, 'local filesystem path; the expected value is the remote origin address');
       assert.ok(diagnostic.supportedFixes.some((fix) => fix.includes('git remote get-url origin')));
@@ -165,7 +165,7 @@ test('repository url carrying a local path names the origin-discovery fix', () =
   assert.throws(
     () => verifyRepositoryEvidence('architecture', data.diagram, data.root),
     (error) => {
-      const diagnostic = error?.archifyDiagnostics?.find(({ code }) => code === 'repository-evidence/url-invalid');
+      const diagnostic = error?.schematicsDiagnostics?.find(({ code }) => code === 'repository-evidence/url-invalid');
       assert.ok(diagnostic);
       assert.equal(diagnostic.evidence.authoredValueLooksLike, undefined);
       return true;
@@ -180,7 +180,7 @@ test('repository URL diagnostics identify Windows local paths without echoing th
     assert.throws(
       () => verifyRepositoryEvidence('architecture', data.diagram, data.root),
       (error) => {
-        const diagnostic = error?.archifyDiagnostics?.find(({ code }) => code === 'repository-evidence/url-invalid');
+        const diagnostic = error?.schematicsDiagnostics?.find(({ code }) => code === 'repository-evidence/url-invalid');
         assert.ok(diagnostic);
         assert.match(diagnostic.evidence.authoredValueLooksLike, /local filesystem path/);
         assert.ok(diagnostic.supportedFixes.some((fix) => fix.includes('git remote get-url origin')));
@@ -199,7 +199,7 @@ test('repository root fails closed when physical identity is indeterminate', (t)
   assert.throws(
     () => verifyRepositoryEvidence('architecture', data.diagram, data.root),
     (error) => {
-      const diagnostic = error?.archifyDiagnostics?.find(
+      const diagnostic = error?.schematicsDiagnostics?.find(
         ({ code }) => code === 'repository-evidence/root-identity-indeterminate',
       );
       assert.ok(diagnostic);
@@ -564,11 +564,11 @@ test('repository evidence is revision-verified, receipt-backed, searchable, and 
   assert.equal(evidence.nodes.users.length, 2);
   assert.equal(evidence.nodes.users[0].href, `https://github.com/example/evidence-repo/blob/${data.revision}/src/router.js#L1-L3`);
   assert.match(html, /Verified source/);
-  assert.match(html, /Archify\.sourceEvidence = \(function \(\)/);
+  assert.match(html, /Schematics\.sourceEvidence = \(function \(\)/);
   assert.match(html, /var sourceSearch = sources\.map/);
   assert.match(html, /renderSourceEvidence\(id\)/);
   assert.match(html, /referrerPolicy = 'no-referrer'/);
-  assert.doesNotMatch(html, /Archify\.sourceEvidence\.installBeacons\(\)|classList\.add\('source-evidence-beacon'\)/);
+  assert.doesNotMatch(html, /Schematics\.sourceEvidence\.installBeacons\(\)|classList\.add\('source-evidence-beacon'\)/);
   assert.match(html, /querySelectorAll\('\[data-source-evidence-beacon\]'\)/);
   assert.match(html, /data-source-evidence-original-label/);
 
@@ -577,12 +577,12 @@ test('repository evidence is revision-verified, receipt-backed, searchable, and 
 });
 
 test('repository evidence is opt-in and never appears in ordinary artifacts', () => {
-  const output = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'archify-no-evidence-')), 'plain.html');
+  const output = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-no-evidence-')), 'plain.html');
   const input = path.join(skillRoot, 'examples', 'web-app.architecture.json');
   const result = run(['render', 'architecture', input, output]);
   assert.equal(result.status, 0, result.stderr);
   const html = fs.readFileSync(output, 'utf8');
-  assert.doesNotMatch(html, /id="archify-source-evidence-data"/);
+  assert.doesNotMatch(html, /id="schematics-source-evidence-data"/);
   assert.match(html, /id="focus-evidence" hidden/);
   const svg = html.match(/<svg\b[\s\S]*?<\/svg>/)?.[0] || '';
   assert.doesNotMatch(svg, /source-evidence-beacon|data-source-evidence-count/);

@@ -4,14 +4,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {parseExplainerDiff} from '../archify/explainer/diff.mjs';
-import {parseExplainer} from '../archify/explainer/parse.mjs';
-import {validateExplainer} from '../archify/explainer/validate.mjs';
+import {parseExplainerDiff} from '../schematics/explainer/diff.mjs';
+import {parseExplainer} from '../schematics/explainer/parse.mjs';
+import {validateExplainer} from '../schematics/explainer/validate.mjs';
 
 const reconstruction=result=>result.rows.map(row=>row.raw+row.ending).join('');
 
 test('real git unified diff preserves bytes, real line numbers, file changes and git numstat counts',()=>{
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'archify-diff-'));
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'schematics-diff-'));
   const git=(...args)=>execFileSync('git',['-C',dir,...args],{encoding:'utf8'});
   try {
     git('init','--quiet');

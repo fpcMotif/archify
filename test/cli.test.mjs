@@ -10,12 +10,12 @@ import { extractSvgs, parseXml } from './helpers/xml.mjs';
 import { bipartiteArchitectureSpec } from './helpers/dense-fixture.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-cli-'));
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-cli-'));
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 
 test.afterEach(() => {
-  fs.rmSync(path.join(tmp, '.archify-delivery-lock.json'), { force: true });
+  fs.rmSync(path.join(tmp, '.schematics-delivery-lock.json'), { force: true });
 });
 
 function run(args, options = {}) {
@@ -68,7 +68,7 @@ function deliveryLockPath(file) {
       directory = path.dirname(artifact);
     }
   }
-  return path.join(directory, '.archify-delivery-lock.json');
+  return path.join(directory, '.schematics-delivery-lock.json');
 }
 
 function legacyDeliveryLockPath(file) {
@@ -77,7 +77,7 @@ function legacyDeliveryLockPath(file) {
 
 function deliveryStagingEntries(directory) {
   return fs.readdirSync(directory, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name.startsWith('.archify-delivery-'))
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith('.schematics-delivery-'))
     .map((entry) => entry.name)
     .sort();
 }
@@ -135,7 +135,7 @@ function makeFakeOpeners(name, { exitCode = 0 } = {}) {
   const source = `#!/usr/bin/env node
 const fs = require('node:fs');
 const target = process.argv[process.argv.length - 1];
-fs.writeFileSync(process.env.ARCHIFY_TEST_OPEN_LOG, JSON.stringify({
+fs.writeFileSync(process.env.SCHEMATICS_TEST_OPEN_LOG, JSON.stringify({
   argv: process.argv.slice(2),
   target,
   existed: fs.existsSync(target),
@@ -152,7 +152,7 @@ process.exit(${exitCode});
     env: {
       ...process.env,
       PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
-      ARCHIFY_TEST_OPEN_LOG: log,
+      SCHEMATICS_TEST_OPEN_LOG: log,
     },
   };
 }
@@ -175,24 +175,24 @@ function copyInstalledSkill(target) {
 test('cli: help lists commands and diagram types', () => {
   const result = run(['--help']);
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /archify render <type>/);
-  assert.match(result.stdout, /archify compare architecture <base\.json> <head\.json>/);
-  assert.match(result.stdout, /archify deliver <type>/);
-  assert.match(result.stdout, /archify finalize <type>/);
-  assert.match(result.stdout, /archify preview <diagram-type \(excludes explainer\)>/);
-  assert.match(result.stdout, /archify browser-check <output\.html>/);
-  assert.match(result.stdout, /archify visual-check <output\.html>/);
+  assert.match(result.stdout, /schematics render <type>/);
+  assert.match(result.stdout, /schematics compare architecture <base\.json> <head\.json>/);
+  assert.match(result.stdout, /schematics deliver <type>/);
+  assert.match(result.stdout, /schematics finalize <type>/);
+  assert.match(result.stdout, /schematics preview <diagram-type \(excludes explainer\)>/);
+  assert.match(result.stdout, /schematics browser-check <output\.html>/);
+  assert.match(result.stdout, /schematics visual-check <output\.html>/);
   assert.match(result.stdout, /--open/);
-  assert.match(result.stdout, /archify validate <type> <input\.json> .*\[--repo-root path\]/);
+  assert.match(result.stdout, /schematics validate <type> <input\.json> .*\[--repo-root path\]/);
   assert.doesNotMatch(result.stdout, /architecture only/);
-  assert.match(result.stdout, /archify guide \[scenario or question\]/);
-  assert.match(result.stdout, /archify doctor/);
-  assert.match(result.stdout, /archify demo \[output-directory\]/);
+  assert.match(result.stdout, /schematics guide \[scenario or question\]/);
+  assert.match(result.stdout, /schematics doctor/);
+  assert.match(result.stdout, /schematics demo \[output-directory\]/);
   assert.match(result.stdout, /architecture, workflow, sequence, dataflow, lifecycle/);
 });
 
 test('cli: sole subcommand --help returns canonical usage without operations', (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-cli-help-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-cli-help-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const global = run(['--help'], { cwd: scratch });
   assert.equal(global.status, 0, global.stderr);
@@ -247,16 +247,16 @@ test('cli: doctor reports a complete installation is ready', () => {
   assert.match(result.stdout, /\[ok\] Standalone schema validators/);
   assert.match(result.stdout, /\[ok\] architecture renderer, schema, and example/);
   assert.match(result.stdout, /\[ok\] lifecycle renderer, schema, and example/);
-  assert.match(result.stdout, /Archify is ready\./);
+  assert.match(result.stdout, /Schematics is ready\./);
 });
 
 test('cli: doctor identifies an incomplete installation', () => {
   const incompleteRoot = path.join(tmp, 'incomplete-skill');
   const incompleteBin = path.join(incompleteRoot, 'bin');
   fs.mkdirSync(incompleteBin, { recursive: true });
-  fs.copyFileSync(cli, path.join(incompleteBin, 'archify.mjs'));
+  fs.copyFileSync(cli, path.join(incompleteBin, 'schematics.mjs'));
 
-  const result = spawnSync(process.execPath, [path.join(incompleteBin, 'archify.mjs'), 'doctor'], {
+  const result = spawnSync(process.execPath, [path.join(incompleteBin, 'schematics.mjs'), 'doctor'], {
     cwd: incompleteRoot,
     encoding: 'utf8',
   });
@@ -265,7 +265,7 @@ test('cli: doctor identifies an incomplete installation', () => {
   assert.match(result.stdout, /\[missing\] Core template/);
   assert.match(result.stdout, /\[missing\] Scenario recipe guide/);
   assert.match(result.stdout, /\[missing\] workflow renderer, schema, and example/);
-  assert.match(result.stderr, /Archify is not ready: \d+ required files? missing\./);
+  assert.match(result.stderr, /Schematics is not ready: \d+ required files? missing\./);
 });
 
 test('cli: doctor rejects a corrupt standalone validator', () => {
@@ -273,21 +273,21 @@ test('cli: doctor rejects a corrupt standalone validator', () => {
   copyInstalledSkill(corruptRoot);
   fs.writeFileSync(path.join(corruptRoot, 'renderers/shared/generated-validators.mjs'), 'export const workflow = ;\n');
 
-  const result = spawnSync(process.execPath, [path.join(corruptRoot, 'bin/archify.mjs'), 'doctor'], {
+  const result = spawnSync(process.execPath, [path.join(corruptRoot, 'bin/schematics.mjs'), 'doctor'], {
     cwd: corruptRoot,
     encoding: 'utf8',
   });
 
   assert.equal(result.status, 1);
   assert.match(result.stdout, /\[invalid\] Standalone schema validators/);
-  assert.match(result.stderr, /Archify is not ready: 1 runtime check failed\./);
+  assert.match(result.stderr, /Schematics is not ready: 1 runtime check failed\./);
 });
 
 test('cli: examples renders from an installed skill', () => {
   const installedRoot = path.join(tmp, 'installed-skill');
   copyInstalledSkill(installedRoot);
 
-  const result = spawnSync(process.execPath, [path.join(installedRoot, 'bin/archify.mjs'), 'examples'], {
+  const result = spawnSync(process.execPath, [path.join(installedRoot, 'bin/schematics.mjs'), 'examples'], {
     cwd: installedRoot,
     encoding: 'utf8',
   });
@@ -320,7 +320,7 @@ test('cli: guide lists all scenario recipes by diagram type', () => {
   const result = run(['guide']);
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /Archify scenario recipes \(13\)/);
+  assert.match(result.stdout, /Schematics scenario recipes \(13\)/);
   for (const type of ['architecture', 'workflow', 'sequence', 'dataflow', 'lifecycle', 'erd']) {
     assert.match(result.stdout, new RegExp(`\\[${type}\\]`));
   }
@@ -351,7 +351,7 @@ test('cli: guide detects Chinese and explains the recommendation boundary', () =
 test('cli: guide works from an installed skill without node_modules', () => {
   const installedRoot = path.join(tmp, 'installed-guide-skill');
   copyInstalledSkill(installedRoot);
-  const installedCli = path.join(installedRoot, 'bin/archify.mjs');
+  const installedCli = path.join(installedRoot, 'bin/schematics.mjs');
 
   const result = spawnSync(process.execPath, [installedCli, 'guide', 'incident-runbook', '--json'], {
     cwd: installedRoot,
@@ -396,7 +396,7 @@ test('cli: guide prints localized repair advice, including an explicit language 
 
 test('cli: demo creates a ready-to-open diagram in a chosen directory', () => {
   const outputDirectory = path.join(tmp, 'my-demo');
-  const output = path.join(outputDirectory, 'archify-demo.html');
+  const output = path.join(outputDirectory, 'schematics-demo.html');
   const result = run(['demo', outputDirectory]);
 
   assert.equal(result.status, 0, result.stderr);
@@ -404,7 +404,7 @@ test('cli: demo creates a ready-to-open diagram in a chosen directory', () => {
   assert.match(fs.readFileSync(output, 'utf8'), /Sample Web App Diagram/);
   assert.match(result.stdout, new RegExp(`Demo ready: ${output.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
   assert.match(result.stdout, /Next: open the HTML in your browser/);
-  assert.match(result.stdout, /archify render architecture/);
+  assert.match(result.stdout, /schematics render architecture/);
 });
 
 test('cli: demo defaults to the current directory', () => {
@@ -413,7 +413,7 @@ test('cli: demo defaults to the current directory', () => {
   const result = run(['demo'], { cwd: workingDirectory });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(fs.existsSync(path.join(workingDirectory, 'archify-demo.html')), true);
+  assert.equal(fs.existsSync(path.join(workingDirectory, 'schematics-demo.html')), true);
 });
 
 test('cli: demo rejects a mistyped option without creating an output directory', () => {
@@ -441,7 +441,7 @@ test('cli: visual-check returns a skipped receipt with exit 2 when Chrome is una
   fs.writeFileSync(out, '<!doctype html><html><body>delivered</body></html>');
   const missingChrome = path.join(tmp, 'missing-chrome');
   const result = run(['visual-check', out, '--json'], {
-    env: { ...process.env, ARCHIFY_CHROME: missingChrome },
+    env: { ...process.env, SCHEMATICS_CHROME: missingChrome },
   });
 
   assert.equal(result.status, 2, result.stderr || result.stdout);
@@ -458,7 +458,7 @@ test('cli: browser-check returns deterministic evidence without requesting perce
   fs.writeFileSync(out, '<!doctype html><html><body>delivered</body></html>');
   const missingChrome = path.join(tmp, 'missing-browser-check-chrome');
   const result = run(['browser-check', out, '--json'], {
-    env: { ...process.env, ARCHIFY_CHROME: missingChrome },
+    env: { ...process.env, SCHEMATICS_CHROME: missingChrome },
   });
 
   assert.equal(result.status, 2, result.stderr || result.stdout);
@@ -481,7 +481,7 @@ test('cli: finalize emits one compact receipt and keeps complete stage evidence 
   const result = run([
     'finalize', 'architecture', input, out,
     '--quality', 'showcase', '--json', '--out-dir', outDir,
-  ], { env: { ...process.env, ARCHIFY_CHROME: missingChrome } });
+  ], { env: { ...process.env, SCHEMATICS_CHROME: missingChrome } });
 
   assert.equal(result.status, 2, result.stderr || result.stdout);
   assert.equal(result.stdout.trim().split('\n').length, 1, 'agent stdout stays compact');
@@ -509,7 +509,7 @@ test('cli: visual-check summary preserves skipped and failed evidence without cl
   fs.writeFileSync(out, '<!doctype html><html><body>delivered</body></html>');
   const outDir = path.join(tmp, 'visual-summary-evidence');
   const result = run(['visual-check', out, '--summary', '--out-dir', outDir], {
-    env: { ...process.env, ARCHIFY_CHROME: path.join(tmp, 'summary-missing-chrome') },
+    env: { ...process.env, SCHEMATICS_CHROME: path.join(tmp, 'summary-missing-chrome') },
   });
   assert.equal(result.status, 2, result.stderr || result.stdout);
   assert.equal(result.stdout.trim().split('\n').length, 1);
@@ -539,7 +539,7 @@ test('cli: visual-check --out-dir writes the receipt into that directory, not be
   const missingChrome = path.join(tmp, 'missing-chrome-outdir');
   const outDir = path.join(tmp, 'visual-check-outdir-evidence');
   const result = run(['visual-check', out, '--json', '--out-dir', outDir], {
-    env: { ...process.env, ARCHIFY_CHROME: missingChrome },
+    env: { ...process.env, SCHEMATICS_CHROME: missingChrome },
   });
 
   assert.equal(result.status, 2, result.stderr || result.stdout);
@@ -583,7 +583,7 @@ test('cli: visual-check rejects an invalid raw --out-dir before filesystem mutat
     'visual-check', out, '--json', '--out-dir', invalidOutDir,
   ], {
     cwd: workingDirectory,
-    env: { ...process.env, ARCHIFY_CHROME: missingChrome },
+    env: { ...process.env, SCHEMATICS_CHROME: missingChrome },
   });
 
   assert.equal(result.status, 1, result.stderr || result.stdout);
@@ -614,7 +614,7 @@ test('cli: visual-check describes human output as automated browser evidence, no
   fs.writeFileSync(out, '<!doctype html><html><body>delivered</body></html>');
   const missingChrome = path.join(tmp, 'missing-browser-evidence-chrome');
   const result = run(['visual-check', out], {
-    env: { ...process.env, ARCHIFY_CHROME: missingChrome },
+    env: { ...process.env, SCHEMATICS_CHROME: missingChrome },
   });
 
   assert.equal(result.status, 2, result.stderr || result.stdout);
@@ -729,7 +729,7 @@ test('cli: deliver failure never invokes the optional opener', {
 test('cli: a missing optional opener module preserves verified delivery with a fallback receipt', () => {
   const installedRoot = path.join(tmp, 'missing-open-module-skill');
   copyInstalledSkill(installedRoot);
-  const installedCli = path.join(installedRoot, 'bin/archify.mjs');
+  const installedCli = path.join(installedRoot, 'bin/schematics.mjs');
   fs.rmSync(path.join(installedRoot, 'bin/open-artifact.mjs'));
   const input = path.join(installedRoot, 'examples/agent-tool-call.workflow.json');
   const out = path.join(tmp, 'missing-open-module-delivery.html');
@@ -770,7 +770,7 @@ test('cli: deliver preserves the renderer default output contract', () => {
 test('cli: deliver works from an installed skill without node_modules', () => {
   const installedRoot = path.join(tmp, 'installed-deliver-skill');
   copyInstalledSkill(installedRoot);
-  const installedCli = path.join(installedRoot, 'bin/archify.mjs');
+  const installedCli = path.join(installedRoot, 'bin/schematics.mjs');
   const cases = [
     ['architecture-boundaries', 'architecture', 'production-deployment.architecture.json'],
     ['architecture-issue-110', 'architecture', 'brand-aware-delivery.architecture.json'],
@@ -817,7 +817,7 @@ test('cli: deliver XML guard parses markup instead of scanning attribute-like te
 test('cli: preview runs from an installed skill without node_modules and exits cleanly', { timeout: 30000 }, async () => {
   const installedRoot = path.join(tmp, 'installed-preview-skill');
   copyInstalledSkill(installedRoot);
-  const installedCli = path.join(installedRoot, 'bin/archify.mjs');
+  const installedCli = path.join(installedRoot, 'bin/schematics.mjs');
   const input = path.join(installedRoot, 'examples/web-app.architecture.json');
   const output = path.join(tmp, 'installed-preview.html');
   // Windows child.kill() terminates immediately, bypassing the signal handler.
@@ -860,13 +860,13 @@ test('cli: preview runs from an installed skill without node_modules and exits c
   assert.deepEqual(exit, { code: 0, signal: null });
   assert.match(stdout, /stopping preview/);
   await assert.rejects(fetch(previewUrl));
-  assert.deepEqual(fs.readdirSync(path.dirname(output)).filter((name) => name.startsWith('.archify-preview-')), []);
+  assert.deepEqual(fs.readdirSync(path.dirname(output)).filter((name) => name.startsWith('.schematics-preview-')), []);
 });
 
 test('cli: deliver preserves the previous artifact when the final check fails', () => {
   const installedRoot = path.join(tmp, 'broken-deliver-skill');
   copyInstalledSkill(installedRoot);
-  const installedCli = path.join(installedRoot, 'bin/archify.mjs');
+  const installedCli = path.join(installedRoot, 'bin/schematics.mjs');
   const templatePath = path.join(installedRoot, 'assets/template.html');
   const template = fs.readFileSync(templatePath, 'utf8');
   fs.writeFileSync(templatePath, template.replace('</body>', '<svg aria-label="accidental second svg"></svg>\n</body>'));
@@ -891,7 +891,7 @@ test('cli: deliver preserves the previous artifact when the final check fails', 
   assert.equal(failure.checker.checks.find((entry) => entry.name === 'single_svg').ok, false);
   assert.equal(fs.readFileSync(out, 'utf8'), trustedPriorArtifact);
   assert.deepEqual(
-    fs.readdirSync(path.dirname(out)).filter((name) => name.includes('.archify-delivery-')),
+    fs.readdirSync(path.dirname(out)).filter((name) => name.includes('.schematics-delivery-')),
     [],
   );
 });
@@ -936,7 +936,7 @@ childProcess.spawnSync = (executable, childArgs, options) => {
     return {
       status: 0,
       signal: null,
-      stdout: JSON.stringify({ contract: 'archify.renderer.failure.v1', diagnostics: [] }),
+      stdout: JSON.stringify({ contract: 'schematics.renderer.failure.v1', diagnostics: [] }),
       stderr: '',
       error: Object.assign(new Error('buffer exceeded'), { code: 'ENOBUFS' }),
     };
@@ -968,7 +968,7 @@ test('cli: finalize passes a dense artifact whose receipts are megabytes', { tim
     'finalize', 'architecture', input, out,
     '--quality', 'standard', '--json', '--out-dir', outDir,
   ], {
-    env: { ...process.env, ARCHIFY_CHROME: missingChrome },
+    env: { ...process.env, SCHEMATICS_CHROME: missingChrome },
   });
 
   assert.equal(result.status, 2, result.stderr || result.stdout);
@@ -1135,7 +1135,7 @@ fs.renameSync = (source, target) => {
   if (${JSON.stringify(failureMode)} !== 'journal-read'
       && pairCommitted
       && String(source) === ${JSON.stringify(deliveryPendingPath(out))}
-      && path.basename(path.dirname(String(target))).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(String(target))).startsWith('.schematics-remove-')) {
     throw Object.assign(new Error('injected journal finalization failure'), { code: 'EACCES' });
   }
   return renameSync(source, target);
@@ -1285,9 +1285,9 @@ const unlinkSync = fs.unlinkSync;
 fs.unlinkSync = (target, ...args) => {
   const result = unlinkSync(target, ...args);
   const parent = path.dirname(String(target));
-  const retirementDirectory = path.basename(parent).startsWith('.archify-provenance-')
-    || (path.basename(parent).startsWith('.archify-remove-')
-      && path.basename(path.dirname(parent)).startsWith('.archify-provenance-'));
+  const retirementDirectory = path.basename(parent).startsWith('.schematics-provenance-')
+    || (path.basename(parent).startsWith('.schematics-remove-')
+      && path.basename(path.dirname(parent)).startsWith('.schematics-provenance-'));
   if (path.basename(String(target)) === ${JSON.stringify(path.basename(pendingPath))}
       && retirementDirectory) {
     process.exit(86);
@@ -1459,7 +1459,7 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
 import fs from 'node:fs';
 const mkdtempSync = fs.mkdtempSync;
 fs.mkdtempSync = (prefix, options) => {
-  if (String(prefix).endsWith('.archify-delivery-')) {
+  if (String(prefix).endsWith('.schematics-delivery-')) {
     const error = new Error('injected candidate setup failure');
     error.code = 'EACCES';
     throw error;
@@ -1508,7 +1508,7 @@ test('cli: portable delivery lock: a stale entry is preserved when a pre-lock fa
 import fs from 'node:fs';
 const mkdtempSync = fs.mkdtempSync;
 fs.mkdtempSync = (prefix, options) => {
-  if (String(prefix).endsWith('.archify-delivery-')) {
+  if (String(prefix).endsWith('.schematics-delivery-')) {
     const error = new Error('injected candidate setup failure');
     error.code = 'EACCES';
     throw error;
@@ -1660,7 +1660,7 @@ let replaced = false;
 fs.linkSync = (source, target) => {
   const result = linkSync(source, target);
   if (!replaced && String(target) === ${JSON.stringify(pendingPath)}
-      && path.basename(path.dirname(String(source))).startsWith('.archify-provenance-')) {
+      && path.basename(path.dirname(String(source))).startsWith('.schematics-provenance-')) {
     replaced = true;
     renameSync(${JSON.stringify(lockPath)}, ${JSON.stringify(`${lockPath}.lost-owner`)});
     writeFileSync(${JSON.stringify(lockPath)}, ${JSON.stringify(successorLock)});
@@ -1712,7 +1712,7 @@ fs.writeFileSync = (file, ...args) => {
   const result = writeFileSync(file, ...args);
   if (!successorInstalled
       && path.basename(String(file)) === ${JSON.stringify(path.basename(provenancePath))}
-      && path.basename(path.dirname(String(file))).startsWith('.archify-provenance-')) {
+      && path.basename(path.dirname(String(file))).startsWith('.schematics-provenance-')) {
     successorInstalled = true;
     renameSync(${JSON.stringify(lockPath)}, ${JSON.stringify(`${lockPath}.owner-a`)});
     writeFileSync(${JSON.stringify(lockPath)}, ${JSON.stringify(successor.lock)}, { flag: 'wx' });
@@ -1764,7 +1764,7 @@ let replaced = false;
 fs.writeFileSync = (file, ...args) => {
   const result = writeFileSync(file, ...args);
   if (!replaced && path.basename(String(file)) === ${JSON.stringify(path.basename(pendingPath))}
-      && path.basename(path.dirname(String(file))).startsWith('.archify-provenance-')) {
+      && path.basename(path.dirname(String(file))).startsWith('.schematics-provenance-')) {
     replaced = true;
     renameSync(${JSON.stringify(lockPath)}, ${JSON.stringify(`${lockPath}.owner-a`)});
     writeFileSync(${JSON.stringify(lockPath)}, ${JSON.stringify(successor.lock)}, { flag: 'wx' });
@@ -1802,7 +1802,7 @@ test('cli: portable delivery lock: journal publish preserves a final-window clai
   const claimant = '{"claimant":"journal-final-window"}\n';
   const identityFile = path.join(tmp, 'journal-final-window-identity.json');
   const priorJournalStaging = fs.readdirSync(path.dirname(out))
-    .filter((name) => name.startsWith('.archify-provenance-'))
+    .filter((name) => name.startsWith('.schematics-provenance-'))
     .sort();
   const wrapper = path.join(tmp, 'journal-final-window-claimant.mjs');
   fs.writeFileSync(wrapper, `
@@ -1812,7 +1812,7 @@ const linkSync = fs.linkSync;
 let injected = false;
 fs.linkSync = (source, target) => {
   if (!injected && String(target) === ${JSON.stringify(pendingPath)}
-      && path.basename(path.dirname(String(source))).startsWith('.archify-provenance-')) {
+      && path.basename(path.dirname(String(source))).startsWith('.schematics-provenance-')) {
     injected = true;
     fs.writeFileSync(target, ${JSON.stringify(claimant)}, { flag: 'wx' });
     const identity = fs.lstatSync(target, { bigint: true });
@@ -1844,7 +1844,7 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
   assert.equal(fs.existsSync(lockPath), true);
   assert.deepEqual(
     fs.readdirSync(path.dirname(out))
-      .filter((name) => name.startsWith('.archify-provenance-'))
+      .filter((name) => name.startsWith('.schematics-provenance-'))
       .sort(),
     priorJournalStaging,
   );
@@ -1860,7 +1860,7 @@ test('cli: portable delivery lock: journal candidate retirement preserves a repl
   const claimantIdentityFile = path.join(tmp, 'journal-candidate-retirement-identity.json');
   const displacedCandidate = path.join(tmp, 'journal-candidate-retirement-displaced');
   const priorStaging = fs.readdirSync(path.dirname(out))
-    .filter((name) => name.startsWith('.archify-provenance-'))
+    .filter((name) => name.startsWith('.schematics-provenance-'))
     .sort();
   const wrapper = path.join(tmp, 'replace-journal-candidate-at-retirement.mjs');
   fs.writeFileSync(wrapper, `
@@ -1872,7 +1872,7 @@ const writeFileSync = fs.writeFileSync;
 let replaced = false;
 const isCandidate = (file) => (
   path.basename(String(file)) === ${JSON.stringify(candidateName)}
-  && path.basename(path.dirname(String(file))).startsWith('.archify-provenance-')
+  && path.basename(path.dirname(String(file))).startsWith('.schematics-provenance-')
 );
 const replaceCandidate = (file) => {
   replaced = true;
@@ -1891,7 +1891,7 @@ fs.unlinkSync = (file, ...args) => {
 fs.renameSync = (source, target, ...args) => {
   if (!replaced
       && isCandidate(source)
-      && path.basename(path.dirname(String(target))).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(String(target))).startsWith('.schematics-remove-')) {
     replaceCandidate(source);
   }
   return renameSync(source, target, ...args);
@@ -1903,7 +1903,7 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
   const failed = spawnSync(process.execPath, [wrapper], { cwd: skillRoot, encoding: 'utf8' });
   assert.equal(failed.status, 1, failed.stderr || failed.stdout);
   const staging = fs.readdirSync(path.dirname(out))
-    .filter((name) => name.startsWith('.archify-provenance-'))
+    .filter((name) => name.startsWith('.schematics-provenance-'))
     .filter((name) => !priorStaging.includes(name));
   assert.equal(staging.length, 1, failed.stderr || failed.stdout);
   const candidate = path.join(path.dirname(out), staging[0], candidateName);
@@ -1938,7 +1938,7 @@ const linkSync = fs.linkSync;
 let injected = false;
 fs.linkSync = (source, target) => {
   if (!injected && String(target) === ${JSON.stringify(pendingPath)}
-      && path.basename(path.dirname(String(source))).startsWith('.archify-provenance-')) {
+      && path.basename(path.dirname(String(source))).startsWith('.schematics-provenance-')) {
     injected = true;
     fs.writeFileSync(target, ${JSON.stringify(claimant)}, { flag: 'wx' });
     const identity = fs.lstatSync(target, { bigint: true });
@@ -2050,7 +2050,7 @@ const renameSync = fs.renameSync;
 let injected = false;
 fs.renameSync = (source, target) => {
   if (!injected && String(source) === ${JSON.stringify(publicPath)}
-      && path.basename(path.dirname(String(target))).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(String(target))).startsWith('.schematics-remove-')) {
     injected = true;
     renameSync(source, ${JSON.stringify(displacedOwner)});
     fs.writeFileSync(source, ${JSON.stringify(successor)}, { flag: 'wx' });
@@ -2111,7 +2111,7 @@ let replaced = false;
 fs.linkSync = (source, target) => {
   const result = linkSync(source, target);
   if (!replaced && String(target) === ${JSON.stringify(provenancePath)}
-      && path.basename(path.dirname(String(source))).startsWith('.archify-provenance-')) {
+      && path.basename(path.dirname(String(source))).startsWith('.schematics-provenance-')) {
     replaced = true;
     renameSync(${JSON.stringify(lockPath)}, ${JSON.stringify(`${lockPath}.owner-a`)});
     writeFileSync(${JSON.stringify(lockPath)}, ${JSON.stringify(successor.lock)}, { flag: 'wx' });
@@ -2163,7 +2163,7 @@ let replaced = false;
 fs.writeFileSync = (file, ...args) => {
   const result = writeFileSync(file, ...args);
   if (!replaced && path.basename(String(file)) === 'delivery-provenance.json'
-      && path.basename(path.dirname(String(file))).startsWith('.archify-delivery-')) {
+      && path.basename(path.dirname(String(file))).startsWith('.schematics-delivery-')) {
     replaced = true;
     renameSync(${JSON.stringify(lockPath)}, ${JSON.stringify(`${lockPath}.owner-a`)});
     writeFileSync(${JSON.stringify(lockPath)}, ${JSON.stringify(successor.lock)}, { flag: 'wx' });
@@ -2217,7 +2217,7 @@ const linkSync = fs.linkSync;
 let replaced = false;
 fs.linkSync = (source, target) => {
   if (!replaced && path.basename(String(source)) === 'delivery-provenance.json'
-      && path.basename(path.dirname(String(source))).startsWith('.archify-delivery-')) {
+      && path.basename(path.dirname(String(source))).startsWith('.schematics-delivery-')) {
     replaced = true;
     renameSync(${JSON.stringify(lockPath)}, ${JSON.stringify(`${lockPath}.owner-a`)});
     writeFileSync(${JSON.stringify(lockPath)}, ${JSON.stringify(successor.lock)}, { flag: 'wx' });
@@ -2280,7 +2280,7 @@ let replaced = false;
 fs.linkSync = (source, target) => {
   const result = linkSync(source, target);
   if (!replaced && path.basename(String(source)) === 'delivery-provenance.json'
-      && path.basename(path.dirname(String(source))).startsWith('.archify-delivery-')) {
+      && path.basename(path.dirname(String(source))).startsWith('.schematics-delivery-')) {
     replaced = true;
     renameSync(${JSON.stringify(lockPath)}, ${JSON.stringify(`${lockPath}.owner-a`)});
     writeFileSync(${JSON.stringify(lockPath)}, ${JSON.stringify(successor.lock)}, { flag: 'wx' });
@@ -2340,7 +2340,7 @@ let replaced = false;
 fs.renameSync = (source, target) => {
   const result = renameSync(source, target);
   if (String(source) === ${JSON.stringify(pendingPath)}
-      && path.basename(path.dirname(String(target))).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(String(target))).startsWith('.schematics-remove-')) {
     journalFinalized = true;
   }
   return result;
@@ -2409,7 +2409,7 @@ let journalRecreated = false;
 fs.renameSync = (source, target) => {
   const result = renameSync(source, target);
   if (String(source) === ${JSON.stringify(pendingPath)}
-      && path.basename(path.dirname(String(target))).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(String(target))).startsWith('.schematics-remove-')) {
     journalFinalized = true;
   }
   return result;
@@ -2461,7 +2461,7 @@ import path from 'node:path';
 const renameSync = fs.renameSync;
 fs.renameSync = (source, target) => {
   if (String(source) === ${JSON.stringify(lockPath)}
-      && path.basename(path.dirname(String(target))).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(String(target))).startsWith('.schematics-remove-')) {
     throw Object.assign(new Error('injected lock release failure'), { code: 'EACCES' });
   }
   return renameSync(source, target);
@@ -2514,7 +2514,7 @@ syncBuiltinESMExports();
 const renameSync = fs.renameSync;
 fs.renameSync = (source, target) => {
   if (String(source) === ${JSON.stringify(lockPath)}
-      && path.basename(path.dirname(String(target))).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(String(target))).startsWith('.schematics-remove-')) {
     throw Object.assign(new Error('injected failure-path lock release error'), { code: 'EACCES' });
   }
   return renameSync(source, target);
@@ -2562,7 +2562,7 @@ syncBuiltinESMExports();
 const renameSync = fs.renameSync;
 fs.renameSync = (source, target) => {
   if (String(source) === ${JSON.stringify(lockPath)}
-      && path.basename(path.dirname(String(target))).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(String(target))).startsWith('.schematics-remove-')) {
     throw Object.assign(new Error('injected final lock release failure'), { code: 'EACCES' });
   }
   return renameSync(source, target);
@@ -2654,7 +2654,7 @@ import path from 'node:path';
 const renameSync = fs.renameSync;
 fs.renameSync = (source, target) => {
   if (String(source) === ${JSON.stringify(lockPath)}
-      && path.basename(path.dirname(String(target))).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(String(target))).startsWith('.schematics-remove-')) {
     throw Object.assign(new Error('injected lock release failure'), { code: 'EACCES' });
   }
   return renameSync(source, target);
@@ -2685,7 +2685,7 @@ import path from 'node:path';
 const rmdirSync = fs.rmdirSync.bind(fs);
 let claimed = false;
 fs.rmdirSync = (directory, ...args) => {
-  if (!claimed && path.basename(String(directory)).startsWith('.archify-delivery-')) {
+  if (!claimed && path.basename(String(directory)).startsWith('.schematics-delivery-')) {
     claimed = true;
     fs.writeFileSync(path.join(directory, 'unknown-claimant.txt'), 'preserve delivery claimant');
   }
@@ -2701,7 +2701,7 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
   assert.equal(JSON.parse(delivered.stdout).ok, true);
   assert.match(delivered.stderr, /Warning: could not remove delivery staging directory/);
   const recoveryRoot = fs.readdirSync(path.dirname(out), { withFileTypes: true })
-    .find((entry) => entry.isDirectory() && entry.name.startsWith('.archify-staging-remove-'));
+    .find((entry) => entry.isDirectory() && entry.name.startsWith('.schematics-staging-remove-'));
   assert.ok(recoveryRoot);
   const staging = deliveryStagingEntries(path.join(path.dirname(out), recoveryRoot.name))
     .find((entry) => !stagingBefore.has(entry));
@@ -2730,8 +2730,8 @@ const rmdirSync = fs.rmdirSync.bind(fs);
 let injected = false;
 fs.rmdirSync = (directory, ...args) => {
   if (!injected
-      && path.basename(path.dirname(String(directory))).startsWith('.archify-staging-remove-')
-      && path.basename(String(directory)).startsWith('.archify-delivery-')) {
+      && path.basename(path.dirname(String(directory))).startsWith('.schematics-staging-remove-')
+      && path.basename(String(directory)).startsWith('.schematics-delivery-')) {
     injected = true;
     throw Object.assign(new Error('simulated remote deletion visibility delay'), { code: 'ENOTEMPTY' });
   }
@@ -2751,7 +2751,7 @@ fs.writeFileSync(${JSON.stringify(observation)}, JSON.stringify({ injected }));
   assert.deepEqual(deliveryStagingEntries(path.dirname(out)), []);
   assert.deepEqual(
     fs.readdirSync(path.dirname(out))
-      .filter((entry) => entry.startsWith('.archify-staging-remove-')),
+      .filter((entry) => entry.startsWith('.schematics-staging-remove-')),
     [],
   );
 });
@@ -2768,7 +2768,7 @@ import path from 'node:path';
 const readdirSync = fs.readdirSync.bind(fs);
 let injected = false;
 fs.readdirSync = (directory, ...args) => {
-  if (!injected && path.basename(String(directory)).startsWith('.archify-delivery-')) {
+  if (!injected && path.basename(String(directory)).startsWith('.schematics-delivery-')) {
     injected = true;
     return ['recently-deleted-entry.tmp'];
   }
@@ -2822,7 +2822,7 @@ fs.closeSync = (descriptor) => {
 };
 fs.unlinkSync = (file) => {
   const parent = path.dirname(String(file));
-  if (path.basename(parent).startsWith('.archify-remove-')) {
+  if (path.basename(parent).startsWith('.schematics-remove-')) {
     const key = identity(fs.lstatSync(file, { bigint: true }));
     pendingDirectories.set(parent, key);
     const owners = [...handles.values()].filter((owner) => owner.identity === key);
@@ -2861,7 +2861,7 @@ fs.writeFileSync(${JSON.stringify(observation)}, JSON.stringify({
   assert.equal(observed.remainingHandles, 0);
   assert.deepEqual(observed.pendingDirectories, []);
   assert.equal(delivered.stderr, '');
-  assert.deepEqual(fs.readdirSync(directory).filter((name) => name.startsWith('.archify-')), []);
+  assert.deepEqual(fs.readdirSync(directory).filter((name) => name.startsWith('.schematics-')), []);
 });
 
 test('cli: repeated lock handle identity failures close the descriptor, remove only the owned lock, and permit retry', () => {
@@ -3012,7 +3012,7 @@ if (mode === 'cleanup-failure') {
   const renameSync = fs.renameSync;
   fs.renameSync = (source, target) => {
     if (String(source) === ${JSON.stringify(lockPath)}
-        && path.basename(path.dirname(String(target))).startsWith('.archify-remove-')) {
+        && path.basename(path.dirname(String(target))).startsWith('.schematics-remove-')) {
       throw Object.assign(new Error('injected lock cleanup failure'), { code: 'EACCES' });
     }
     return renameSync(source, target);
@@ -3120,7 +3120,7 @@ fs.linkSync = (source, target) => {
   const result = linkSync(source, target);
   if (!successorInstalled && initializationFailed
       && String(target) === ${JSON.stringify(provenancePath)}
-      && path.basename(path.dirname(String(source))).startsWith('.archify-provenance-')) {
+      && path.basename(path.dirname(String(source))).startsWith('.schematics-provenance-')) {
     successorInstalled = true;
     renameSync(${JSON.stringify(lockPath)}, ${JSON.stringify(`${lockPath}.owner-a`)});
     writeFileSync(${JSON.stringify(lockPath)}, ${JSON.stringify(successor.lock)}, { flag: 'wx' });
@@ -3167,7 +3167,7 @@ test('cli: portable delivery lock: a raw acquisition error does not obscure the 
 });
 
 test('cli: delivery lock cannot replace its input specification', () => {
-  const input = path.join(tmp, '.archify-delivery-lock.json');
+  const input = path.join(tmp, '.schematics-delivery-lock.json');
   const source = fs.readFileSync(path.join(skillRoot, 'examples/agent-tool-call.workflow.json'));
   fs.writeFileSync(input, source);
   const out = path.join(tmp, 'lock-input-alias.html');
@@ -3512,7 +3512,7 @@ test('cli: a failed provenance marker write and invalidation still leave a fail-
 import fs from 'node:fs';
 const linkSync = fs.linkSync;
 fs.linkSync = (source, target) => {
-  if (String(source).includes('.archify-provenance-')
+  if (String(source).includes('.schematics-provenance-')
       && !String(source).endsWith('.previous-provenance')
       && String(target) === ${JSON.stringify(provenancePath)}) {
     const error = new Error('injected failure marker publish error');
@@ -3562,7 +3562,7 @@ test('cli: failed-provenance candidate retirement preserves a replacement claima
   const claimantIdentityFile = path.join(tmp, 'failed-provenance-retirement-identity.json');
   const displacedCandidate = path.join(tmp, 'failed-provenance-retirement-displaced');
   const priorStaging = fs.readdirSync(path.dirname(out))
-    .filter((name) => name.startsWith('.archify-provenance-'))
+    .filter((name) => name.startsWith('.schematics-provenance-'))
     .sort();
   const wrapper = path.join(tmp, 'replace-failed-provenance-candidate-at-retirement.mjs');
   fs.writeFileSync(wrapper, `
@@ -3574,7 +3574,7 @@ const writeFileSync = fs.writeFileSync;
 let replaced = false;
 const isCandidate = (file) => (
   path.basename(String(file)) === ${JSON.stringify(candidateName)}
-  && path.basename(path.dirname(String(file))).startsWith('.archify-provenance-')
+  && path.basename(path.dirname(String(file))).startsWith('.schematics-provenance-')
 );
 const replaceCandidate = (file) => {
   replaced = true;
@@ -3593,7 +3593,7 @@ fs.unlinkSync = (file, ...args) => {
 fs.renameSync = (source, target, ...args) => {
   if (!replaced
       && isCandidate(source)
-      && path.basename(path.dirname(String(target))).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(String(target))).startsWith('.schematics-remove-')) {
     replaceCandidate(source);
   }
   return renameSync(source, target, ...args);
@@ -3605,7 +3605,7 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
   const failed = spawnSync(process.execPath, [wrapper], { cwd: skillRoot, encoding: 'utf8' });
   assert.equal(failed.status, 1, failed.stderr || failed.stdout);
   const staging = fs.readdirSync(path.dirname(out))
-    .filter((name) => name.startsWith('.archify-provenance-'))
+    .filter((name) => name.startsWith('.schematics-provenance-'))
     .filter((name) => !priorStaging.includes(name));
   assert.equal(staging.length, 1, failed.stderr || failed.stdout);
   const candidate = path.join(path.dirname(out), staging[0], candidateName);
@@ -3632,7 +3632,7 @@ let injected = false;
 let stagingDirectory;
 let claimant;
 function inject(target) {
-  if (injected || !path.basename(String(target)).startsWith('.archify-provenance-')) return;
+  if (injected || !path.basename(String(target)).startsWith('.schematics-provenance-')) return;
   injected = true;
   stagingDirectory = String(target);
   fs.renameSync(stagingDirectory, stagingDirectory + '.owned');
@@ -3681,7 +3681,7 @@ const rmdirSync = fs.rmdirSync.bind(fs);
 let injected = false;
 let claimantIdentity;
 function inject(target) {
-  if (injected || !path.basename(String(target)).startsWith('.archify-delivery-')) return;
+  if (injected || !path.basename(String(target)).startsWith('.schematics-delivery-')) return;
   injected = true;
   const stagingDirectory = String(target);
   renameSync(stagingDirectory, stagingDirectory + '.owned');
@@ -3694,7 +3694,7 @@ fs.rmdirSync = (target, ...args) => {
   return rmdirSync(target, ...args);
 };
 fs.renameSync = (source, target, ...args) => {
-  if (path.basename(path.dirname(String(target))).startsWith('.archify-staging-remove-')) {
+  if (path.basename(path.dirname(String(target))).startsWith('.schematics-staging-remove-')) {
     inject(source);
   }
   return renameSync(source, target, ...args);
@@ -4136,7 +4136,7 @@ test('cli: validate JSON exposes only the primary v1 column-capacity diagnostic'
   }, null, 2)}\n`);
 
   const result = run(['validate', 'workflow', input, '--json'], {
-    env: { ...process.env, ARCHIFY_DIAGNOSTIC_FORMAT: 'json' },
+    env: { ...process.env, SCHEMATICS_DIAGNOSTIC_FORMAT: 'json' },
   });
 
   assert.equal(result.status, 1, result.stderr || result.stdout);
@@ -4398,7 +4398,7 @@ test('cli: inspect argument failures exit 2 with a clean, truthful diagnostic', 
 });
 
 test('cli: inspect emits architecture layout json', () => {
-  const input = path.resolve(skillRoot, '../test/fixtures/archify-repo-grid.architecture.json');
+  const input = path.resolve(skillRoot, '../test/fixtures/schematics-repo-grid.architecture.json');
   const result = run(['inspect', 'architecture', input]);
   assert.equal(result.status, 0, result.stderr);
   const parsed = JSON.parse(result.stdout);
@@ -4471,7 +4471,7 @@ process.on('exit', () => fs.rmSync(tmp, { recursive: true, force: true }));
 test('render rejects a mistyped option instead of writing a file named after it', () => {
   const dir = fs.mkdtempSync(path.join(tmp, 'render-guard-'));
   const spec = path.join(dir, 'spec.json');
-  fs.copyFileSync(path.join(skillRoot, '../test/fixtures/archify-repo.architecture.json'), spec);
+  fs.copyFileSync(path.join(skillRoot, '../test/fixtures/schematics-repo.architecture.json'), spec);
 
   // Without the guard this wrote a 600KB file literally named `--json` and
   // never wrote out.html, exiting 0.
@@ -4485,7 +4485,7 @@ test('render rejects a mistyped option instead of writing a file named after it'
 test('render rejects an extra positional argument', () => {
   const dir = fs.mkdtempSync(path.join(tmp, 'render-arity-'));
   const spec = path.join(dir, 'spec.json');
-  fs.copyFileSync(path.join(skillRoot, '../test/fixtures/archify-repo.architecture.json'), spec);
+  fs.copyFileSync(path.join(skillRoot, '../test/fixtures/schematics-repo.architecture.json'), spec);
 
   const result = run(['render', 'architecture', spec, 'out.html', 'extra.html'], { cwd: dir });
 

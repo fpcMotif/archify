@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-// Runs the Chrome-backed suites. Plain `bun test` skips them without ARCHIFY_CHROME.
-import { findChrome } from '../archify/bin/visual-check.mjs';
+// Runs the Chrome-backed suites. Plain `bun test` skips them without SCHEMATICS_CHROME.
+import { findChrome } from '../schematics/bin/visual-check.mjs';
 
 const browserTestFiles = [
   'finalize-browser.test.mjs',
@@ -49,14 +49,14 @@ const browserTestFiles = [
 
 const chrome = findChrome();
 if (!chrome) {
-  console.error('Browser tests require Chrome, Chromium or Edge. Set ARCHIFY_CHROME to its path; this gate does not skip.');
+  console.error('Browser tests require Chrome, Chromium or Edge. Set SCHEMATICS_CHROME to its path; this gate does not skip.');
   process.exit(1);
 }
 
 const selected = Bun.argv.slice(2);
 const files = selected.length > 0 ? selected : browserTestFiles.map((file) => `./test/${file}`);
 const child = Bun.spawnSync(['bun', 'test', '--timeout', '120000', ...files], {
-  env: { ...process.env, ARCHIFY_CHROME: chrome },
+  env: { ...process.env, SCHEMATICS_CHROME: chrome },
   stdio: ['inherit', 'inherit', 'inherit'],
 });
 process.exit(child.exitCode ?? 1);

@@ -7,7 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const diagnostics = new URL('../archify/renderers/shared/diagnostics.ts', import.meta.url).href;
+const diagnostics = new URL('../schematics/renderers/shared/diagnostics.ts', import.meta.url).href;
 
 // A pipe holds 8KB on macOS and 64KB on Linux before it blocks. The large case
 // stays far above both so the receipt cannot leave the renderer in one write.
@@ -17,7 +17,7 @@ const LARGEST_COMMON_PIPE_BUFFER = 64 * 1024;
 const STALLED_READER_MS = 300;
 
 function crashingRenderer(t, count) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-diagnostic-boundary-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-diagnostic-boundary-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const script = path.join(dir, 'crash.mjs');
   fs.writeFileSync(script, [
@@ -45,7 +45,7 @@ function crashingRenderer(t, count) {
 function runCrashingRenderer(script) {
   return spawnSync(process.execPath, [script], {
     encoding: 'utf8',
-    env: { ...process.env, ARCHIFY_DIAGNOSTIC_FORMAT: 'json' },
+    env: { ...process.env, SCHEMATICS_DIAGNOSTIC_FORMAT: 'json' },
     maxBuffer: 64 * 1024 * 1024,
   });
 }
@@ -72,7 +72,7 @@ test('the renderer boundary delivers a receipt larger than the pipe buffer', t =
 test('the renderer boundary waits for a stalled reader instead of truncating', async t => {
   const script = crashingRenderer(t, LARGE_DIAGNOSTIC_COUNT);
   const child = spawn(process.execPath, [script], {
-    env: { ...process.env, ARCHIFY_DIAGNOSTIC_FORMAT: 'json' },
+    env: { ...process.env, SCHEMATICS_DIAGNOSTIC_FORMAT: 'json' },
     stdio: ['ignore', 'ignore', 'pipe'],
   });
   t.after(() => child.kill('SIGKILL'));

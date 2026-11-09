@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { compileWorkflow } from '../archify/renderers/workflow/workflow-compiler.mjs';
+import { compileWorkflow } from '../schematics/renderers/workflow/workflow-compiler.mjs';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -943,10 +943,10 @@ test('readable-v2 preset label repair respects authored zero-valued controls', (
 });
 
 test('workflow validate JSON exposes an executable preset label repair', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preset-label-repair-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preset-label-repair-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'workflow.json');
-  const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+  const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
   const document = outsideRightLabelWorkflow();
   const original = JSON.stringify(document);
   fs.writeFileSync(input, original);
@@ -2210,10 +2210,10 @@ test('showcase rejects nested authored outside-right corridors while standard pe
 test('an explicit standard profile overrides an ambient showcase profile', () => {
   const document = nestedOutsideRightCorridorWorkflow();
   document.meta.quality_profile = 'showcase';
-  const previousProfile = process.env.ARCHIFY_QUALITY_PROFILE;
+  const previousProfile = process.env.SCHEMATICS_QUALITY_PROFILE;
 
   try {
-    process.env.ARCHIFY_QUALITY_PROFILE = 'showcase';
+    process.env.SCHEMATICS_QUALITY_PROFILE = 'showcase';
     const result = compileWorkflow({ workflow: document, qualityProfile: 'standard' });
     assert.equal(
       result.ok,
@@ -2222,8 +2222,8 @@ test('an explicit standard profile overrides an ambient showcase profile', () =>
     );
     assert.match(result.svg, /data-quality-profile="standard"/);
   } finally {
-    if (previousProfile === undefined) delete process.env.ARCHIFY_QUALITY_PROFILE;
-    else process.env.ARCHIFY_QUALITY_PROFILE = previousProfile;
+    if (previousProfile === undefined) delete process.env.SCHEMATICS_QUALITY_PROFILE;
+    else process.env.SCHEMATICS_QUALITY_PROFILE = previousProfile;
   }
 });
 
@@ -2393,7 +2393,7 @@ function validationParityWorkflow() {
 }
 
 test('compileWorkflow applies the shared cross-collection contracts the renderer enforces', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-compiler-parity-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-compiler-parity-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   for (const { expectedCode, mutate } of [
     {
@@ -2406,11 +2406,11 @@ test('compileWorkflow applies the shared cross-collection contracts the renderer
     const input = path.join(directory, 'input.json');
     fs.writeFileSync(input, JSON.stringify(document));
     const rendered = spawnSync(process.execPath, [
-      fileURLToPath(new URL('../archify/renderers/workflow/render-workflow.mjs', import.meta.url)),
+      fileURLToPath(new URL('../schematics/renderers/workflow/render-workflow.mjs', import.meta.url)),
       input, path.join(directory, 'output.html'),
     ], {
       encoding: 'utf8',
-      env: { ...process.env, ARCHIFY_DIAGNOSTIC_FORMAT: 'json', ARCHIFY_QUALITY_PROFILE: 'standard' },
+      env: { ...process.env, SCHEMATICS_DIAGNOSTIC_FORMAT: 'json', SCHEMATICS_QUALITY_PROFILE: 'standard' },
     });
     assert.equal(rendered.status, 1, rendered.stderr);
     assert.deepEqual(JSON.parse(rendered.stderr).diagnostics.map(({ code }) => code), [expectedCode]);
@@ -2661,14 +2661,14 @@ test('rejected layout receipt retains complete fixed-v1 geometry and authored la
 });
 
 test('rejected layout CLI receipt preserves failure diagnostics and writes no HTML', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-rejected-layout-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-rejected-layout-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'workflow.json');
   const document = rejectedLabelWorkflow();
   document.meta.output = 'must-not-write.html';
   const original = JSON.stringify(document);
   fs.writeFileSync(input, original);
-  const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+  const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
   for (const flags of [['--layout-json'], ['--layout-json', '--json']]) {
     const result = spawnSync(process.execPath, [cli, 'validate', 'workflow', input, ...flags], {
       encoding: 'utf8', cwd: directory,
@@ -2779,12 +2779,12 @@ test('rejected layout receipt belongs to the selected best route-order attempt',
   }
   assert.deepEqual(document, original);
 
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-selected-workflow-attempt-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-selected-workflow-attempt-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'workflow.json');
   const inputBytes = JSON.stringify(document);
   fs.writeFileSync(input, inputBytes);
-  const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+  const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
   const failures = [[], ['--layout-json']].map((flags) => {
     const validation = spawnSync(process.execPath, [
       cli, 'validate', 'workflow', input, '--quality', 'showcase', '--json', ...flags,

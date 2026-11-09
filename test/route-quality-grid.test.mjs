@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { shortestOrthogonalGridRoute } from '../archify/renderers/shared/route-quality.ts';
-import { routeHonorsEndpointSides, segmentIntersectsRect, frameBorderSegments, collectBorderRuns } from '../archify/renderers/shared/geometry.ts';
+import { shortestOrthogonalGridRoute } from '../schematics/renderers/shared/route-quality.ts';
+import { routeHonorsEndpointSides, segmentIntersectsRect, frameBorderSegments, collectBorderRuns } from '../schematics/renderers/shared/geometry.ts';
 
 test('a pinned endpoint on a frame retains a readable corridor on every side', () => {
   const sides = ['right', 'bottom', 'left', 'top'];

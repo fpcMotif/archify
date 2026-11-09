@@ -5,14 +5,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 import { createViewerClick } from './helpers/viewer-click.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'ARCHIFY_CHROME');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'SCHEMATICS_CHROME');
 const chromePath = chromeConfigured ? findChrome() : null;
 if (chromeConfigured && !chromePath) {
-  throw new Error(`ARCHIFY_CHROME does not resolve to an executable browser: ${process.env.ARCHIFY_CHROME}`);
+  throw new Error(`SCHEMATICS_CHROME does not resolve to an executable browser: ${process.env.SCHEMATICS_CHROME}`);
 }
 const cases = {
   architecture: 'web-app.architecture.json',
@@ -23,18 +23,18 @@ const cases = {
 };
 
 test('Reader Layout preserves final-artifact behavior across its ownership boundaries', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-reader-browser-'));
-  const evidence = process.env.ARCHIFY_READER_EVIDENCE;
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-reader-browser-'));
+  const evidence = process.env.SCHEMATICS_READER_EVIDENCE;
   if (evidence) fs.mkdirSync(evidence, { recursive: true });
   const artifacts = {};
   for (const [mode, example] of Object.entries(cases)) {
     const output = path.join(scratch, `${mode}.html`);
     // Optional captured base artifacts let the same behavioral cases establish
     // a pre-extraction baseline without changing the implementation under test.
-    if (process.env.ARCHIFY_READER_BASELINE_DIR) {
-      fs.copyFileSync(path.join(process.env.ARCHIFY_READER_BASELINE_DIR, `${mode}.html`), output);
+    if (process.env.SCHEMATICS_READER_BASELINE_DIR) {
+      fs.copyFileSync(path.join(process.env.SCHEMATICS_READER_BASELINE_DIR, `${mode}.html`), output);
     } else {
       execFileSync(process.execPath, [path.join(skillRoot, `renderers/${mode}/render-${mode}.mjs`),
         path.join(skillRoot, 'examples', example), output]);
@@ -74,8 +74,8 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
         // Font completion can schedule another Reader measure after load.
         if (document.fonts && document.fonts.ready) await document.fonts.ready;
         for (var i = 0; i < 2; i += 1) {
-          await Archify.readerLayout.whenStable();
-          await Archify.viewerChromeLayout.whenStable();
+          await Schematics.readerLayout.whenStable();
+          await Schematics.viewerChromeLayout.whenStable();
         }
       })()`, true);
     }
@@ -85,15 +85,15 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
         var diagram = document.querySelector('.diagram-container');
         var svg = diagram.querySelector(':scope > svg');
         return {
-          active: Archify.readerLayout.active(), receipt: Archify.readerLayout.receipt(),
-          width: html.style.getPropertyValue('--archify-reader-width'),
+          active: Schematics.readerLayout.active(), receipt: Schematics.readerLayout.receipt(),
+          width: html.style.getPropertyValue('--schematics-reader-width'),
           layout: html.getAttribute('data-reader-layout'), overflow: html.getAttribute('data-reader-overflow'),
           wide: diagram.getAttribute('data-wide-diagram'), shape: html.getAttribute('data-diagram-shape'),
           readerFit: svg.getAttribute('data-reader-fit'),
           readerArea: html.getAttribute('data-reader-area'),
-          minimumAreaHeight: html.style.getPropertyValue('--archify-diagram-min-height'),
+          minimumAreaHeight: html.style.getPropertyValue('--schematics-diagram-min-height'),
           legendCorner: Boolean(svg.querySelector('[data-reader-legend-corner]')),
-          legendTransformRuntime: svg.querySelector('[data-legend]')?.style.getPropertyValue('--archify-reader-legend-transform') || '',
+          legendTransformRuntime: svg.querySelector('[data-legend]')?.style.getPropertyValue('--schematics-reader-legend-transform') || '',
           geometry: ['viewBox', 'width', 'height'].map(function (name) { return svg.getAttribute(name); }),
           shellWidth: document.querySelector('.container').getBoundingClientRect().width,
           scrollHeight: Math.max(html.scrollHeight, document.body.scrollHeight),
@@ -121,14 +121,14 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
     function variant(name, { ratio, undeclaredFit = false, beforeViewer = '' } = {}) {
       let html = fs.readFileSync(artifacts.architecture, 'utf8');
       if (ratio !== undefined) assert.match(html, /<svg\b[^>]*\bviewBox="[^"]+"/, 'Reader viewBox fixture anchor');
-      if (beforeViewer) assert.ok(html.includes('  <script>\n    var Archify = {};'), 'Reader setup fixture anchor');
+      if (beforeViewer) assert.ok(html.includes('  <script>\n    var Schematics = {};'), 'Reader setup fixture anchor');
       if (ratio !== undefined) html = html.replace(/(<svg\b[^>]*\bviewBox=")[^"]+(")/, (_, start, end) => `${start}0 0 ${ratio * 1000} 1000${end}`);
       if (undeclaredFit) {
         // Ratio-only cases must not inherit the compiler's independent
         // intrinsic-height eligibility declaration from the source fixture.
         html = html.replace(/<svg\b[^>]*>/, root => root.replace(' data-reader-fit="intrinsic-height"', ''));
       }
-      if (beforeViewer) html = html.replace('  <script>\n    var Archify = {};', () => `  <script>${beforeViewer}</script>\n  <script>\n    var Archify = {};`);
+      if (beforeViewer) html = html.replace('  <script>\n    var Schematics = {};', () => `  <script>${beforeViewer}</script>\n  <script>\n    var Schematics = {};`);
       const file = path.join(scratch, `${name}.html`);
       fs.writeFileSync(file, html);
       return file;
@@ -151,17 +151,17 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
       const click = await createViewerClick({ send, run: expression => evaluate(expression, true), timeout: 5000 });
       const manualGuide = variant('manual-guide', { beforeViewer: `
         Object.defineProperty(navigator, 'webdriver', { get: () => false });
-        localStorage.removeItem('archify-guide-welcomed');
-        localStorage.removeItem('archify-motion');
+        localStorage.removeItem('schematics-guide-welcomed');
+        localStorage.removeItem('schematics-motion');
       ` });
       await load(manualGuide);
       assert.equal(await evaluate('navigator.webdriver'), false, 'Exercise the ordinary reader path.');
-      assert.equal(await evaluate('Archify.guide.isOpen()'), false, 'The guide must wait for reader input.');
-      assert.equal(await evaluate('Archify.motionGovernor.mode()'), 'still', 'A fresh reader starts Still.');
-      assert.equal(await evaluate("localStorage.getItem('archify-guide-welcomed')"), null, 'No onboarding preference is created.');
+      assert.equal(await evaluate('Schematics.guide.isOpen()'), false, 'The guide must wait for reader input.');
+      assert.equal(await evaluate('Schematics.motionGovernor.mode()'), 'still', 'A fresh reader starts Still.');
+      assert.equal(await evaluate("localStorage.getItem('schematics-guide-welcomed')"), null, 'No onboarding preference is created.');
       for (const expected of [true, false, true, false]) {
         await click('#btn-diagram-guide .diagram-nav-icon');
-        assert.equal(await evaluate('Archify.guide.isOpen()'), expected);
+        assert.equal(await evaluate('Schematics.guide.isOpen()'), expected);
         assert.equal(await evaluate("document.getElementById('btn-diagram-guide').getAttribute('aria-expanded')"), String(expected));
       }
       assert.deepEqual((await snapshot('manual-guide-closed')).errors, []);
@@ -176,7 +176,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
           assert.equal(state.theme, theme);
           assert.equal(state.reduced, theme === 'light');
           assert.equal(state.active, state.receipt.ratio >= 1.55);
-          await evaluate('Archify.view.zoomIn()');
+          await evaluate('Schematics.view.zoomIn()');
           await stable();
           const exported = await evaluate(`(async function () {
             var original = URL.createObjectURL;
@@ -186,7 +186,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
               return original.call(URL, blob);
             };
             try {
-              await Archify.exportMenu.run('svg');
+              await Schematics.exportMenu.run('svg');
               if (!captured) throw new Error('SVG export did not produce a blob');
               var text = await captured.text();
               var svg = new DOMParser().parseFromString(text, 'image/svg+xml').documentElement;
@@ -198,7 +198,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
           assert.equal(exported.dirty, false);
           assert.equal(exported.geometry[0], state.geometry[0]);
           if (evidence) fs.writeFileSync(path.join(evidence, `${mode}-${theme}.svg`), exported.text);
-          await evaluate('Archify.view.reset()');
+          await evaluate('Schematics.view.reset()');
           await stable();
           const reset = await snapshot(`${mode}-${theme}-reset`);
           assert.deepEqual(reset.geometry, state.geometry);
@@ -226,11 +226,11 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
       assert.equal(await evaluate('document.activeElement.id'), 'btn-present');
       await key('f', 'KeyF', 70);
       await stable();
-      assert.deepEqual(await evaluate("({active: Archify.presentation.active(), pressed: document.getElementById('btn-present').getAttribute('aria-pressed'), present: new URL(location.href).searchParams.get('present'), keep: new URL(location.href).searchParams.get('keep'), hash: location.hash})"),
+      assert.deepEqual(await evaluate("({active: Schematics.presentation.active(), pressed: document.getElementById('btn-present').getAttribute('aria-pressed'), present: new URL(location.href).searchParams.get('present'), keep: new URL(location.href).searchParams.get('keep'), hash: location.hash})"),
         { active: true, pressed: 'true', present: '1', keep: 'yes', hash: '#reader-context' });
       await key('Escape', 'Escape', 27);
       await stable();
-      assert.equal(await evaluate('Archify.presentation.active()'), false);
+      assert.equal(await evaluate('Schematics.presentation.active()'), false);
       assert.deepEqual(await evaluate("[new URL(location.href).searchParams.get('present'), new URL(location.href).searchParams.get('keep'), location.hash]"), [null, 'yes', '#reader-context']);
       assert.deepEqual((await snapshot('guide-presentation-return')).geometry, before.geometry);
     });
@@ -275,7 +275,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
           var left = rect.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft);
           var bottom = rect.bottom - parseFloat(style.borderBottomWidth) - parseFloat(style.paddingBottom);
           return { corner: legend.hasAttribute('data-reader-legend-corner'),
-            scale: Archify.view.state().scale, svgCount: diagram.querySelectorAll(':scope > svg').length,
+            scale: Schematics.view.state().scale, svgCount: diagram.querySelectorAll(':scope > svg').length,
             originalSvg: legend.ownerSVGElement === svg,
             left: legendRect.left, bottom: legendRect.bottom, width: legendRect.width, height: legendRect.height,
             leftGap: legendRect.left - left, bottomGap: bottom - legendRect.bottom,
@@ -306,14 +306,14 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
             return original.call(URL, blob);
           };
           try {
-            await Archify.exportMenu.run('svg');
+            await Schematics.exportMenu.run('svg');
             var text = await captured.text();
             var clone = new DOMParser().parseFromString(text, 'image/svg+xml').documentElement;
             var legend = clone.querySelector('[data-legend]');
             return { text: text, liveUnchanged: before === svg.outerHTML,
               legendMarkup: legend.outerHTML, legendCount: clone.querySelectorAll('[data-legend]').length,
               runtime: clone.hasAttribute('data-view-scale') || Boolean(clone.querySelector('[data-reader-legend-corner]')) ||
-                text.includes('--archify-reader-legend-transform'),
+                text.includes('--schematics-reader-legend-transform'),
               viewBox: clone.getAttribute('viewBox') };
           } finally { URL.createObjectURL = original; }
         })()`, true);
@@ -331,7 +331,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
         await load(compactErd, { width, height });
         const baseline = await corner(`compact-legend-${width}-100`);
         for (const [scale, steps] of [[0.75, 1], [0.25, 2]]) {
-          await evaluate(`for (var i = 0; i < ${steps}; i += 1) Archify.view.zoomOut();`);
+          await evaluate(`for (var i = 0; i < ${steps}; i += 1) Schematics.view.zoomOut();`);
           await stable();
           const zoomed = await corner(`compact-legend-${width}-${Math.round(scale * 100)}`);
           assert.equal(zoomed.scale, scale);
@@ -342,15 +342,15 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
           assert.equal(exported.legendMarkup.replace(' style=""', ''), canonical.legendMarkup);
           assert.equal(exported.viewBox, canonical.viewBox);
         }
-        await evaluate('Archify.view.reset()');
+        await evaluate('Schematics.view.reset()');
         await stable();
         const reset = await corner(`compact-legend-${width}-reset`);
         assert.ok(Math.abs(reset.nodeWidth - baseline.nodeWidth) <= 1);
-        await evaluate('Archify.view.zoomIn()');
+        await evaluate('Schematics.view.zoomIn()');
         await stable();
         assert.equal((await snapshot(`compact-legend-${width}-125`)).legendCorner, false,
           'Camera enlargement restores existing in-SVG positioning and clipping');
-        await evaluate('Archify.view.reset()');
+        await evaluate('Schematics.view.reset()');
         await stable();
         await corner(`compact-legend-${width}-after-enlarge`);
       }
@@ -382,7 +382,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
         'Keyboard focus retains same-SVG ERD key highlighting');
       await evaluate('document.activeElement.blur()');
       await evaluate(`document.querySelector('[data-legend]').setAttribute('transform', 'translate(3 4)');
-        Archify.view.zoomOut(); Archify.view.zoomOut(); Archify.view.zoomOut();`);
+        Schematics.view.zoomOut(); Schematics.view.zoomOut(); Schematics.view.zoomOut();`);
       await stable();
       await corner('compact-legend-authored-transform');
       assert.match((await exportLegend('compact-legend-export-authored-transform')).legendMarkup,
@@ -408,10 +408,10 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
         const collapsed = await evaluate(`(() => {
           const svg = document.querySelector('.diagram-container > svg');
           ${collapse};
-          Archify.readerLayout.syncLegend();
+          Schematics.readerLayout.syncLegend();
           const legend = svg.querySelector('[data-legend]');
           return { width: svg.clientWidth, height: svg.clientHeight, corner: legend.hasAttribute('data-reader-legend-corner'),
-            transform: legend.style.getPropertyValue('--archify-reader-legend-transform') };
+            transform: legend.style.getPropertyValue('--schematics-reader-legend-transform') };
         })()`);
         assert.ok(collapsed.width === 0 || collapsed.height === 0);
         assert.equal(collapsed.corner, false);
@@ -419,7 +419,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
         records.push({ label: 'legend-size-collapsed', ...collapsed });
         await evaluate(`(() => { const svg = document.querySelector('.diagram-container > svg');
           svg.style.removeProperty('height'); svg.style.removeProperty('width'); svg.style.removeProperty('min-width');
-          Archify.readerLayout.syncLegend(); })()`);
+          Schematics.readerLayout.syncLegend(); })()`);
         await stable();
         assert.equal((await snapshot('legend-size-restored')).legendCorner, true);
       }
@@ -434,7 +434,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
         'var MAX_AUTOMATIC_SCALE = Infinity;'));
       async function area() {
         return evaluate(`(function () {
-          var budget = Archify.readerLayout.measure();
+          var budget = Schematics.readerLayout.measure();
           var diagram = document.querySelector('.diagram-container');
           var svg = diagram.querySelector(':scope > svg');
           var rect = diagram.getBoundingClientRect();
@@ -452,9 +452,9 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
             viewportWidth: innerWidth,
             bodyX: parseFloat(bodyStyle.paddingLeft) + parseFloat(bodyStyle.paddingRight),
             readerArea: document.documentElement.getAttribute('data-reader-area'),
-            minimumAreaHeight: document.documentElement.style.getPropertyValue('--archify-diagram-min-height'),
+            minimumAreaHeight: document.documentElement.style.getPropertyValue('--schematics-diagram-min-height'),
             stageRail: document.documentElement.getAttribute('data-nav-stage-rail'),
-            navReserve: style.getPropertyValue('--archify-nav-reserve'),
+            navReserve: style.getPropertyValue('--schematics-nav-reserve'),
             centerX: (svgRect.left + svgRect.right - left - right) / 2,
             centerY: (svgRect.top + svgRect.bottom - top - bottom) / 2 };
         })()`);
@@ -481,13 +481,13 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
         assert.ok(fitted.svgWidth <= fitted.intrinsicWidth * 1.5 + 1, JSON.stringify(fitted));
         assert.ok(Math.abs(fitted.centerX) <= 1 && Math.abs(fitted.centerY) <= 1, JSON.stringify(fitted));
         const geometry = (await snapshot(`compact-table-${width}`)).geometry;
-        await evaluate('Archify.view.zoomOut()');
+        await evaluate('Schematics.view.zoomOut()');
         await stable();
         const zoomed = await area();
         records.push({ label: `compact-table-${width}-zoomed-canvas`, zoomed });
         assert.ok(Math.abs(zoomed.centerX) <= 1 && Math.abs(zoomed.centerY) <= 1, JSON.stringify(zoomed));
         assert.ok(Math.abs(zoomed.height - fitted.height) <= 1 && Math.abs(zoomed.width - fitted.width) <= 1);
-        await evaluate('Archify.view.reset()');
+        await evaluate('Schematics.view.reset()');
         await stable();
         assert.deepEqual((await snapshot(`compact-table-${width}-reset`)).geometry, geometry);
       }
@@ -508,10 +508,10 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
       await evaluate("document.documentElement.removeAttribute('data-embed')");
       await stable();
       await restored('compact-area-after-embed');
-      await evaluate('Archify.presentation.enter()');
+      await evaluate('Schematics.presentation.enter()');
       await stable();
       inactive(await snapshot('compact-area-presentation'), false);
-      await evaluate('Archify.presentation.exit()');
+      await evaluate('Schematics.presentation.exit()');
       await stable();
       await restored('compact-area-after-presentation');
       await media('dark', false, true);
@@ -592,7 +592,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
             return { width: svg.clientWidth, height: svg.clientHeight,
               startOffsetY: svg.getBoundingClientRect().top - startY,
               readerArea: document.documentElement.getAttribute('data-reader-area'),
-              minimumAreaHeight: document.documentElement.style.getPropertyValue('--archify-diagram-min-height'),
+              minimumAreaHeight: document.documentElement.style.getPropertyValue('--schematics-diagram-min-height'),
               primaryPx: 14 * svg.clientWidth / svg.viewBox.baseVal.width,
               overflowX: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) > innerWidth + 1 };
           })()`);
@@ -617,10 +617,10 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
             assert.ok(Math.abs(dimensions.startOffsetY) <= 1, 'long content begins at the normal canvas top: ' + JSON.stringify(dimensions));
             assert.equal(before.overflow, 'authored');
           }
-          await evaluate('Archify.view.zoomIn(); Archify.view.reset()');
+          await evaluate('Schematics.view.zoomIn(); Schematics.view.reset()');
           await stable();
           assert.deepEqual((await snapshot(`${name}-${viewportWidth}-reset`)).geometry, before.geometry);
-          await evaluate('Archify.presentation.enter()');
+          await evaluate('Schematics.presentation.enter()');
           await stable();
           const presentation = await snapshot(`${name}-${viewportWidth}-presentation`);
           inactive(presentation, width / height >= 1.55);
@@ -633,7 +633,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
             const capture = await send('Page.captureScreenshot', { format: 'png' });
             fs.writeFileSync(path.join(evidence, `${name}-${viewportWidth}-presentation.png`), Buffer.from(capture.data, 'base64'));
           }
-          await evaluate('Archify.presentation.exit()');
+          await evaluate('Schematics.presentation.exit()');
           await stable();
           assert.deepEqual((await snapshot(`${name}-${viewportWidth}-return`)).geometry, before.geometry);
         }
@@ -664,7 +664,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
         const input = path.join(scratch, `${name}.json`);
         const output = path.join(scratch, `${name}.html`);
         fs.writeFileSync(input, JSON.stringify(doc));
-        execFileSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'render', 'sequence', input, output]);
+        execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'render', 'sequence', input, output]);
         return output;
       }
       async function stage(label) {
@@ -727,13 +727,13 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
             return original.call(URL, blob);
           };
           try {
-            await Archify.exportMenu.run('svg');
+            await Schematics.exportMenu.run('svg');
             var text = await captured.text();
             var clone = new DOMParser().parseFromString(text, 'image/svg+xml').documentElement;
             return { legend: clone.querySelector('[data-legend]').outerHTML.replace(' style=""', ''),
               geometry: ['viewBox', 'width', 'height'].map(function (name) { return clone.getAttribute(name); }),
               count: clone.querySelectorAll('[data-legend]').length, liveUnchanged: before === svg.outerHTML,
-              runtime: Boolean(clone.querySelector('[data-reader-legend-corner]')) || text.includes('--archify-reader-legend-transform') };
+              runtime: Boolean(clone.querySelector('[data-reader-legend-corner]')) || text.includes('--schematics-reader-legend-transform') };
           } finally { URL.createObjectURL = original; }
         })()`, true);
       }
@@ -749,20 +749,20 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
       legendPlacement(initial, true);
       if (evidence) {
         assert.equal(await evaluate('scrollY'), 0, 'initial screenshot uses the top of the document');
-        assert.equal(await evaluate('Archify.view.state().scale'), 1);
+        assert.equal(await evaluate('Schematics.view.state().scale'), 1);
         const capture = await send('Page.captureScreenshot', { format: 'png' });
         fs.writeFileSync(path.join(evidence, 'compact-sequence-initial.png'), Buffer.from(capture.data, 'base64'));
       }
       assert.deepEqual(await exportedLegend(), canonical, 'initial fitting exports canonical geometry and legend placement');
       assert.ok((await snapshot('compact-sequence-shell')).shellWidth >= 960, 'height fitting preserves the desktop shell');
-      await evaluate('Archify.view.zoomIn(); Archify.view.zoomIn()');
+      await evaluate('Schematics.view.zoomIn(); Schematics.view.zoomIn()');
       await stable();
       const zoomed = await stage('compact-sequence-legend-150');
-      assert.equal(await evaluate('Archify.view.state().scale'), 1.5);
+      assert.equal(await evaluate('Schematics.view.state().scale'), 1.5);
       legendPlacement(zoomed, false);
       assert.deepEqual(zoomed.geometry, initial.geometry);
       assert.deepEqual(await exportedLegend(), canonical, 'zoom exports canonical legend placement without changing live SVG');
-      await evaluate('Archify.view.reset()');
+      await evaluate('Schematics.view.reset()');
       await stable();
       const reset = await stage('compact-sequence-legend-reset');
       fits(reset);
@@ -779,14 +779,14 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
       const resizedBack = await stage('compact-sequence-resized-back');
       fits(resizedBack);
       legendPlacement(resizedBack, true);
-      await evaluate('Archify.presentation.enter()');
+      await evaluate('Schematics.presentation.enter()');
       await stable();
       const presented = await stage('compact-sequence-presentation');
       legendPlacement(presented, false);
       assert.deepEqual(presented.geometry, initial.geometry);
       assert.deepEqual(await exportedLegend(), canonical, 'presentation exports canonical legend placement');
       assert.ok(presented.svg.top >= -1 && presented.svg.bottom <= presented.viewportHeight + 1, JSON.stringify(presented));
-      await evaluate('Archify.presentation.exit()');
+      await evaluate('Schematics.presentation.exit()');
       await stable();
       const returned = await stage('compact-sequence-return');
       fits(returned);
@@ -844,7 +844,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
         const input = path.join(scratch, `${mode}-automatic.json`);
         const output = path.join(scratch, `${mode}-automatic.html`);
         fs.writeFileSync(input, JSON.stringify(doc));
-        execFileSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'render', mode, input, output]);
+        execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'render', mode, input, output]);
         const html = fs.readFileSync(output, 'utf8');
         assert.match(html.match(/<svg\b[^>]*>/)[0], /data-reader-fit="width-first"/);
         await load(output);
@@ -903,18 +903,18 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
         await load(wide, { query: mode === 'print' ? '' : `&${mode}=1`, print: mode === 'print' });
         inactive(await snapshot(`initial-${mode}`));
         if (mode === 'print') await media();
-        else if (mode === 'present') await evaluate('Archify.presentation.exit()');
+        else if (mode === 'present') await evaluate('Schematics.presentation.exit()');
         else await evaluate("document.documentElement.removeAttribute('data-embed')");
         await stable();
         assert.equal((await snapshot(`exit-${mode}`)).active, true);
         for (let attempt = 0; attempt < 2; attempt += 1) {
           if (mode === 'print') await media('dark', false, true);
-          else if (mode === 'present') await evaluate('Archify.presentation.enter()');
+          else if (mode === 'present') await evaluate('Schematics.presentation.enter()');
           else await evaluate("document.documentElement.setAttribute('data-embed', 'true')");
           await stable();
           inactive(await snapshot(`enter-${mode}-${attempt}`));
           if (mode === 'print') await media();
-          else if (mode === 'present') await evaluate('Archify.presentation.exit()');
+          else if (mode === 'present') await evaluate('Schematics.presentation.exit()');
           else await evaluate("document.documentElement.removeAttribute('data-embed')");
           await stable();
           assert.equal((await snapshot(`return-${mode}-${attempt}`)).active, true);
@@ -927,13 +927,13 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
       const before = await snapshot('before-content');
       await evaluate(`document.querySelector('.header h1').textContent = 'Long reader title '.repeat(30);
         document.querySelector('.cards').innerHTML += '<div class="card" style="height:500px">Late card</div>';
-        for (var i = 0; i < 30; i += 1) { dispatchEvent(new Event('resize')); Archify.readerLayout.schedule(); }
-        Archify.view.zoomIn();`);
+        for (var i = 0; i < 30; i += 1) { dispatchEvent(new Event('resize')); Schematics.readerLayout.schedule(); }
+        Schematics.view.zoomIn();`);
       await stable();
       const changed = await snapshot('after-content');
       assert.ok(changed.receipt.width <= before.receipt.width);
       assert.deepEqual(changed.geometry, before.geometry);
-      await evaluate('Archify.view.reset()');
+      await evaluate('Schematics.view.reset()');
       await stable();
       const first = await snapshot('settled-1');
       await stable();
@@ -970,7 +970,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
       await load(delayedFonts, { waitForLayout: false });
       const fontGate = await evaluate(`(async function () {
         var resolved = false;
-        var ready = Archify.readerLayout.whenStable().then(function () { resolved = true; });
+        var ready = Schematics.readerLayout.whenStable().then(function () { resolved = true; });
         document.querySelector('.cards').style.minHeight = '450px';
         await new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
         var beforeReady = resolved;
@@ -990,7 +990,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
         var scheduled = 0;
         Object.defineProperty(document, 'fonts', { configurable: true, value: { ready: new Promise(function (resolve) { release = resolve; }) } });
         try {
-          var waiting = Archify.waitForStableLayout({ maximumFrames: 1, schedule: function () { scheduled += 1; }, pending: function () { return true; } });
+          var waiting = Schematics.waitForStableLayout({ maximumFrames: 1, schedule: function () { scheduled += 1; }, pending: function () { return true; } });
           var observed = waiting.then(function () { return 'unexpected success'; }, function (error) { return error.message; });
           await new Promise(function (resolve) { requestAnimationFrame(function () { requestAnimationFrame(resolve); }); });
           var beforeReady = scheduled;

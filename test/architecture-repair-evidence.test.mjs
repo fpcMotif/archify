@@ -6,11 +6,11 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('../archify/', import.meta.url));
-const cli = path.join(root, 'bin/archify.mjs');
+const root = fileURLToPath(new URL('../schematics/', import.meta.url));
+const cli = path.join(root, 'bin/schematics.mjs');
 const renderer = path.join(root, 'renderers/architecture/render-architecture.mjs');
 function setup(t, positions, viewBox = [600, 420]) {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-repair-evidence-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-repair-evidence-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const input = path.join(cwd, 'source.json');
   const diagram = {
@@ -117,7 +117,7 @@ test('rejected layout JSON retains geometry and diagnostics without changing sou
     assert.equal(result.stderr, '');
     const receipt = JSON.parse(result.stdout);
     assert.equal(receipt.ok, false);
-    assert.equal(receipt.contract, 'archify-architecture-layout-v1');
+    assert.equal(receipt.contract, 'schematics-architecture-layout-v1');
     assert.equal(receipt.components.length, 2);
     assert.equal(receipt.boundaries[0].y, -10);
     assert.deepEqual(receipt.connections, []);

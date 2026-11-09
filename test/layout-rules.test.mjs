@@ -17,12 +17,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { minimumReadableSourceTextPx } from '../archify/renderers/shared/desktop-readability.ts';
-import { segmentRectClearanceWithin, segmentIntersectsRect } from '../archify/renderers/shared/geometry.ts';
+import { minimumReadableSourceTextPx } from '../schematics/renderers/shared/desktop-readability.ts';
+import { segmentRectClearanceWithin, segmentIntersectsRect } from '../schematics/renderers/shared/geometry.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-rules-'));
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-rules-'));
 
 const EXAMPLES = {
   workflow: 'agent-tool-call.workflow.json',
@@ -62,7 +62,7 @@ function validateCli(mode, doc, quality = 'showcase') {
   fs.writeFileSync(input, JSON.stringify(cliDoc));
   try {
     const stdout = execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin', 'archify.mjs'),
+      path.join(skillRoot, 'bin', 'schematics.mjs'),
       'validate',
       mode,
       input,
@@ -87,7 +87,7 @@ function deliverCli(mode, doc, quality = 'showcase') {
   fs.writeFileSync(input, JSON.stringify(cliDoc));
   try {
     const stdout = execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin', 'archify.mjs'),
+      path.join(skillRoot, 'bin', 'schematics.mjs'),
       'deliver',
       mode,
       input,
@@ -1933,7 +1933,7 @@ test('architecture: automatic reciprocal adjacent routes keep the showcase inter
   fs.writeFileSync(input, JSON.stringify({ ...doc, meta: { ...doc.meta, output: 'reciprocal.html' } }));
   let report;
   try {
-    execFileSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'validate', 'architecture', input, '--layout-json'], { encoding: 'utf8' });
+    execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'validate', 'architecture', input, '--layout-json'], { encoding: 'utf8' });
     assert.fail('crowded labels must be rejected');
   } catch (error) {
     assert.equal(error.status, 1);

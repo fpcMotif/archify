@@ -5,18 +5,18 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chrome = process.env.ARCHIFY_CHROME ? findChrome() : null;
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
 const TITLE = 'Preparation phase';
 
 // Phase headings identify authored timeline sections in Read and Full detail.
 // A real browser resolves the preset/theme ink and the opaque title plate.
 test('sequence phase headings retain readable contrast in Read and Full detail', {
-  skip: chrome ? false : 'Set ARCHIFY_CHROME to run real-browser contrast checks.',
+  skip: chrome ? false : 'Set SCHEMATICS_CHROME to run real-browser contrast checks.',
 }, async (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-segment-contrast-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-segment-contrast-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const input = path.join(scratch, 'segment.json');
   const file = path.join(scratch, 'segment.html');
@@ -47,9 +47,9 @@ test('sequence phase headings retain readable contrast in Read and Full detail',
   await send('Page.navigate', { url: pathToFileURL(file).href });
   await loaded;
   await run('document.fonts.ready');
-  await run('Archify.readerLayout.whenStable()');
+  await run('Schematics.readerLayout.whenStable()');
   for (const mode of ['read', 'full']) {
-    if (mode === 'full') await run('for (let i = 0; i < 3; i++) Archify.view.zoomIn()');
+    if (mode === 'full') await run('for (let i = 0; i < 3; i++) Schematics.view.zoomIn()');
     for (const preset of ['classic', 'blueprint', 'editorial']) {
       for (const theme of ['light', 'dark']) {
         await t.test(`${preset} ${theme} ${mode} phase heading has at least 4.5:1 contrast`, async () => {

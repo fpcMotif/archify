@@ -14,7 +14,7 @@ Measured on an Apple Silicon Mac on 2026-11-06 with hyperfine:
 
 | Run | Wall time |
 |---|---|
-| `node archify.mjs render sequence` | 172 ms |
+| `node schematics.mjs render sequence` | 172 ms |
 | The same `.mjs` under `bun` | 68 ms, byte-identical output |
 | A layout-style loop: scriptc native / `bun --compile` / `bun` / `node` | 8.4 / 18.3 / 19.2 / 88 ms |
 | Read the 880 KB template, one regex, SHA-256: scriptc native / `bun` / `node` | 5 / 12.2 / 80 ms |
@@ -38,14 +38,14 @@ In a sequence render under Bun, the layout code itself takes about 5 ms. Most of
 
 - **Keep Node `.mjs`.** Rejected. Node is the slowest runtime measured, and the untyped renderers carry the most risk.
 - **Support both Node and Bun.** Rejected. Two runtimes double the test matrix, and Node-only hooks such as loader `register` keep tests from moving to Bun APIs.
-- **Porffor.** Rejected. It compiled the layout loop to a 200 KB binary, but the binary ran in 33.7 ms, slower than Bun. It also could not compile an `import` declaration, so it cannot build archify's module graph.
-- **Rewrite the core by hand in Zig, C, Swift or Rust.** Rejected. scriptc already reaches native speed from the same TypeScript, so a second language would add a second codebase without a measured gain. An earlier `archify_core` Rust crate was deleted because no code path called it.
+- **Porffor.** Rejected. It compiled the layout loop to a 200 KB binary, but the binary ran in 33.7 ms, slower than Bun. It also could not compile an `import` declaration, so it cannot build schematics's module graph.
+- **Rewrite the core by hand in Zig, C, Swift or Rust.** Rejected. scriptc already reaches native speed from the same TypeScript, so a second language would add a second codebase without a measured gain. An earlier `schematics_core` Rust crate was deleted because no code path called it.
 
 ## Consequences
 
 - The Ajv-generated validators must be replaced by typed validators that scriptc can compile before the whole CLI can build with scriptc. Until then, `bun build --compile` builds the release executable.
 - `tsconfig.json` uses `erasableSyntaxOnly` and `verbatimModuleSyntax`, so every `.ts` file runs by type stripping alone. `bun check` type-checks it. Dependencies lock in `bun.lock`.
 - The fork drops what does not render or show a diagram: the website, gallery, release ZIP and its gates, the update notifier, community packages and agent integrations. Node compatibility lanes go with them.
-- The Skill runs as `bun bin/archify.mjs` until per-platform executables exist.
+- The Skill runs as `bun bin/schematics.mjs` until per-platform executables exist.
 - scriptc is experimental. Each scriptc build must produce byte-identical output to the Bun build of the same source.
-- The upstream repository `tt-a1i/archify` stays on Node, so merges from upstream will conflict more as files convert.
+- The upstream repository `fpcMotif/schematics` stays on Node, so merges from upstream will conflict more as files convert.

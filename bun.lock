@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "archify-repository",
+      "name": "schematics-repository",
       "devDependencies": {
         "@types/bun": "^1.4.4",
         "ajv": "^8.17.1",

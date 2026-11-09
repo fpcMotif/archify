@@ -8,9 +8,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-import { startPreview } from '../archify/bin/preview.mjs';
+import { startPreview } from '../schematics/bin/preview.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function bounded(promise, message, timeout = 1500) {
@@ -34,7 +34,7 @@ async function until(predicate, message) {
 }
 
 function fixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-force-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-force-'));
   const input = path.join(root, 'input.json');
   const output = path.join(root, 'output.html');
   fs.copyFileSync(path.join(skillRoot, 'examples/web-app.architecture.json'), input);
@@ -55,7 +55,7 @@ async function partialRequest(url) {
 
 function assertClean(data, previous) {
   assert.deepEqual(fs.readFileSync(data.output), previous, 'shutdown changed the last artifact');
-  assert.deepEqual(fs.readdirSync(data.root).filter((name) => name.startsWith('.archify-preview-')), []);
+  assert.deepEqual(fs.readdirSync(data.root).filter((name) => name.startsWith('.schematics-preview-')), []);
 }
 
 for (const gracefulFirst of [false, true]) {
@@ -149,7 +149,7 @@ test('preview CLI: second Ctrl-C exits despite an unfinished HTTP request', {
   timeout: 15000,
 }, async () => {
   const data = fixture();
-  const child = spawn(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'preview', 'architecture', data.input, data.output, '--no-open'], {
+  const child = spawn(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'preview', 'architecture', data.input, data.output, '--no-open'], {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let stdout = '';
@@ -188,7 +188,7 @@ for (const window of ['snapshot', 'receipt']) {
     const data = fixture();
     const ready = path.join(data.root, 'delivery.ready');
     const deliveryCli = path.join(data.root, 'paused-delivery.mjs');
-    const cli = path.join(skillRoot, 'bin/archify.mjs');
+    const cli = path.join(skillRoot, 'bin/schematics.mjs');
     const previous = Buffer.from('<!doctype html><title>Previous verified artifact</title>');
     fs.writeFileSync(data.output, previous);
     // Pause a real deliver at a deterministic boundary, without publishing its
@@ -223,7 +223,7 @@ for (const window of ['snapshot', 'receipt']) {
       // require a non-empty marker so the captured path is never blank.
       await until(() => fs.existsSync(ready) && fs.statSync(ready).size > 0,
         `real delivery did not reach ${window}`);
-      const staging = path.join(data.root, fs.readdirSync(data.root).find((name) => name.startsWith('.archify-preview-')));
+      const staging = path.join(data.root, fs.readdirSync(data.root).find((name) => name.startsWith('.schematics-preview-')));
       const claimant = path.join(staging, 'claimant.txt');
       fs.writeFileSync(claimant, 'unowned content');
       const retained = window === 'snapshot'

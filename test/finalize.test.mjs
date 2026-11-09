@@ -13,11 +13,11 @@ import {
   defaultFinalizeReceiptPath,
   defaultFinalizeSummaryPath,
   runFinalize,
-} from '../archify/bin/finalize.mjs';
-import { CAPTURE_VIEWPORTS, VISUAL_CHECK_VIEWPORTS } from '../archify/bin/visual-check.mjs';
+} from '../schematics/bin/finalize.mjs';
+import { CAPTURE_VIEWPORTS, VISUAL_CHECK_VIEWPORTS } from '../schematics/bin/visual-check.mjs';
 
 function workspace(t) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-finalize-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-finalize-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   return directory;
 }
@@ -153,7 +153,7 @@ test('finalize reuses delivery validation, runs one build, and keeps full stage 
   };
 
   const finalized = await runFinalize({
-    cliPath: '/fake/archify.mjs',
+    cliPath: '/fake/schematics.mjs',
     type: 'architecture',
     input,
     output,
@@ -193,7 +193,7 @@ test('finalize stops at the failed gate and persists actionable failure evidence
   fs.writeFileSync(input, '{}');
   const calls = [];
   const finalized = await runFinalize({
-    cliPath: '/fake/archify.mjs',
+    cliPath: '/fake/schematics.mjs',
     type: 'workflow',
     input,
     output,
@@ -456,7 +456,7 @@ test('merged viewport-overflow diagnostics preserve each subject, evidence, and 
   ];
 
   const finalized = await runFinalize({
-    cliPath: '/fake/archify.mjs',
+    cliPath: '/fake/schematics.mjs',
     type: 'architecture',
     input,
     output,
@@ -493,7 +493,7 @@ test('finalize refuses a receipt path that aliases a gate sidecar', async t => {
   let invoked = false;
 
   await assert.rejects(() => runFinalize({
-    cliPath: '/fake/archify.mjs',
+    cliPath: '/fake/schematics.mjs',
     type: 'architecture',
     input,
     output,
@@ -513,7 +513,7 @@ test('finalize binds a passing validate receipt to the unchanged candidate', asy
   const candidateSha256 = createHash('sha256').update(source).digest('hex');
   const calls = [];
   const pass = await runFinalize({
-    cliPath: '/fake/archify.mjs',
+    cliPath: '/fake/schematics.mjs',
     type: 'architecture',
     input,
     output,
@@ -535,7 +535,7 @@ test('finalize binds a passing validate receipt to the unchanged candidate', asy
 
   fs.writeFileSync(input, `${source}\n`);
   await assert.rejects(() => runFinalize({
-    cliPath: '/fake/archify.mjs',
+    cliPath: '/fake/schematics.mjs',
     type: 'architecture',
     input,
     output: path.join(directory, 'changed.html'),
@@ -564,7 +564,7 @@ test('finalize fails closed when a stage exits zero without a valid passing rece
     fs.writeFileSync(input, '{}');
     const calls = [];
     const finalized = await runFinalize({
-      cliPath: '/fake/archify.mjs',
+      cliPath: '/fake/schematics.mjs',
       type: 'architecture',
       input,
       output,
@@ -593,7 +593,7 @@ test('showcase delivery warnings name the checker issue without advancing to lat
     detail: '[composition/viewport-height] Preserve every node and compact vertical spacing to fit the Reader.',
   };
   const finalized = await runFinalize({
-    cliPath: '/fake/archify.mjs', type: 'architecture', input, output,
+    cliPath: '/fake/schematics.mjs', type: 'architecture', input, output,
     runCommand: ({ stage }) => {
       calls.push(stage);
       const delivery = passingDelivery({ input, output, source });
@@ -622,7 +622,7 @@ test('showcase warning diagnostic never masks a mismatched delivery artifact', a
   const source = '{}';
   fs.writeFileSync(input, source);
   const finalized = await runFinalize({
-    cliPath: '/fake/archify.mjs', type: 'architecture', input, output,
+    cliPath: '/fake/schematics.mjs', type: 'architecture', input, output,
     runCommand: () => {
       const delivery = passingDelivery({ input, output, source });
       delivery.validation.warnings = 1;
@@ -645,7 +645,7 @@ test('showcase warning count without matching issue details still fails with a q
   fs.writeFileSync(input, source);
   const calls = [];
   const finalized = await runFinalize({
-    cliPath: '/fake/archify.mjs', type: 'workflow', input, output,
+    cliPath: '/fake/schematics.mjs', type: 'workflow', input, output,
     runCommand: ({ stage }) => {
       calls.push(stage);
       const delivery = passingDelivery({ input, output, source, type: 'workflow' });
@@ -664,7 +664,7 @@ test('public deliver and finalize CLI propagate a real workflow viewport warning
   const directory = workspace(t);
   const input = path.join(directory, 'warning.workflow.json');
   const output = path.join(directory, 'warning.html');
-  const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+  const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
   fs.writeFileSync(input, `${JSON.stringify({
     schema_version: 1,
     diagram_type: 'workflow',
@@ -723,7 +723,7 @@ test('finalize rejects an interleaved delivery whose check proves another artifa
   const calls = [];
 
   const finalized = await runFinalize({
-    cliPath: '/fake/archify.mjs',
+    cliPath: '/fake/schematics.mjs',
     type: 'architecture',
     input,
     output,
@@ -764,7 +764,7 @@ test('finalize verifies the artifact and delivery sidecar after browser evidence
   let delivery;
 
   const finalized = await runFinalize({
-    cliPath: '/fake/archify.mjs',
+    cliPath: '/fake/schematics.mjs',
     type: 'architecture',
     input,
     output,
@@ -802,7 +802,7 @@ test('a successful finalize receipt keeps the delivery identity after its final 
 
   try {
     const finalized = await runFinalize({
-      cliPath: '/fake/archify.mjs',
+      cliPath: '/fake/schematics.mjs',
       type: 'architecture',
       input,
       output,
@@ -852,7 +852,7 @@ test('finalize rejects a delivery sidecar replaced after the browser receipt', a
   let delivery;
 
   const finalized = await runFinalize({
-    cliPath: '/fake/archify.mjs',
+    cliPath: '/fake/schematics.mjs',
     type: 'architecture',
     input,
     output,
@@ -893,7 +893,7 @@ test('finalize rejects a delivery type mismatch before checking a different diag
   const calls = [];
 
   const finalized = await runFinalize({
-    cliPath: '/fake/archify.mjs',
+    cliPath: '/fake/schematics.mjs',
     type: 'architecture',
     input,
     output,
@@ -921,7 +921,7 @@ test('finalize rejects a final delivery sidecar whose type no longer matches the
   let delivery;
 
   const finalized = await runFinalize({
-    cliPath: '/fake/archify.mjs',
+    cliPath: '/fake/schematics.mjs',
     type: 'architecture',
     input,
     output,
@@ -955,7 +955,7 @@ test('finalize rejects a showcase delivery whose count does not match the comple
   let delivery;
 
   const finalized = await runFinalize({
-    cliPath: '/fake/archify.mjs',
+    cliPath: '/fake/schematics.mjs',
     type: 'architecture',
     input,
     output,
@@ -1010,7 +1010,7 @@ test('finalize requires the canonical check and browser artifact paths without i
     fs.writeFileSync(input, source);
     let delivery;
     const finalized = await runFinalize({
-      cliPath: '/fake/archify.mjs',
+      cliPath: '/fake/schematics.mjs',
       type: 'architecture',
       input,
       output,
@@ -1082,7 +1082,7 @@ test('finalize requires complete passing browser evidence coverage', async t => 
     fs.writeFileSync(input, source);
     let delivery;
     const finalized = await runFinalize({
-      cliPath: '/fake/archify.mjs',
+      cliPath: '/fake/schematics.mjs',
       type: 'architecture',
       input,
       output,
@@ -1149,7 +1149,7 @@ test('finalize rejects incomplete or mismatched successful protocol receipts', a
     let delivery;
     const calls = [];
     const finalized = await runFinalize({
-      cliPath: '/fake/archify.mjs',
+      cliPath: '/fake/schematics.mjs',
       type: 'architecture',
       input,
       output,
@@ -1185,7 +1185,7 @@ test('finalize rechecks delivery barriers and the frozen candidate after the bro
     fs.writeFileSync(input, source);
     let delivery;
     const finalized = await runFinalize({
-      cliPath: '/fake/archify.mjs', type: 'architecture', input, output,
+      cliPath: '/fake/schematics.mjs', type: 'architecture', input, output,
       ...(scenario === 'pending-delivery' ? { inspectDelivery: () => ({
         ok: false, status: 'pending', diagnostics: [{
           code: 'delivery/provenance-pending', severity: 'error', message: 'A new delivery is pending.',
@@ -1213,7 +1213,7 @@ test('default finalize JSON preserves complete verified workflow repairs', t => 
   const input = path.join(directory, 'shared-endpoint.json');
   const output = path.join(directory, 'shared-endpoint.html');
   const receipt = path.join(directory, 'receipt.json');
-  const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+  const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
   const source = {
     schema_version: 2,
     diagram_type: 'workflow',
@@ -1263,12 +1263,12 @@ test('default finalize JSON preserves complete verified workflow repairs', t => 
 
 test('finalize records the same check receipt the check command prints', { timeout: 180000 }, (t) => {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const cliPath = path.join(here, '..', 'archify', 'bin', 'archify.mjs');
+  const cliPath = path.join(here, '..', 'schematics', 'bin', 'schematics.mjs');
   const directory = workspace(t);
   const input = path.join(directory, 'parity.architecture.json');
-  fs.copyFileSync(path.join(here, '..', 'archify', 'examples', 'web-app.architecture.json'), input);
+  fs.copyFileSync(path.join(here, '..', 'schematics', 'examples', 'web-app.architecture.json'), input);
   const output = path.join(directory, 'parity.html');
-  const env = { ...process.env, ARCHIFY_CHROME: path.join(directory, 'missing-chrome') };
+  const env = { ...process.env, SCHEMATICS_CHROME: path.join(directory, 'missing-chrome') };
   const finalized = spawnSync(process.execPath, [cliPath, 'finalize', 'architecture', input, output, '--quality', 'standard', '--json', '--out-dir', path.join(directory, 'evidence')], { encoding: 'utf8', env });
   assert.equal(finalized.status, 2, finalized.stderr || finalized.stdout);
   const summary = JSON.parse(finalized.stdout);

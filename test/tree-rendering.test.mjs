@@ -8,15 +8,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const renderer = path.join(skillRoot, 'renderers', 'tree', 'render-tree.mjs');
 const checker = path.join(skillRoot, 'scripts', 'check-render-output.mjs');
 const small = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'payment-platform.tree.json'), 'utf8'));
-const large = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'archify-repository.tree.json'), 'utf8'));
+const large = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'schematics-repository.tree.json'), 'utf8'));
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
 function run(diagram, extra = []) {
-  const directory = createScratchDirectory(path.join(os.tmpdir(), 'archify-tree-'));
+  const directory = createScratchDirectory(path.join(os.tmpdir(), 'schematics-tree-'));
   const input = path.join(directory, 'candidate.tree.json');
   const output = path.join(directory, 'candidate.html');
   fs.writeFileSync(input, JSON.stringify(diagram));

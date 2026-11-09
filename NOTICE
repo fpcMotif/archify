@@ -1,8 +1,11 @@
-Archify
+Schematics
 Copyright (c) 2026 tt-a1i (Archify)
 Copyright (c) 2025 Cocoon AI
 
-Archify is distributed under the Apache License, Version 2.0 (LICENSE),
+Schematics is derived from Archify by tt-a1i (https://github.com/tt-a1i/archify)
+and was renamed in this fork. The copyright lines above keep the original names.
+
+Schematics is distributed under the Apache License, Version 2.0 (LICENSE),
 except where a file, package manifest, or third-party notice specifies otherwise.
 The separately versioned DeepSeek Harness adapter remains MIT; its bundled
 Skill retains the license of the immutable source selected in release.json.
@@ -22,5 +25,5 @@ and the license files beside those components. Names and logos do not imply
 official endorsement, and the software license grants no general trademark
 permission.
 
-These software licenses cover Archify's embedded runtime and templates, not
-ownership of a user's authored content, business data, or source repository.
+These software licenses cover the embedded runtime and templates of Schematics,
+not ownership of a user's authored content, business data, or source repository.

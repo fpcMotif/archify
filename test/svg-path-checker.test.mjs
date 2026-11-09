@@ -6,10 +6,10 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { after, test } from 'node:test';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const checker = path.join(skillRoot, 'scripts/check-render-output.mjs');
-const cli = path.join(skillRoot, 'bin/archify.mjs');
-const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-svg-path-checker-'));
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-svg-path-checker-'));
 const deadlineMs = process.platform === 'win32' ? 10000 : 3000;
 let sequence = 0;
 after(() => fs.rmSync(scratch, { recursive: true, force: true }));

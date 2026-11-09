@@ -6,11 +6,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { properSegmentIntersection, rectsOverlap } from '../archify/renderers/shared/geometry.ts';
+import { properSegmentIntersection, rectsOverlap } from '../schematics/renderers/shared/geometry.ts';
 import { routeHugs } from './helpers/route-hugs.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const renderer = path.join(skillRoot, 'renderers', 'erd', 'render-erd.mjs');
 const checker = path.join(skillRoot, 'scripts', 'check-render-output.mjs');
 const fixtures = path.join(__dirname, 'fixtures', 'erd-first-draft');
@@ -19,7 +19,7 @@ const GLYPH_REACH = 24;
 const GLYPH_HALF = 8;
 
 function render(diagram) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-erd-first-draft-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-erd-first-draft-'));
   const input = path.join(directory, 'candidate.json');
   const output = path.join(directory, 'candidate.html');
   fs.writeFileSync(input, JSON.stringify(diagram));

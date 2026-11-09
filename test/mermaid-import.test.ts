@@ -2,10 +2,10 @@ import { afterAll, describe, expect, test } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { importMermaid, MermaidImportError } from '../archify/mermaid/import.ts';
+import { importMermaid, MermaidImportError } from '../schematics/mermaid/import.ts';
 
-const cli = path.join(import.meta.dir, '..', 'archify', 'bin', 'archify.mjs');
-const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-mermaid-import-'));
+const cli = path.join(import.meta.dir, '..', 'schematics', 'bin', 'schematics.mjs');
+const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-mermaid-import-'));
 afterAll(() => fs.rmSync(workDir, { recursive: true, force: true }));
 
 type Diagram = Record<string, any>;
@@ -14,7 +14,7 @@ function run(...args: string[]) {
   const child = Bun.spawnSync([process.execPath, cli, ...args], {
     stdout: 'pipe',
     stderr: 'pipe',
-    env: { ...process.env, ARCHIFY_CACHE_DIR: path.join(workDir, 'cache') },
+    env: { ...process.env, SCHEMATICS_CACHE_DIR: path.join(workDir, 'cache') },
   });
   return { code: child.exitCode, stdout: child.stdout.toString(), stderr: child.stderr.toString() };
 }
@@ -206,7 +206,7 @@ describe('importMermaid', () => {
 
   test('mind map becomes a tree with one root', () => {
     const { type, diagram, notes } = importMermaid(`mindmap
-  root((Archify))
+  root((Schematics))
     Renderers
       Sequence
       Workflow
@@ -215,7 +215,7 @@ describe('importMermaid', () => {
         ::icon(fa fa-moon)`);
     expect(type).toBe('tree');
     const byLabel = (label: string) => diagram.nodes.find((node: Diagram) => node.label === label);
-    expect(byLabel('Archify').parent).toBeUndefined();
+    expect(byLabel('Schematics').parent).toBeUndefined();
     expect(byLabel('Sequence').parent).toBe(byLabel('Renderers').id);
     expect(byLabel('Themes').parent).toBe(byLabel('Viewer').id);
     expect(diagram.nodes).toHaveLength(6);
@@ -254,14 +254,14 @@ describe('importMermaid', () => {
   });
 });
 
-describe('archify import mermaid', () => {
+describe('schematics import mermaid', () => {
   test('writes the diagram and prints the finalize step', () => {
     const input = path.join(workDir, 'release.mmd');
     const output = path.join(workDir, 'release.json');
     fs.writeFileSync(input, FLOWCHART);
     const result = run('import', 'mermaid', input, output, '--title', 'Release pipeline');
     expect(result.code).toBe(0);
-    expect(result.stdout).toContain(`Next: archify finalize workflow ${output}`);
+    expect(result.stdout).toContain(`Next: schematics finalize workflow ${output}`);
     const diagram = JSON.parse(fs.readFileSync(output, 'utf8'));
     expect(diagram.meta).toEqual({ title: 'Release pipeline', output: 'release.html' });
   });

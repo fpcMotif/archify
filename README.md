@@ -1,8 +1,8 @@
-# Archify
+# Schematics
 
-Archify turns a typed JSON description of a system into a validated, self-contained HTML diagram. The diagram opens in any browser, works offline, and has dark and light themes, search, path tracing and image or SVG export.
+Schematics turns a typed JSON description of a system into a validated, self-contained HTML diagram. The diagram opens in any browser, works offline, and has dark and light themes, search, path tracing and image or SVG export.
 
-This is a personal fork of [tt-a1i/archify](https://github.com/tt-a1i/archify). It keeps the diagram engine, the agent Skill, explainer pages and brand icons. It runs on [Bun](https://bun.sh) only. New code is TypeScript; see [ADR 0001](docs/adr/0001-bun-typescript-runtime.md).
+This is a personal fork of [fpcMotif/schematics](https://github.com/fpcMotif/schematics). It keeps the diagram engine, the agent Skill, explainer pages and brand icons. It runs on [Bun](https://bun.sh) only. New code is TypeScript; see [ADR 0001](docs/adr/0001-bun-typescript-runtime.md).
 
 ## Diagram types
 
@@ -21,19 +21,19 @@ This is a personal fork of [tt-a1i/archify](https://github.com/tt-a1i/archify). 
 
 An **explainer** is a one-page answer with the conclusion first, structured panels, native diagrams and charts.
 
-Rendered examples live in [`archify/examples/`](archify/examples/). Open any `*.html` file there in a browser.
+Rendered examples live in [`schematics/examples/`](schematics/examples/). Open any `*.html` file there in a browser.
 
 ## Use it
 
 Install Bun 1.4 or newer, then:
 
 ```bash
-cd archify
-bun bin/archify.mjs doctor
-bun bin/archify.mjs guide "Show an API request with Redis cache miss"
-bun bin/archify.mjs validate workflow examples/agent-tool-call.workflow.json --quality showcase --json
-bun bin/archify.mjs finalize workflow examples/agent-tool-call.workflow.json /tmp/workflow.html --quality showcase --json
-bun bin/archify.mjs preview workflow examples/agent-tool-call.workflow.json /tmp/workflow.html --no-open
+cd schematics
+bun bin/schematics.mjs doctor
+bun bin/schematics.mjs guide "Show an API request with Redis cache miss"
+bun bin/schematics.mjs validate workflow examples/agent-tool-call.workflow.json --quality showcase --json
+bun bin/schematics.mjs finalize workflow examples/agent-tool-call.workflow.json /tmp/workflow.html --quality showcase --json
+bun bin/schematics.mjs preview workflow examples/agent-tool-call.workflow.json /tmp/workflow.html --no-open
 ```
 
 - `finalize` runs four gates in order: validate, deliver, a strict artifact check and a real-browser check. Only a passing artifact replaces the target file.
@@ -44,7 +44,7 @@ bun bin/archify.mjs preview workflow examples/agent-tool-call.workflow.json /tmp
 
 ## Agent Skill
 
-[`archify/SKILL.md`](archify/SKILL.md) holds the full generation and viewer contract. To use it with an agent, link or copy the `archify/` folder into the agent's skills folder:
+[`schematics/SKILL.md`](schematics/SKILL.md) holds the full generation and viewer contract. To use it with an agent, link or copy the `schematics/` folder into the agent's skills folder:
 
 | Agent | Skills folder |
 |---|---|
@@ -68,13 +68,13 @@ bun bin/archify.mjs preview workflow examples/agent-tool-call.workflow.json /tmp
 ## Develop
 
 ```bash
-bun install && bun install --cwd archify
+bun install && bun install --cwd schematics
 bun run test:all
 bun run test:generated
 bun run test:browser
 ```
 
-`test:all` skips the Chrome suites unless `ARCHIFY_CHROME` is set. `test:browser` finds Chrome and runs them. See [CONTRIBUTING.md](CONTRIBUTING.md).
+`test:all` skips the Chrome suites unless `SCHEMATICS_CHROME` is set. `test:browser` finds Chrome and runs them. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

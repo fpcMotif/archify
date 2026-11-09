@@ -4,19 +4,19 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { applyTemplate } from '../archify/renderers/shared/utils.ts';
-import { findChrome } from '../archify/bin/visual-check.mjs';
+import { applyTemplate } from '../schematics/renderers/shared/utils.ts';
+import { findChrome } from '../schematics/bin/visual-check.mjs';
 import { desktopBrowser, desktopPointerCheck } from './helpers/desktop-browser.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const chrome = process.env.ARCHIFY_CHROME ? findChrome() : null;
+const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
 
 test('native copy links preserve a host page and opaque reader state without changing standalone links', {
-  skip: chrome ? false : 'Set ARCHIFY_CHROME for the native address regression.',
+  skip: chrome ? false : 'Set SCHEMATICS_CHROME for the native address regression.',
 }, async (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-reading-address-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-reading-address-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
-  const template = fs.readFileSync(path.join(root, 'archify/assets/template.html'), 'utf8');
+  const template = fs.readFileSync(path.join(root, 'schematics/assets/template.html'), 'utf8');
   const html = applyTemplate(template, {
     title: 'Reading address', subtitle: 'Native state stays opaque to the host.', cards: '',
     svg: `<svg viewBox="0 0 600 360" role="img" aria-label="Directed graph">
@@ -62,7 +62,7 @@ test('native copy links preserve a host page and opaque reader state without cha
     try {
       const copied = await (${action});
       // Observe transient feedback before another CDP round trip can outlive it.
-      const button = document.getElementById(${JSON.stringify(action.startsWith('Archify.focus.') ? 'btn-focus-copy' : action.startsWith('Archify.routeProbe.') ? 'route-probe-copy' : 'semantic-lens-copy')});
+      const button = document.getElementById(${JSON.stringify(action.startsWith('Schematics.focus.') ? 'btn-focus-copy' : action.startsWith('Schematics.routeProbe.') ? 'route-probe-copy' : 'semantic-lens-copy')});
       return { copied, text, clipboardCalls,
         residual: document.querySelectorAll('textarea[readonly]').length,
         feedback: { text: button.textContent, accessible: button.getAttribute('aria-label') } };
@@ -72,11 +72,11 @@ test('native copy links preserve a host page and opaque reader state without cha
       else delete navigator.clipboard; }
   })()`, contextId);
   const states = [
-    ['Archify.focus.set("source", {toggle:false,updateUrl:false})', 'Archify.focus.copyLink()', 'focus=source'],
-    ['Archify.focus.reach("downstream", {reveal:false,updateUrl:false})', 'Archify.focus.copyLink()', 'focus=source&reach=downstream'],
-    ['Archify.focus.inspectRelationshipById("calls", {updateUrl:false})', 'Archify.focus.copyLink()', 'relation=calls'],
-    ['Archify.routeProbe.begin({source:"source",focusNode:false}); Archify.routeProbe.choose("target", {updateUrl:false})', 'Archify.routeProbe.copyLink()', 'route=source~target'],
-    ['Archify.semanticLens.select("component", {updateUrl:false})', 'Archify.semanticLens.copyLink()', 'lens=component'],
+    ['Schematics.focus.set("source", {toggle:false,updateUrl:false})', 'Schematics.focus.copyLink()', 'focus=source'],
+    ['Schematics.focus.reach("downstream", {reveal:false,updateUrl:false})', 'Schematics.focus.copyLink()', 'focus=source&reach=downstream'],
+    ['Schematics.focus.inspectRelationshipById("calls", {updateUrl:false})', 'Schematics.focus.copyLink()', 'relation=calls'],
+    ['Schematics.routeProbe.begin({source:"source",focusNode:false}); Schematics.routeProbe.choose("target", {updateUrl:false})', 'Schematics.routeProbe.copyLink()', 'route=source~target'],
+    ['Schematics.semanticLens.select("component", {updateUrl:false})', 'Schematics.semanticLens.copyLink()', 'lens=component'],
   ];
   const check = async (contextId, address) => {
     for (const [setup, action, state] of states) {
@@ -90,13 +90,13 @@ test('native copy links preserve a host page and opaque reader state without cha
     }
   };
   await check(undefined, pathToFileURL(file).href + '?theme=light#{state}');
-  await run('Archify.focus.set("source", {toggle:false,updateUrl:false})');
+  await run('Schematics.focus.set("source", {toggle:false,updateUrl:false})');
   for (const [mode, fallback, expected, attempts] of [
     ['success', false, true, 1], ['reject', true, true, 1],
     ['throw', true, true, 1], ['throw', false, false, 1],
     ['missing', true, true, 0], ['reject', false, false, 1],
   ]) {
-    const result = await copy('Archify.focus.copyLink()', undefined, mode, fallback);
+    const result = await copy('Schematics.focus.copyLink()', undefined, mode, fallback);
     assert.equal(result.copied, expected);
     assert.equal(result.clipboardCalls, attempts);
     assert.equal(result.residual, 0);
@@ -171,9 +171,9 @@ test('native copy links preserve a host page and opaque reader state without cha
   }
   const restoredScript = `<script>addEventListener('load', () => {
     parent.postMessage({type:'native-reading-restored', hash:location.hash,
-      focus:Archify.focus.active(), relationship:Archify.focus.relationship(),
-      reach:Archify.focus.reachability(), route:Archify.routeProbe.result(),
-      lens:Archify.semanticLens.active()}, '*');
+      focus:Schematics.focus.active(), relationship:Schematics.focus.relationship(),
+      reach:Schematics.focus.reachability(), route:Schematics.routeProbe.result(),
+      lens:Schematics.semanticLens.active()}, '*');
   }, {once:true});</script>`;
   const reopenedReader = html.replace('<head>',
     '<head><script>location.replace(location.href.replace(/#.*$/, "") + "#" + __STATE__);</script>')
@@ -223,25 +223,25 @@ test('native copy links preserve a host page and opaque reader state without cha
       assert.deepEqual(restored.lens, ['component']);
     }
   }
-  for (const example of ['archify/examples/web-app-rendered.html']) {
+  for (const example of ['schematics/examples/web-app-rendered.html']) {
     const artifact = path.join(root, example);
     await browser.inspect({ artifactPath: artifact, width: 1600, height: 1100,
       theme: 'light', writeScreenshot: false });
     const id = await run(`document.querySelector('svg [data-node-id]')?.getAttribute('data-node-id')`);
     assert.ok(id, `${example} provides an authored node`);
-    assert.equal(await run(`Archify.focus.set(${JSON.stringify(id)}, {toggle:false,updateUrl:false})`), true);
+    assert.equal(await run(`Schematics.focus.set(${JSON.stringify(id)}, {toggle:false,updateUrl:false})`), true);
     const state = 'focus=' + encodeURIComponent(id);
-    const before = await copy('Archify.focus.copyLink()');
+    const before = await copy('Schematics.focus.copyLink()');
     assert.equal(before.copied, true);
     assert.equal(before.text, pathToFileURL(artifact).href + '?theme=light#' + state);
     await run(`document.documentElement.setAttribute('data-reading-link-template', ${JSON.stringify(host)})`);
-    const configured = await copy('Archify.focus.copyLink()');
+    const configured = await copy('Schematics.focus.copyLink()');
     assert.equal(configured.copied, true);
     assert.equal(configured.text, host.replace('{state}', encodeURIComponent(state)),
       `${example} uses the declared host address`);
     assert.equal(configured.residual, 0);
     await run(`document.documentElement.setAttribute('data-reading-link-template', 'javascript:{state}')`);
-    const invalid = await copy('Archify.focus.copyLink()');
+    const invalid = await copy('Schematics.focus.copyLink()');
     assert.equal(invalid.copied, false);
     assert.equal(invalid.clipboardCalls, 0);
     assert.equal(invalid.text, null);

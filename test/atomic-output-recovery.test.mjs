@@ -13,10 +13,10 @@ import {
   publishRegularFileBinding,
   recoverRetiredPublication,
   releaseRegularFileBinding,
-} from '../archify/renderers/shared/atomic-output.mjs';
+} from '../schematics/renderers/shared/atomic-output.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(here, '..', 'archify');
+const skillRoot = path.resolve(here, '..', 'schematics');
 const atomicOutput = path.join(skillRoot, 'renderers/shared/atomic-output.mjs');
 const recoveryCli = path.join(skillRoot, 'bin/recover-output.mjs');
 
@@ -28,7 +28,7 @@ function workspace(t, prefix) {
 
 function recoveryDirectory(parent) {
   const matches = fs.readdirSync(parent, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name.startsWith('.archify-remove-'));
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith('.schematics-remove-'));
   assert.equal(matches.length, 1, `expected one recovery directory in ${parent}`);
   return path.join(parent, matches[0].name);
 }
@@ -42,8 +42,8 @@ function crashPublisher({ output, candidate, phase }) {
       publishRegularFileBinding,
     } from ${JSON.stringify(atomicOutput)};
 
-    const output = process.env.ARCHIFY_RECOVERY_OUTPUT;
-    const candidatePath = process.env.ARCHIFY_RECOVERY_CANDIDATE;
+    const output = process.env.SCHEMATICS_RECOVERY_OUTPUT;
+    const candidatePath = process.env.SCHEMATICS_RECOVERY_CANDIDATE;
     const snapshot = captureAtomicOutput(output);
     if (snapshot.status !== 'captured') throw new Error(JSON.stringify(snapshot));
     const candidate = captureRegularFileBinding(candidatePath, { subject: 'crash-candidate' });
@@ -51,7 +51,7 @@ function crashPublisher({ output, candidate, phase }) {
     const linkSync = fs.linkSync.bind(fs);
     fs.linkSync = (source, target) => {
       if (source === candidatePath && target === snapshot.commitPath) {
-        if (process.env.ARCHIFY_RECOVERY_PHASE === 'after-link') {
+        if (process.env.SCHEMATICS_RECOVERY_PHASE === 'after-link') {
           linkSync(source, target);
         }
         process.kill(process.pid, 'SIGKILL');
@@ -64,9 +64,9 @@ function crashPublisher({ output, candidate, phase }) {
     encoding: 'utf8',
     env: {
       ...process.env,
-      ARCHIFY_RECOVERY_OUTPUT: output,
-      ARCHIFY_RECOVERY_CANDIDATE: candidate,
-      ARCHIFY_RECOVERY_PHASE: phase,
+      SCHEMATICS_RECOVERY_OUTPUT: output,
+      SCHEMATICS_RECOVERY_CANDIDATE: candidate,
+      SCHEMATICS_RECOVERY_PHASE: phase,
     },
   });
 }
@@ -84,11 +84,11 @@ function crashRecoveryAfterLink(directory) {
       }
       return result;
     };
-    recoverRetiredPublication(process.env.ARCHIFY_RECOVERY_DIRECTORY);
+    recoverRetiredPublication(process.env.SCHEMATICS_RECOVERY_DIRECTORY);
   `;
   return spawnSync(process.execPath, ['--input-type=module', '--eval', `import path from 'node:path';${script}`], {
     encoding: 'utf8',
-    env: { ...process.env, ARCHIFY_RECOVERY_DIRECTORY: directory },
+    env: { ...process.env, SCHEMATICS_RECOVERY_DIRECTORY: directory },
   });
 }
 
@@ -119,9 +119,9 @@ test('recovery CLI help is successful and unknown options do not name a recovery
 });
 
 function portableRecoveryFixture(t) {
-  const root = workspace(t, 'archify-portable-publication-recovery-');
+  const root = workspace(t, 'schematics-portable-publication-recovery-');
   const output = path.join(root, 'diagram.html');
-  const recovery = path.join(root, `.archify-remove-${'a'.repeat(32)}`);
+  const recovery = path.join(root, `.schematics-remove-${'a'.repeat(32)}`);
   const backup = path.join(recovery, 'previous');
   const recordPath = path.join(recovery, 'publication-recovery-v1.json');
   const previous = 'portable previous artifact\n';
@@ -133,7 +133,7 @@ function portableRecoveryFixture(t) {
   const recoveryMetadata = fs.lstatSync(recovery, { bigint: true });
   const record = {
     version: 1,
-    kind: 'archify-retired-output-recovery',
+    kind: 'schematics-retired-output-recovery',
     backup: {
       name: 'previous',
       sha256: createHash('sha256').update(previous).digest('hex'),
@@ -167,13 +167,13 @@ function interruptedReplacement(t, { phase = 'before-link', throughAlias = false
     t.skip('SIGKILL recovery regression is POSIX-only');
     return null;
   }
-  const root = workspace(t, 'archify-publication-recovery-');
+  const root = workspace(t, 'schematics-publication-recovery-');
   const actualParent = throughAlias ? path.join(root, 'actual') : root;
   if (throughAlias) fs.mkdirSync(actualParent);
   const requestedParent = throughAlias ? path.join(root, 'alias') : actualParent;
   if (throughAlias) fs.symlinkSync(actualParent, requestedParent, 'dir');
   const output = path.join(requestedParent, 'diagram.html');
-  const candidate = path.join(actualParent, '.archify-render-candidate');
+  const candidate = path.join(actualParent, '.schematics-render-candidate');
   const previous = '<!doctype html><title>previous trusted artifact</title>\n';
   const next = '<!doctype html><title>new candidate artifact</title>\n';
   fs.writeFileSync(output, previous);
@@ -304,7 +304,7 @@ test('recovery record is bound to its generated direct-parent directory identity
   if (!copied) return;
   const copiedDirectory = path.join(
     copied.actualParent,
-    `.archify-remove-${'1'.repeat(32)}`,
+    `.schematics-remove-${'1'.repeat(32)}`,
   );
   fs.cpSync(copied.recovery, copiedDirectory, { recursive: true });
   fs.chmodSync(copiedDirectory, 0o700);
@@ -392,9 +392,9 @@ test('a killed publisher after candidate publication leaves the new public outpu
 });
 
 test('a failed recovery-record create leaves the old output and no empty recovery directory', (t) => {
-  const root = workspace(t, 'archify-publication-recovery-record-create-');
+  const root = workspace(t, 'schematics-publication-recovery-record-create-');
   const output = path.join(root, 'diagram.html');
-  const candidatePath = path.join(root, '.archify-render-candidate');
+  const candidatePath = path.join(root, '.schematics-render-candidate');
   fs.writeFileSync(output, 'previous artifact\n');
   fs.writeFileSync(candidatePath, 'candidate artifact\n');
   const snapshot = captureAtomicOutput(output);
@@ -416,7 +416,7 @@ test('a failed recovery-record create leaves the old output and no empty recover
     assert.equal(result.reason.code, 'publication-recovery-record-write-failed');
     assert.equal(fs.readFileSync(output, 'utf8'), 'previous artifact\n');
     assert.deepEqual(
-      fs.readdirSync(root).filter((entry) => entry.startsWith('.archify-remove-')),
+      fs.readdirSync(root).filter((entry) => entry.startsWith('.schematics-remove-')),
       [],
     );
   } finally {

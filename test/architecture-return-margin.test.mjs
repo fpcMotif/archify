@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createRouter } from '../archify/renderers/architecture/routing.mjs';
-import { reservedLabelRect } from '../archify/renderers/architecture/labels.mjs';
-import { labelPoint, properSegmentIntersection, routeHonorsEndpointSides } from '../archify/renderers/shared/geometry.ts';
-import { textUnits } from '../archify/renderers/shared/utils.ts';
+import { createRouter } from '../schematics/renderers/architecture/routing.mjs';
+import { reservedLabelRect } from '../schematics/renderers/architecture/labels.mjs';
+import { labelPoint, properSegmentIntersection, routeHonorsEndpointSides } from '../schematics/renderers/shared/geometry.ts';
+import { textUnits } from '../schematics/renderers/shared/utils.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -84,7 +84,7 @@ test('an already clear scene keeps its routes when lower room is available', () 
 
 test('the architecture renderer reserves extra room only for an automatic canvas', t => {
   const { boxes, connections } = fixture();
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-return-room-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-return-room-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const diagram = {
     schema_version: 1, diagram_type: 'architecture',
@@ -92,7 +92,7 @@ test('the architecture renderer reserves extra room only for an automatic canvas
     components: [...boxes.values()].map(b => ({ id: b.id, label: b.id, type: 'backend', pos: [b.x, b.y], size: [b.width, b.height] })),
     connections,
   };
-  const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+  const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
   const reports = [];
   for (const fixed of [false, true]) {
     if (fixed) diagram.meta.viewBox = [720, 700];

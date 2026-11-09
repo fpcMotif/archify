@@ -7,9 +7,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const bin = path.join(skillRoot, 'bin', 'archify.mjs');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-vertical-edge-'));
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const bin = path.join(skillRoot, 'bin', 'schematics.mjs');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-vertical-edge-'));
 
 const REPRO = {
   schema_version: 1,

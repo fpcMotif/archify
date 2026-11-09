@@ -22,12 +22,12 @@ import {
   browserCheckSidecarPaths,
   sidecarPaths,
   summarizeBrowserEvidence,
-} from '../archify/bin/visual-check.mjs';
-import { sameLocation } from '../archify/renderers/shared/path-semantics.mjs';
+} from '../schematics/bin/visual-check.mjs';
+import { sameLocation } from '../schematics/renderers/shared/path-semantics.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-check-'));
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-check-'));
 const png = Buffer.from('89504e470d0a1a0a', 'hex');
 
 test('summary indexes every captured viewport/theme and preserves failed diagnostics', async () => {
@@ -77,7 +77,7 @@ function entryIdentity(file) {
 }
 
 function stagingDirectories(directory) {
-  return fs.readdirSync(directory).filter((name) => name.startsWith('.archify-visual-check-'));
+  return fs.readdirSync(directory).filter((name) => name.startsWith('.schematics-visual-check-'));
 }
 
 function fakeBrowser({
@@ -278,7 +278,7 @@ test('findChrome keeps explicit browser overrides authoritative even when invali
     const checked = [];
     const resolved = findChrome({
       platform: 'win32',
-      env: { ARCHIFY_CHROME: override, PROGRAMFILES: String.raw`C:\Program Files` },
+      env: { SCHEMATICS_CHROME: override, PROGRAMFILES: String.raw`C:\Program Files` },
       resolveExecutable(candidate) {
         checked.push(candidate);
         return candidate === edge ? candidate : null;
@@ -377,7 +377,7 @@ test('visual-check disables the Chrome sandbox only for root or an explicit envi
   const profileRoot = path.join(tmp, 'chrome-profile');
   const ordinary = chromeVisualBrowserArgs(profileRoot, { env: {}, getuid: () => 1001 });
   const optedIn = chromeVisualBrowserArgs(profileRoot, {
-    env: { ARCHIFY_CHROME_NO_SANDBOX: '1' },
+    env: { SCHEMATICS_CHROME_NO_SANDBOX: '1' },
     getuid: () => 1001,
   });
   const root = chromeVisualBrowserArgs(profileRoot, { env: {}, getuid: () => 0 });
@@ -398,7 +398,7 @@ test('Windows browser launch removes only the standalone inherited app-health la
       Path: String.raw`C:\Windows\System32`,
       SystemRoot: String.raw`C:\Windows`,
       TEMP: String.raw`C:\Temp`,
-      ARCHIFY_CHROME_NO_SANDBOX: '0',
+      SCHEMATICS_CHROME_NO_SANDBOX: '0',
       UNRELATED_SETTING: 'preserved',
     });
     const child = fakeChromeChild();
@@ -533,7 +533,7 @@ test('visual-check converts a Chrome DevTools pipe reset and captured stderr int
     chromePath: '/fake/chrome',
     browserFactory: async () => {
       const browser = new ChromeVisualBrowser('/fake/chrome', {
-        env: { ARCHIFY_CHROME_NO_SANDBOX: '1' },
+        env: { SCHEMATICS_CHROME_NO_SANDBOX: '1' },
         getuid: () => 1001,
         spawnImpl: () => child,
       });
@@ -566,7 +566,7 @@ test('visual-check reports Chrome early exit status and stderr without an uncaug
     chromePath: '/fake/chrome',
     browserFactory: async () => {
       const browser = new ChromeVisualBrowser('/fake/chrome', {
-        env: { ARCHIFY_CHROME_NO_SANDBOX: '1' },
+        env: { SCHEMATICS_CHROME_NO_SANDBOX: '1' },
         getuid: () => 1001,
         spawnImpl: () => child,
       });
@@ -754,7 +754,7 @@ test('visual-check reports the retained local snapshot directory when its identi
   let browserStarted = false;
   t.mock.method(fs, 'lstatSync', (file, ...args) => {
     const stat = lstatSync(file, ...args);
-    if (!inspectionDirectory && path.basename(String(file)).startsWith('archify-inspection-')) {
+    if (!inspectionDirectory && path.basename(String(file)).startsWith('schematics-inspection-')) {
       inspectionDirectory = String(file);
       stat.ino = 0n;
     }
@@ -889,7 +889,7 @@ test('visual-check cleanup preserves a successor swapped at its final removal bo
   t.mock.method(fs, 'renameSync', (source, destination) => {
     if (!injected
       && path.basename(String(source)) === 'artifact-snapshot.html'
-      && path.basename(path.dirname(String(destination))).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(String(destination))).startsWith('.schematics-remove-')) {
       inject(source);
     }
     return renameSync(source, destination);
@@ -956,7 +956,7 @@ test('sidecarPaths keeps source-distinct case and Unicode names distinct under t
   const sourceProbes = new Set();
   fs.openSync = function simulateTargetSemantics(file, ...args) {
     const descriptor = originalOpen.call(this, file, ...args);
-    if (path.basename(String(file)).startsWith('.archify-path-semantics-')) {
+    if (path.basename(String(file)).startsWith('.schematics-path-semantics-')) {
       if (path.dirname(String(file)) === outPhysical) {
         simulatedEntries.set(targetSemanticKey(path.basename(String(file))), String(file));
       } else if (path.dirname(String(file)) === sourcePhysical) {
@@ -967,7 +967,7 @@ test('sidecarPaths keeps source-distinct case and Unicode names distinct under t
   };
   fs.statSync = function resolveSimulatedAlias(file, ...args) {
     if (path.dirname(String(file)) === sourcePhysical
-      && path.basename(String(file)).startsWith('.archify-path-semantics-')
+      && path.basename(String(file)).startsWith('.schematics-path-semantics-')
       && !sourceProbes.has(String(file))) {
       const error = new Error('simulated case- and normalization-sensitive lookup');
       error.code = 'ENOENT';
@@ -980,7 +980,7 @@ test('sidecarPaths keeps source-distinct case and Unicode names distinct under t
   };
   fs.realpathSync.native = function resolveSimulatedAlias(file, ...args) {
     if (path.dirname(String(file)) === sourceDir
-      && !path.basename(String(file)).startsWith('.archify-path-semantics-')) {
+      && !path.basename(String(file)).startsWith('.schematics-path-semantics-')) {
       return path.join(sourcePhysical, path.basename(String(file)));
     }
     const alias = path.dirname(String(file)) === outPhysical
@@ -1277,7 +1277,7 @@ test('visual-check preserves a regular successor swapped at the backup link boun
     if (!injected
       && path.basename(sourcePath) === path.basename(outputs.receipt)
       && path.basename(targetPath) === 'previous-0'
-      && path.basename(path.dirname(targetPath)).startsWith('.archify-visual-check-')) {
+      && path.basename(path.dirname(targetPath)).startsWith('.schematics-visual-check-')) {
       renameSync(sourcePath, displaced);
       fs.writeFileSync(sourcePath, successor, { flag: 'wx' });
       successorIdentity = entryIdentity(sourcePath);
@@ -1316,7 +1316,7 @@ for (const scenario of [
       if (created.status !== 0) {
         t.skip(`mkfifo is unavailable: ${created.stderr || `exit ${created.status}`}`);
         const error = new Error('mkfifo unavailable');
-        error.code = 'ARCHIFY_TEST_SKIPPED';
+        error.code = 'SCHEMATICS_TEST_SKIPPED';
         throw error;
       }
       assert.equal(fs.lstatSync(file).isFIFO(), true, 'mkfifo must create a native FIFO visible to Node');
@@ -1336,7 +1336,7 @@ for (const scenario of [
         if (error?.code === 'EPERM') {
           t.skip(`file symlinks are unavailable: ${error.message}`);
           const skipped = new Error('file symlinks unavailable');
-          skipped.code = 'ARCHIFY_TEST_SKIPPED';
+          skipped.code = 'SCHEMATICS_TEST_SKIPPED';
           throw skipped;
         }
         throw error;
@@ -1379,7 +1379,7 @@ for (const scenario of [
       if (!injected
         && path.basename(sourcePath) === path.basename(outputs.receipt)
         && path.basename(targetPath) === 'previous-0'
-        && path.basename(path.dirname(targetPath)).startsWith('.archify-visual-check-')) {
+        && path.basename(path.dirname(targetPath)).startsWith('.schematics-visual-check-')) {
         renameSync(sourcePath, displaced);
         scenario.create(sourcePath, t);
         injected = true;
@@ -1394,7 +1394,7 @@ for (const scenario of [
         resolveChrome: () => null,
       });
     } catch (error) {
-      if (error?.code === 'ARCHIFY_TEST_SKIPPED') return;
+      if (error?.code === 'SCHEMATICS_TEST_SKIPPED') return;
       throw error;
     }
 
@@ -1484,7 +1484,7 @@ test('visual-check preserves an in-place backup edit made before cleanup', async
     const result = linkSync(source, target);
     if (!injected
       && path.basename(String(source)) === 'receipt.json'
-      && path.basename(path.dirname(String(source))).startsWith('.archify-visual-check-')) {
+      && path.basename(path.dirname(String(source))).startsWith('.schematics-visual-check-')) {
       const backup = path.join(path.dirname(String(source)), 'previous-1');
       fs.writeFileSync(backup, sentinel);
       editedIdentity = entryIdentity(backup);
@@ -1591,7 +1591,7 @@ test('visual-check rejects an lstat-to-open symlink substitution without followi
     if (!injected
       && screenshotReady
       && path.basename(candidate) === 'capture-0.png'
-      && path.basename(path.dirname(candidate)).startsWith('.archify-visual-check-')) {
+      && path.basename(path.dirname(candidate)).startsWith('.schematics-visual-check-')) {
       fs.unlinkSync(candidate);
       fs.symlinkSync(sentinel, candidate, 'file');
       claimant = candidate;
@@ -1651,7 +1651,7 @@ test('visual-check rejects an lstat-to-open FIFO substitution without blocking',
     if (!injected
       && screenshotReady
       && path.basename(candidate) === 'capture-0.png'
-      && path.basename(path.dirname(candidate)).startsWith('.archify-visual-check-')) {
+      && path.basename(path.dirname(candidate)).startsWith('.schematics-visual-check-')) {
       fs.unlinkSync(candidate);
       const created = spawnSync('mkfifo', [candidate]);
       assert.equal(created.status, 0, created.stderr?.toString());
@@ -1689,7 +1689,7 @@ for (const operation of ['run', 'persist-failure']) {
   }, (t) => {
     const input = artifact(`artifact-fifo-substitution-${operation}.html`);
     const outputs = sidecarPaths(input);
-    const visualCheckUrl = new URL('../archify/bin/visual-check.mjs', import.meta.url).href;
+    const visualCheckUrl = new URL('../schematics/bin/visual-check.mjs', import.meta.url).href;
     t.after(() => {
       try {
         if (fs.lstatSync(input).isFIFO()) fs.unlinkSync(input);
@@ -1758,7 +1758,7 @@ test('visual-check rejects a previous receipt changed to a FIFO before its conte
   const first = await runVisualCheck({ artifactPath: input, resolveChrome: () => null });
   assert.equal(first.exitCode, 2);
   const receiptBefore = fs.readFileSync(outputs.receipt);
-  const visualCheckUrl = new URL('../archify/bin/visual-check.mjs', import.meta.url).href;
+  const visualCheckUrl = new URL('../schematics/bin/visual-check.mjs', import.meta.url).href;
   t.after(() => {
     try {
       if (fs.lstatSync(outputs.receipt).isFIFO()) fs.unlinkSync(outputs.receipt);
@@ -2040,7 +2040,7 @@ test('visual-check keeps staged evidence identity-bound across public link creat
     const targetPath = String(target);
     if (!injected
       && path.basename(sourcePath) === 'contact-sheet.html'
-      && path.basename(path.dirname(sourcePath)).startsWith('.archify-visual-check-')
+      && path.basename(path.dirname(sourcePath)).startsWith('.schematics-visual-check-')
       && path.resolve(targetPath) === path.resolve(outputs.contactSheet)) {
       injected = true;
       stagedClaimant = sourcePath;
@@ -2112,7 +2112,7 @@ for (const scenario of [
       const result = linkSync(source, target);
       if (!injected
           && path.basename(String(source)) === scenario.triggerStagedName
-          && path.basename(path.dirname(String(source))).startsWith('.archify-visual-check-')) {
+          && path.basename(path.dirname(String(source))).startsWith('.schematics-visual-check-')) {
         injected = true;
         fs.unlinkSync(replaced);
         fs.writeFileSync(replaced, sentinel, { flag: 'wx' });
@@ -2172,7 +2172,7 @@ test('visual-check rollback preserves an in-place edit to an already published m
   let injected = false;
   t.mock.method(fs, 'linkSync', (source, target) => {
     const sourceName = path.basename(String(source));
-    const fromStaging = path.basename(path.dirname(String(source))).startsWith('.archify-visual-check-');
+    const fromStaging = path.basename(path.dirname(String(source))).startsWith('.schematics-visual-check-');
     if (!injected && firstPublishedIdentity && fromStaging && sourceName === 'capture-0.png') {
       fs.writeFileSync(outputs.contactSheet, sentinel);
       editedIdentity = entryIdentity(outputs.contactSheet);
@@ -2244,7 +2244,7 @@ test('visual-check rollback preserves a successor swapped at the public removal 
   let successorIdentity;
   t.mock.method(fs, 'linkSync', (source, target) => {
     const sourceName = path.basename(String(source));
-    const fromStaging = path.basename(path.dirname(String(source))).startsWith('.archify-visual-check-');
+    const fromStaging = path.basename(path.dirname(String(source))).startsWith('.schematics-visual-check-');
     if (!failureInjected && contactPublished && fromStaging && sourceName === 'capture-0.png') {
       failureInjected = true;
       throw new Error('synthetic later evidence publication failure');
@@ -2261,7 +2261,7 @@ test('visual-check rollback preserves a successor swapped at the public removal 
     if (failureInjected
       && !successorInjected
       && path.basename(sourcePath) === path.basename(outputs.contactSheet)
-      && path.basename(path.dirname(targetPath)).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(targetPath)).startsWith('.schematics-remove-')) {
       renameSync(sourcePath, displaced);
       fs.writeFileSync(sourcePath, successor, { flag: 'wx' });
       successorIdentity = entryIdentity(sourcePath);
@@ -2328,7 +2328,7 @@ test('visual-check restore rollback preserves a successor swapped at its public 
   t.mock.method(fs, 'linkSync', (source, target) => {
     const sourcePath = String(source);
     const targetPath = String(target);
-    const fromStaging = path.basename(path.dirname(sourcePath)).startsWith('.archify-visual-check-');
+    const fromStaging = path.basename(path.dirname(sourcePath)).startsWith('.schematics-visual-check-');
     if (!publicationFailed
       && fromStaging
       && path.basename(sourcePath) === 'contact-sheet.html'
@@ -2375,7 +2375,7 @@ test('visual-check restore rollback preserves a successor swapped at its public 
     if (verificationInjected
       && !successorInjected
       && path.basename(sourcePath) === path.basename(outputs.contactSheet)
-      && path.basename(path.dirname(targetPath)).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(targetPath)).startsWith('.schematics-remove-')) {
       injectSuccessor(sourcePath);
     }
     return renameSync(sourcePath, targetPath);
@@ -2449,7 +2449,7 @@ for (const scenario of [
         const candidate = String(file);
         if (!injected
           && path.basename(candidate) === 'previous-1'
-          && path.basename(path.dirname(candidate)).startsWith('.archify-remove-')) {
+          && path.basename(path.dirname(candidate)).startsWith('.schematics-remove-')) {
           injected = true;
           retainedPath = candidate;
           const error = new Error('synthetic backup unlink failure');
@@ -2462,7 +2462,7 @@ for (const scenario of [
       const rmdirSync = fs.rmdirSync.bind(fs);
       t.mock.method(fs, 'rmdirSync', (directory) => {
         const candidate = String(directory);
-        if (!injected && path.basename(candidate).startsWith('.archify-visual-check-')) {
+        if (!injected && path.basename(candidate).startsWith('.schematics-visual-check-')) {
           retainedPath = path.join(candidate, 'external-cleanup-claimant');
           fs.writeFileSync(retainedPath, claimantBytes, { flag: 'wx' });
           injected = true;
@@ -2523,11 +2523,11 @@ for (const scenario of [
 test('public visual-check CLI reports a committed cleanup warning', (t) => {
   const input = artifact('public-cli-committed-cleanup-warning.html');
   const outputs = sidecarPaths(input);
-  const cli = path.join(skillRoot, 'bin', 'archify.mjs');
+  const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
   const missingChrome = path.join(tmp, 'missing-cleanup-warning-chrome');
   const baseEnv = {
     ...process.env,
-    ARCHIFY_CHROME: missingChrome,
+    SCHEMATICS_CHROME: missingChrome,
   };
   const first = spawnSync(process.execPath, [cli, 'visual-check', input, '--json'], {
     encoding: 'utf8',
@@ -2546,7 +2546,7 @@ test('public visual-check CLI reports a committed cleanup warning', (t) => {
       const candidate = String(file);
       if (!injected
         && path.basename(candidate) === 'previous-0'
-        && path.basename(path.dirname(candidate)).startsWith('.archify-remove-')) {
+        && path.basename(path.dirname(candidate)).startsWith('.schematics-remove-')) {
         injected = true;
         const error = new Error('synthetic public CLI backup unlink failure');
         error.code = 'EACCES';
@@ -2582,7 +2582,7 @@ test('public visual-check CLI reports a committed cleanup warning', (t) => {
   const recoveryDirectory = receipt.publication?.recoveryDirectory;
   assert.equal(typeof recoveryDirectory, 'string');
   const quarantine = fs.readdirSync(recoveryDirectory)
-    .find((entry) => entry.startsWith('.archify-remove-'));
+    .find((entry) => entry.startsWith('.schematics-remove-'));
   assert.equal(typeof quarantine, 'string');
   const retained = path.join(recoveryDirectory, quarantine, 'previous-0');
   assert.deepEqual(fs.readFileSync(retained), oldReceipt);
@@ -2595,7 +2595,7 @@ test('visual-check retries transient remote ENOTEMPTY during staging cleanup', a
   const rmdirSync = fs.rmdirSync.bind(fs);
   let injected = false;
   t.mock.method(fs, 'rmdirSync', (directory, ...args) => {
-    if (!injected && path.basename(String(directory)).startsWith('.archify-visual-check-')) {
+    if (!injected && path.basename(String(directory)).startsWith('.schematics-visual-check-')) {
       injected = true;
       throw Object.assign(new Error('simulated remote deletion visibility delay'), { code: 'ENOTEMPTY' });
     }
@@ -2640,7 +2640,7 @@ for (const scenario of ['successful evidence set', 'failure receipt', 'publicati
     });
     t.mock.method(fs, 'renameSync', (source, destination) => {
       const directory = path.dirname(String(destination));
-      if (path.basename(directory).startsWith('.archify-remove-')) {
+      if (path.basename(directory).startsWith('.schematics-remove-')) {
         quarantines.set(directory, identityKey(fs.lstatSync(source, { bigint: true })));
       }
       return renameSync(source, destination);
@@ -2691,7 +2691,7 @@ test('visual-check reports a claimant retained by deferred staging cleanup', asy
   const sentinel = 'external claimant retained during deferred cleanup\n';
   let claimantPath;
   t.mock.method(fs, 'rmdirSync', (directory, ...args) => {
-    if (!claimantPath && path.basename(String(directory)).startsWith('.archify-remove-')) {
+    if (!claimantPath && path.basename(String(directory)).startsWith('.schematics-remove-')) {
       claimantPath = path.join(directory, 'external-claimant');
       fs.writeFileSync(claimantPath, sentinel, { flag: 'wx' });
     }
@@ -2735,7 +2735,7 @@ test('visual-check rolls back when staged evidence changes after receipt binding
     const result = linkSync(source, target);
     if (!injected
       && path.basename(String(source)) === 'contact-sheet.html'
-      && path.basename(path.dirname(String(source))).startsWith('.archify-visual-check-')) {
+      && path.basename(path.dirname(String(source))).startsWith('.schematics-visual-check-')) {
       changedPath = path.join(path.dirname(String(source)), 'capture-0.png');
       fs.writeFileSync(changedPath, sentinel);
       injected = true;
@@ -2799,14 +2799,14 @@ test('public visual-check CLI preserves an unowned contact-sheet path', () => {
   fs.writeFileSync(outputs.contactSheet, sentinel);
 
   const result = spawnSync(process.execPath, [
-    path.join(skillRoot, 'bin', 'archify.mjs'),
+    path.join(skillRoot, 'bin', 'schematics.mjs'),
     'visual-check',
     input,
     '--json',
   ], {
     cwd: skillRoot,
     encoding: 'utf8',
-    env: { ...process.env, ARCHIFY_CHROME: '' },
+    env: { ...process.env, SCHEMATICS_CHROME: '' },
   });
 
   assert.equal(result.status, 1, result.stderr);
@@ -3021,7 +3021,7 @@ test('visual-check refuses changed delivery evidence before launching a browser'
     verifyArtifact: () => {
       const error = new Error('delivery changed');
       error.deliveryProvenance = { status: 'mismatch' };
-      error.archifyDiagnostics = [{ code: 'delivery/provenance-mismatch' }];
+      error.schematicsDiagnostics = [{ code: 'delivery/provenance-mismatch' }];
       throw error;
     },
     browserFactory: async () => { launched = true; return fakeBrowser(); },
@@ -3063,7 +3063,7 @@ test('visual-check rechecks delivery evidence after capture and discards screens
       if (failedDelivery) {
         const error = new Error('Another delivery failed during capture.');
         error.deliveryProvenance = { status: 'failed' };
-        error.archifyDiagnostics = [{ code: 'delivery/provenance-failed' }];
+        error.schematicsDiagnostics = [{ code: 'delivery/provenance-failed' }];
         throw error;
       }
     },
@@ -3092,7 +3092,7 @@ test('visual-check preserves a screenshot-path claimant after post-capture prove
         fs.mkdirSync(outputs.screenshots[0].path);
         const error = new Error('Another delivery failed during capture.');
         error.deliveryProvenance = { status: 'failed' };
-        error.archifyDiagnostics = [{ code: 'delivery/provenance-failed' }];
+        error.schematicsDiagnostics = [{ code: 'delivery/provenance-failed' }];
         throw error;
       }
     },
@@ -3270,11 +3270,11 @@ test('visual-check returns 2 with a truthful skipped receipt when Chrome is unav
   assert.equal(result.receipt.visualReview, 'pending');
   assert.equal(result.receipt.diagnostics[0]?.code, 'viewer/chrome-unavailable');
   assert.match(result.receipt.error, /Microsoft Edge/);
-  assert.ok(result.receipt.diagnostics[0]?.supportedFixes.some((fix) => fix.includes('ARCHIFY_CHROME') && fix.includes('Microsoft Edge')));
+  assert.ok(result.receipt.diagnostics[0]?.supportedFixes.some((fix) => fix.includes('SCHEMATICS_CHROME') && fix.includes('Microsoft Edge')));
   assert.equal(fs.existsSync(sidecarPaths(input).receipt), true);
 });
 
-test('visual-check names an ARCHIFY_CHROME override that exists but cannot run', { skip: process.platform === 'win32' }, async () => {
+test('visual-check names an SCHEMATICS_CHROME override that exists but cannot run', { skip: process.platform === 'win32' }, async () => {
   const input = artifact('no-chrome-override.html');
   const override = path.join(path.dirname(input), 'not-executable-chrome');
   fs.writeFileSync(override, '#!/bin/sh\n', { mode: 0o644 });
@@ -3491,7 +3491,7 @@ test('browser cleanup failure publishes a failed receipt instead of successful e
   const browser = fakeBrowser();
   browser.close = async () => {
     const error = new Error('Temporary directory cleanup failed: locked');
-    error.code = 'ARCHIFY_TEMP_CLEANUP';
+    error.code = 'SCHEMATICS_TEMP_CLEANUP';
     error.directory = '/retained/profile';
     throw error;
   };

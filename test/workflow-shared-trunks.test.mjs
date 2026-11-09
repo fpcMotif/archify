@@ -5,9 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { compileWorkflow } from '../archify/renderers/workflow/workflow-compiler.mjs';
+import { compileWorkflow } from '../schematics/renderers/workflow/workflow-compiler.mjs';
 
-const checker = fileURLToPath(new URL('../archify/scripts/check-render-output.mjs', import.meta.url));
+const checker = fileURLToPath(new URL('../schematics/scripts/check-render-output.mjs', import.meta.url));
 
 function sharedCrossingWorkflow() {
   return {
@@ -27,9 +27,9 @@ function sharedCrossingWorkflow() {
 }
 
 test('shared crossings retain actionable diagnostics in public compilation and layout JSON', (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-crossing-diagnostics-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-crossing-diagnostics-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const renderer = fileURLToPath(new URL('../archify/renderers/workflow/render-workflow.mjs', import.meta.url));
+  const renderer = fileURLToPath(new URL('../schematics/renderers/workflow/render-workflow.mjs', import.meta.url));
   for (const profile of ['standard', 'showcase']) {
     const workflow = sharedCrossingWorkflow();
     workflow.meta.quality_profile = profile;
@@ -46,7 +46,7 @@ test('shared crossings retain actionable diagnostics in public compilation and l
     const input = path.join(dir, `${profile}.workflow.json`);
     fs.writeFileSync(input, JSON.stringify(workflow));
     const child = spawnSync(process.execPath, [renderer, input, path.join(dir, `${profile}.html`), '--layout-json'], {
-      encoding: 'utf8', env: { ...process.env, ARCHIFY_QUALITY_PROFILE: profile },
+      encoding: 'utf8', env: { ...process.env, SCHEMATICS_QUALITY_PROFILE: profile },
     });
     assert.equal(child.status, profile === 'showcase' ? 1 : 0, child.stderr);
     assert.deepEqual(JSON.parse(child.stdout).diagnostics, compiled.receipt.diagnostics);
@@ -54,7 +54,7 @@ test('shared crossings retain actionable diagnostics in public compilation and l
 });
 
 test('workflow v2 compiler and final HTML agree on crossings at redundant via points', (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-crossing-waypoints-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-crossing-waypoints-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   for (const split of ['neither', 'left', 'right', 'both']) {
     const workflow = sharedCrossingWorkflow();
@@ -103,7 +103,7 @@ test('automatic routing respects a fixed return even when its ID sorts last', ()
 });
 
 function checkSvg(t, body, profile = 'showcase', contract = 'readable-v2') {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-shared-trunks-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-shared-trunks-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const file = path.join(dir, 'diagram.html');
   fs.writeFileSync(file, `<html><body><svg viewBox="0 0 400 240" data-diagram-type="workflow" data-layout-contract="${contract}" data-quality-profile="${profile}">${body}</svg></body></html>`);

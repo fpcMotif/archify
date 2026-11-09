@@ -5,9 +5,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const skill = readFileSync(path.join(here, '..', 'archify', 'SKILL.md'), 'utf8');
-const delivery = readFileSync(path.join(here, '..', 'archify', 'references', 'delivery-contract.md'), 'utf8');
-const schemaReadme = readFileSync(path.join(here, '..', 'archify', 'schemas', 'README.md'), 'utf8');
+const skill = readFileSync(path.join(here, '..', 'schematics', 'SKILL.md'), 'utf8');
+const delivery = readFileSync(path.join(here, '..', 'schematics', 'references', 'delivery-contract.md'), 'utf8');
+const schemaReadme = readFileSync(path.join(here, '..', 'schematics', 'schemas', 'README.md'), 'utf8');
 
 test('delivery contract separates portable authored outputs from native CLI outputs', () => {
   assert.match(delivery, /Authored `meta\.output` is a portable POSIX-relative path/i);
@@ -19,7 +19,7 @@ test('delivery contract separates portable authored outputs from native CLI outp
 });
 
 test('delivery contract describes the directory-wide physical delivery lock', () => {
-  assert.match(delivery, /directory-wide `\.archify-delivery-lock\.json`/i);
+  assert.match(delivery, /directory-wide `\.schematics-delivery-lock\.json`/i);
   assert.match(delivery, /same physical output directory/i);
   assert.match(delivery, /deliveries to different artifact names in one directory also run serially/i);
   assert.match(delivery, /legacy\s+`<output-stem>\.delivery-lock\.json`[\s\S]*fail-closed recovery barrier/i);
@@ -37,10 +37,10 @@ test('ordinary handoff uses one deterministic finalizer without image capability
   assert.ok(skill.indexOf('## Existing candidate handoff') < skill.indexOf('## Native diagram authoring'));
   assert.match(skill, /run `finalize` first as one CLI invocation/);
   assert.match(skill, /passing receipt completes the automated gates; follow any visual review recommendation/i);
-  assert.match(skill, /archify\.mjs finalize <type> <candidate\.json> <output\.html> --quality showcase --json/);
+  assert.match(skill, /schematics\.mjs finalize <type> <candidate\.json> <output\.html> --quality showcase --json/);
   assert.match(skill, /When the user supplies a frozen candidate[\s\S]*?run `finalize` first as one CLI invocation/);
   assert.match(skill, /Once the complete first candidate is written, run `finalize` directly\. Its first gate is showcase validation/);
-  assert.doesNotMatch(skill, /node bin\/archify\.mjs deliver <type> <candidate\.json> <output\.html>/);
+  assert.doesNotMatch(skill, /node bin\/schematics\.mjs deliver <type> <candidate\.json> <output\.html>/);
 
   assert.match(finalizeSection, /`browser-check --require-provenance`/);
   assert.match(finalizeSection, /stops at the first failed or skipped stage/i);
@@ -123,7 +123,7 @@ test('visual evidence replacement is ownership-bound and fails closed on slot ch
 });
 
 test('skill uses recoverable verified delivery for the final artifact', () => {
-  assert.match(delivery, /archify\.mjs deliver <type>/);
+  assert.match(delivery, /schematics\.mjs deliver <type>/);
   assert.match(delivery, /same-directory candidate/i);
   assert.match(delivery, /only replaces the target after.*artifact checks pass/i);
   assert.match(delivery, /journal[\s\S]*checkers then fail closed/i);

@@ -7,9 +7,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const repoRoot = path.resolve(skillRoot, '..');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-route-share-card-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-route-share-card-'));
 
 const CASES = {
   architecture: 'web-app.architecture.json',
@@ -50,8 +50,8 @@ test('Route Share Card menu lifecycle excludes hidden state from keyboard naviga
   const html = render('workflow', CASES.workflow);
   assert.match(html, /function open\(focusLast\)[\s\S]*?syncRouteShareItem\(\);/);
   assert.match(html, /items\(\)\.filter\(function \(i\) \{ return !i\.hidden && !i\.disabled; \}\)/);
-  assert.match(html, /function clear\(options\)[\s\S]*?Archify\.exportMenu\.syncRouteShare\(\)/);
-  assert.match(html, /function showResult\(result, options\)[\s\S]*?Archify\.exportMenu\.syncRouteShare\(\)/);
+  assert.match(html, /function clear\(options\)[\s\S]*?Schematics\.exportMenu\.syncRouteShare\(\)/);
+  assert.match(html, /function showResult\(result, options\)[\s\S]*?Schematics\.exportMenu\.syncRouteShare\(\)/);
   assert.match(html, /html\[data-embed="true"\] \.toolbar/);
   assert.match(html, /@media print[\s\S]*?\.toolbar/);
 });
@@ -123,7 +123,7 @@ test('Route Share Card reuses one 1200x630 variant seam and publishes a truthful
   const html = render('architecture', CASES.architecture);
   assert.match(html, /function rasterizeShareCard\(options\)/);
   assert.match(html, /options\.variant !== 'route'/);
-  assert.match(html, /var snapshot = Archify\.routeProbe && Archify\.routeProbe\.exportSnapshot\(\)/);
+  assert.match(html, /var snapshot = Schematics\.routeProbe && Schematics\.routeProbe\.exportSnapshot\(\)/);
   assert.match(html, /renderShareCard\(\{ routeSnapshot: snapshot \}\)/);
   assert.doesNotMatch(html, /function rasterizeRouteShareCard|routeShareCard:/);
   assert.match(html, /var title = titleNode \? titleNode\.textContent : document\.title;/);
@@ -134,7 +134,7 @@ test('Route Share Card reuses one 1200x630 variant seam and publishes a truthful
   assert.match(html, /diagramFilename\(\) \+ '-route-share-card\.png'/);
   assert.match(html, /data-last-export-variant/);
   assert.match(html, /data-last-export-route-state-clean/);
-  assert.match(html, /clearExportReceipt\(\);[\s\S]*?var snapshot = Archify\.routeProbe/);
+  assert.match(html, /clearExportReceipt\(\);[\s\S]*?var snapshot = Schematics\.routeProbe/);
   assert.match(html, /function runExport\(format\)[\s\S]*?clearExportReceipt\(\);/);
   assert.match(html, /var ctx = canvas2dOrThrow\(canvas, viewerText\('viewer\.export\.shareCard'\)\)/);
 });

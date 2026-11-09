@@ -7,10 +7,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
 
 function render(mode, doc) {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-port-spread-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-port-spread-'));
   const input = path.join(tmp, 'input.json');
   const output = path.join(tmp, 'output.html');
   const renderDoc = structuredClone(doc);

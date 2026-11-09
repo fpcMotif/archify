@@ -7,8 +7,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const cases = [
   { name: 'successful replacement cleans staging', failures: [] },
@@ -26,7 +26,7 @@ const cases = [
 ];
 
 function fixture(t) {
-  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'archify-compare-recovery-')));
+  const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-compare-recovery-')));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   // Recovery exercises publication and file identity, not checkout-platform layout.
   // Keep real CLI-rendered artifacts while minimizing each old/candidate render.
@@ -66,7 +66,7 @@ test('compare recovery: human diagnostics identify the retained backup and targe
   assert.ifError(result.error);
   assert.equal(result.status, 1);
   assert.equal(result.stdout.trim(), '');
-  const directories = fs.readdirSync(data.root).filter((name) => name.startsWith('.archify-compare-'));
+  const directories = fs.readdirSync(data.root).filter((name) => name.startsWith('.schematics-compare-'));
   assert.equal(directories.length, 1);
   const recoveryDirectory = path.join(data.root, directories[0]);
   const backup = path.join(recoveryDirectory, '.previous-output');
@@ -90,7 +90,7 @@ function inject(data, failures) {
     const link = fs.linkSync;
     const inside = value => typeof value === 'string'
       && path.toNamespacedPath(value).startsWith(path.toNamespacedPath(root) + path.sep);
-    const staging = value => inside(value) && path.basename(path.dirname(value)).startsWith('.archify-compare-');
+    const staging = value => inside(value) && path.basename(path.dirname(value)).startsWith('.schematics-compare-');
     function failOnce(action) {
       if (!wanted.has(action) || fired.has(action)) return;
       fired.add(action);
@@ -102,7 +102,7 @@ function inject(data, failures) {
     fs.renameSync = function(source, target) {
       if (inside(source) && inside(target)) {
         if (source === targets.receipt
-          && path.basename(path.dirname(target)).startsWith('.archify-remove-')
+          && path.basename(path.dirname(target)).startsWith('.schematics-remove-')
           && wanted.has('swap-backup-receipt')
           && !fired.has('swap-backup-receipt')) {
           fired.add('swap-backup-receipt');
@@ -113,7 +113,7 @@ function inject(data, failures) {
           fs.writeFileSync(source, 'third-party receipt claimant', { flag: 'wx' });
         }
         if (source === targets.html
-          && path.basename(path.dirname(target)).startsWith('.archify-remove-')
+          && path.basename(path.dirname(target)).startsWith('.schematics-remove-')
           && fired.has('commit-receipt')) failOnce('remove-html');
       }
       return rename.apply(this, arguments);
@@ -199,7 +199,7 @@ const writeFileSync = fs.writeFileSync;
 let replaced = false;
 const isCandidate = (file) => (
   path.basename(String(file)) === ${JSON.stringify(candidateName)}
-  && path.basename(path.dirname(String(file))).startsWith('.archify-compare-')
+  && path.basename(path.dirname(String(file))).startsWith('.schematics-compare-')
 );
 const replaceCandidate = (file) => {
   replaced = true;
@@ -218,7 +218,7 @@ fs.unlinkSync = (file, ...args) => {
 fs.renameSync = (source, target, ...args) => {
   if (!replaced
       && isCandidate(source)
-      && path.basename(path.dirname(String(target))).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(String(target))).startsWith('.schematics-remove-')) {
     replaceCandidate(source);
   }
   return renameSync(source, target, ...args);
@@ -229,7 +229,7 @@ fs.renameSync = (source, target, ...args) => {
     assert.ifError(result.error);
     assert.notEqual(result.status, 0, result.stderr || result.stdout);
     const staging = fs.readdirSync(data.root).filter((name) => (
-      name.startsWith('.archify-compare-')
+      name.startsWith('.schematics-compare-')
       && fs.lstatSync(path.join(data.root, name)).isDirectory()
     ));
     assert.equal(staging.length, 1, result.stderr || result.stdout);
@@ -254,7 +254,7 @@ for (const scenario of cases) {
     assert.ifError(result.error);
     const observed = fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim().split('\n').map(JSON.parse) : [];
     assert.deepEqual(observed.sort(), [...scenario.failures].sort(), 'every requested fault must fire exactly once');
-    const staging = fs.readdirSync(data.root).filter((name) => name.startsWith('.archify-compare-'));
+    const staging = fs.readdirSync(data.root).filter((name) => name.startsWith('.schematics-compare-'));
     const response = JSON.parse(result.stdout);
     if (!scenario.failures.length) {
       assert.equal(result.status, 0, result.stderr || result.stdout);

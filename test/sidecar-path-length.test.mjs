@@ -5,8 +5,8 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { sidecarPaths } from '../archify/bin/visual-check.mjs';
-import { sidecarNamespaceComponentKey } from '../archify/renderers/shared/path-semantics.mjs';
+import { sidecarPaths } from '../schematics/bin/visual-check.mjs';
+import { sidecarNamespaceComponentKey } from '../schematics/renderers/shared/path-semantics.mjs';
 
 function basenameFits(file) {
   const name = path.basename(file);
@@ -16,10 +16,10 @@ function basenameFits(file) {
 function windowsShortPath(targetPath) {
   const result = spawnSync(
     process.env.ComSpec || 'cmd.exe',
-    ['/d', '/s', '/c', '"for %I in ("%ARCHIFY_SHORT_PATH_TARGET%") do @echo %~sI"'],
+    ['/d', '/s', '/c', '"for %I in ("%SCHEMATICS_SHORT_PATH_TARGET%") do @echo %~sI"'],
     {
       encoding: 'utf8',
-      env: { ...process.env, ARCHIFY_SHORT_PATH_TARGET: targetPath },
+      env: { ...process.env, SCHEMATICS_SHORT_PATH_TARGET: targetPath },
       windowsHide: true,
       windowsVerbatimArguments: true,
     },
@@ -63,11 +63,11 @@ function assignWindowsShortName(targetPath, shortName) {
 }
 
 function controlledWindowsShortRoot(required) {
-  const root = process.env.ARCHIFY_WINDOWS_8DOT3_ROOT;
-  const shortRoot = process.env.ARCHIFY_WINDOWS_8DOT3_SHORT_ROOT;
+  const root = process.env.SCHEMATICS_WINDOWS_8DOT3_ROOT;
+  const shortRoot = process.env.SCHEMATICS_WINDOWS_8DOT3_SHORT_ROOT;
   if (!root && !shortRoot) {
     if (required) {
-      assert.fail('ARCHIFY_REQUIRE_WINDOWS_8DOT3=1 requires the controlled long and short roots');
+      assert.fail('SCHEMATICS_REQUIRE_WINDOWS_8DOT3=1 requires the controlled long and short roots');
     }
     return null;
   }
@@ -82,7 +82,7 @@ function controlledWindowsShortRoot(required) {
 }
 
 test('visual-check deterministically bounds every derived sidecar component', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-bounded-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-bounded-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const stem = 'é'.repeat(120);
   const first = sidecarPaths(path.join(directory, `${stem}.html`));
@@ -91,11 +91,11 @@ test('visual-check deterministically bounds every derived sidecar component', (t
 
   assert.deepEqual(first, second);
   assert.equal(files.every(basenameFits), true);
-  assert.match(path.basename(first.receipt), /\.~archify-[0-9a-f]{64}\.visual-check\.json$/);
+  assert.match(path.basename(first.receipt), /\.~schematics-[0-9a-f]{64}\.visual-check\.json$/);
 });
 
 test('different overlong artifact stems do not collapse to one visual-check sidecar name', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-distinct-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-distinct-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const left = sidecarPaths(path.join(directory, `${'x'.repeat(260)}-left.html`));
   const right = sidecarPaths(path.join(directory, `${'x'.repeat(260)}-right.html`));
@@ -103,7 +103,7 @@ test('different overlong artifact stems do not collapse to one visual-check side
 });
 
 test('html and htm artifacts use distinct visual-check sidecar namespaces', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-extensions-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-extensions-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const html = sidecarPaths(path.join(directory, 'diagram.html'));
   const htm = sidecarPaths(path.join(directory, 'diagram.htm'));
@@ -112,12 +112,12 @@ test('html and htm artifacts use distinct visual-check sidecar namespaces', (t) 
   assert.equal(path.basename(html.receipt), 'diagram.visual-check.json');
   assert.match(
     path.basename(htm.receipt),
-    /^diagram\.htm\.~archify-[0-9a-f]{64}\.visual-check\.json$/u,
+    /^diagram\.htm\.~schematics-[0-9a-f]{64}\.visual-check\.json$/u,
   );
 });
 
 test('HTML extension case follows the containing filesystem semantics', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-extension-case-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-extension-case-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const lower = path.join(directory, 'diagram.html');
   const upper = path.join(directory, 'diagram.HTML');
@@ -131,25 +131,25 @@ test('HTML extension case follows the containing filesystem semantics', (t) => {
     assert.notEqual(upperPaths.receipt, lowerPaths.receipt);
     assert.match(
       path.basename(upperPaths.receipt),
-      /^diagram\.HTML\.~archify-[0-9a-f]{64}\.visual-check\.json$/u,
+      /^diagram\.HTML\.~schematics-[0-9a-f]{64}\.visual-check\.json$/u,
     );
   }
 });
 
 test('bounded html and htm artifacts retain distinct hash namespaces', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-bounded-extensions-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-bounded-extensions-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const stem = 'x'.repeat(225);
   const html = sidecarPaths(path.join(directory, `${stem}.html`));
   const htm = sidecarPaths(path.join(directory, `${stem}.htm`));
 
   assert.notEqual(html.receipt, htm.receipt);
-  assert.match(path.basename(html.receipt), /\.~archify-[0-9a-f]{64}\.visual-check\.json$/u);
-  assert.match(path.basename(htm.receipt), /\.~archify-[0-9a-f]{64}\.visual-check\.json$/u);
+  assert.match(path.basename(html.receipt), /\.~schematics-[0-9a-f]{64}\.visual-check\.json$/u);
+  assert.match(path.basename(htm.receipt), /\.~schematics-[0-9a-f]{64}\.visual-check\.json$/u);
 });
 
 test('a crafted bounded stem cannot enter another artifact visual-check namespace', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-crafted-stem-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-crafted-stem-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const long = sidecarPaths(path.join(directory, `${'x'.repeat(245)}.html`));
   const encodedStem = path.basename(long.base).replace(/\.visual-check$/u, '');
@@ -165,7 +165,7 @@ test('a crafted bounded stem cannot enter another artifact visual-check namespac
 });
 
 test('existing overlong artifact aliases derive identical visual-check sidecar paths', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-alias-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-alias-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
 
   const canonical = path.join(directory, `${'A'.repeat(225)}.html`);
@@ -181,7 +181,7 @@ test('existing overlong artifact aliases derive identical visual-check sidecar p
 });
 
 test('existing short-stem artifacts use the physical directory sidecar namespace', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-directory-alias-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-directory-alias-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const physicalDirectory = path.join(root, 'physical');
   const aliasDirectory = path.join(root, 'alias');
@@ -204,7 +204,7 @@ test('existing short-stem artifacts use the physical directory sidecar namespace
 });
 
 test('future short-stem artifacts use the physical parent sidecar namespace', (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-future-parent-alias-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-future-parent-alias-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const physicalDirectory = path.join(root, 'physical');
   const aliasDirectory = path.join(root, 'alias');
@@ -227,7 +227,7 @@ test('future short-stem artifacts use the physical parent sidecar namespace', (t
 });
 
 test('native existing file aliases use the physical basename sidecar namespace', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-native-file-alias-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-native-file-alias-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const physicalArtifact = path.join(directory, 'diagram artifact with long name.html');
   const authoredAlias = path.join(directory, 'DIAGRA~1.HTM');
@@ -246,16 +246,16 @@ test('native existing file aliases use the physical basename sidecar namespace',
 });
 
 test('Windows existing 8.3 artifact aliases derive one visual-check sidecar namespace', (t) => {
-  const requiresWindows8dot3 = process.env.ARCHIFY_REQUIRE_WINDOWS_8DOT3 === '1';
+  const requiresWindows8dot3 = process.env.SCHEMATICS_REQUIRE_WINDOWS_8DOT3 === '1';
   if (process.platform !== 'win32') {
-    if (requiresWindows8dot3) assert.fail('ARCHIFY_REQUIRE_WINDOWS_8DOT3=1 requires Windows');
+    if (requiresWindows8dot3) assert.fail('SCHEMATICS_REQUIRE_WINDOWS_8DOT3=1 requires Windows');
     t.skip('Windows-only 8.3 visual sidecar regression');
     return;
   }
   const controlledRoot = controlledWindowsShortRoot(requiresWindows8dot3);
   const directory = controlledRoot
     ? fs.mkdtempSync(path.join(controlledRoot.root, 'visual-sidecar-'))
-    : fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-eight-dot-three-'));
+    : fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-eight-dot-three-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const artifact = path.join(directory, 'diagram artifact with long name.html');
   fs.writeFileSync(artifact, '<!doctype html>');
@@ -272,7 +272,7 @@ test('Windows existing 8.3 artifact aliases derive one visual-check sidecar name
 });
 
 test('existing overlong Unicode aliases derive identical visual-check sidecar paths', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-unicode-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-unicode-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
 
   const composedStem = `${'x'.repeat(219)}éé`;
@@ -290,7 +290,7 @@ test('existing overlong Unicode aliases derive identical visual-check sidecar pa
 });
 
 test('future and existing case aliases keep one bounded sidecar namespace', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-case-lifecycle-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-case-lifecycle-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const canonical = path.join(directory, `${'A'.repeat(225)}.html`);
   const alias = path.join(directory, `${'a'.repeat(225)}.html`);
@@ -306,7 +306,7 @@ test('future and existing case aliases keep one bounded sidecar namespace', (t) 
 });
 
 test('future and existing normalization aliases keep one bounded sidecar namespace', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-unicode-lifecycle-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-unicode-lifecycle-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const composedStem = `${'x'.repeat(219)}éé`;
   const decomposedStem = composedStem.normalize('NFD');
@@ -324,7 +324,7 @@ test('future and existing normalization aliases keep one bounded sidecar namespa
 });
 
 test('case-expansion keys follow the directory filesystem instead of generic Unicode folding', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-case-expansion-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-case-expansion-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const prefix = 'x'.repeat(221);
   const sharpS = path.join(directory, `${prefix}ß.html`);
@@ -352,12 +352,12 @@ test('case-expansion keys follow the directory filesystem instead of generic Uni
 });
 
 test('an indeterminate bounded namespace fails closed before returning sidecar paths', (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-sidecar-unknown-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-sidecar-unknown-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const stem = 'A'.repeat(225);
   const originalOpen = fs.openSync;
   fs.openSync = function rejectSidecarProbe(file, ...args) {
-    if (path.basename(String(file)).startsWith('.archify-path-semantics-')) {
+    if (path.basename(String(file)).startsWith('.schematics-path-semantics-')) {
       const error = new Error('synthetic probe denial');
       error.code = 'EACCES';
       throw error;
@@ -373,7 +373,7 @@ test('an indeterminate bounded namespace fails closed before returning sidecar p
   assert.equal(key.reason.code, 'sidecar-case-semantics-indeterminate');
   assert.throws(
     () => sidecarPaths(path.join(directory, `${stem}.html`)),
-    (error) => error?.code === 'ARCHIFY_SIDECAR_NAMESPACE_INDETERMINATE',
+    (error) => error?.code === 'SCHEMATICS_SIDECAR_NAMESPACE_INDETERMINATE',
   );
   assert.deepEqual(fs.readdirSync(directory), []);
 });

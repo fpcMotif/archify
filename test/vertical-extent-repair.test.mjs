@@ -20,11 +20,11 @@ import { fileURLToPath } from 'node:url';
 // ordering, the bounded range, and the rule that every offered fix clears the
 // bound it is attached to.
 
-const skillRoot = fileURLToPath(new URL('../archify/', import.meta.url));
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 
 function workspace(t) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-vertical-extent-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-vertical-extent-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   return directory;
 }

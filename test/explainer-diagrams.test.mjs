@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { SaxesParser } from 'saxes';
-import { compileExplainerDiagram, prepareExplainerDiagrams, validateExplainerDiagramTarget } from '../archify/explainer/diagrams.mjs';
+import { compileExplainerDiagram, prepareExplainerDiagrams, validateExplainerDiagramTarget } from '../schematics/explainer/diagrams.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
@@ -41,7 +41,7 @@ test('explainer diagrams: compact shapes produce real native showcase HTML and s
     assert.match(entry.html, /--frontend-fill/);
     assert.match(entry.html, /data-theme="light"/);
     assert.match(entry.svg, /data-quality-profile="showcase"/);
-    assert.match(entry.html, /Archify/);
+    assert.match(entry.html, /Schematics/);
     assert.ok(entry.html.includes(entry.svg), "the preview SVG is the canonical native SVG");
     assert.equal(Buffer.from(entry.specification.contentBase64, 'base64').toString(), JSON.stringify(specs[type]));
   }
@@ -51,7 +51,7 @@ test('explainer diagrams: compact shapes produce real native showcase HTML and s
   for (const target of [{ diagram: 'missing' }, { diagram: 'architecture', node: 'imaginary' },
     { diagram: 'architecture', route: ['redis', 'client'] }, { diagram: 'sequence', edges: ['invented'] }]) {
     assert.throws(() => validateExplainerDiagramTarget(diagrams, target, { line: 42 }), error => {
-      assert.equal(error.archifyDiagnostics[0].subject.line, 42); return true;
+      assert.equal(error.schematicsDiagnostics[0].subject.line, 42); return true;
     });
   }
   assert.deepEqual(diagrams.erd.semantic.edges.map(edge => [edge.from, edge.to]), [['order', 'user']], 'FK declarations never invent relations');
@@ -64,7 +64,7 @@ test('explainer diagrams: all other native modes preserve their JSON source byte
       class: 'payments.class.json', waterfall: 'checkout-request.waterfall.json' };
     const blocks = [];
     for (const [type, file] of Object.entries(fixtures)) {
-      fs.copyFileSync(path.join(root, 'archify/examples', file), path.join(directory, file));
+      fs.copyFileSync(path.join(root, 'schematics/examples', file), path.join(directory, file));
       blocks.push({ id: type, type: 'diagram', diagramType: type, source: file });
     }
     const { diagrams, dependencies } = await prepareExplainerDiagrams(documentOf(blocks), { baseDir: directory });
@@ -130,14 +130,14 @@ test('explainer diagrams: structural changes decorate only explicit preview targ
   assert.doesNotMatch(entry.html, /data-explainer-change/);
   assert.equal(hash(entry.html), entry.sha256);
   await assert.rejects(prepareExplainerDiagrams(documentOf([blockOf('sequence', spec,
-    { changes: [{ target: 'nonexistent', change: 'removed' }] })])), error => error.archifyDiagnostics[0].code === 'explainer/diagram-change-target');
+    { changes: [{ target: 'nonexistent', change: 'removed' }] })])), error => error.schematicsDiagnostics[0].code === 'explainer/diagram-change-target');
 });
 
 test('explainer diagrams: rejected native causes retain author line, component and repair example', async () => {
   assert.throws(() => compileExplainerDiagram('sequence', [
     { text: 'Client | API | Request', line: 18 }, { text: 'API | Client | Reply | strange', line: 23 },
   ], { id: 'request', line: 17 }), error => {
-    const diagnostic = error.archifyDiagnostics[0];
+    const diagnostic = error.schematicsDiagnostics[0];
     assert.equal(diagnostic.subject.line, 23);
     assert.equal(diagnostic.subject.component, 'diagram');
     assert.equal(diagnostic.evidence.native.code, 'schema/enum');
@@ -147,19 +147,19 @@ test('explainer diagrams: rejected native causes retain author line, component a
   await assert.rejects(prepareExplainerDiagrams(documentOf([blockOf('architecture', spec)]), {
     sourceMap: { '/panels/0/blocks/0': { line: 31 } }, sourcePath: '/draft.md',
   }), error => {
-    const diagnostic = error.archifyDiagnostics[0];
+    const diagnostic = error.schematicsDiagnostics[0];
     assert.equal(diagnostic.subject.line, 31);
     assert.equal(diagnostic.subject.component, 'diagram');
     assert.equal(diagnostic.subject.input, '/draft.md');
     assert.ok(diagnostic.evidence.native); assert.ok(diagnostic.evidence.reason); assert.ok(diagnostic.evidence.example); return true;
   });
-  assert.throws(() => compileExplainerDiagram('class', ['a | A']), error => error.archifyDiagnostics[0].code === 'explainer/diagram-shorthand-unsupported');
+  assert.throws(() => compileExplainerDiagram('class', ['a | A']), error => error.schematicsDiagnostics[0].code === 'explainer/diagram-shorthand-unsupported');
   const table = compileExplainerDiagram('sequence', [['Client', 'API', 'Request']]);
   assert.equal(table.messages[0].label, 'Request');
   const literal = compileExplainerDiagram('sequence', [{ cells: ['Client', 'API', 'Request | Trace'], line: 81 }]);
   assert.equal(literal.messages[0].label, 'Request | Trace', 'already parsed escaped pipes remain literal label data');
   assert.throws(() => compileExplainerDiagram('erd', ['entity users | Users', 'users.id | bigint | pk', 'users > users | ambiguous']),
-    error => error.archifyDiagnostics[0].code === 'explainer/diagram-cardinality');
+    error => error.schematicsDiagnostics[0].code === 'explainer/diagram-cardinality');
 });
 
 test('explainer diagrams: source containment rejects traversal, symlinks, mismatch, and malformed JSON', async () => {
@@ -172,16 +172,16 @@ test('explainer diagrams: source containment rejects traversal, symlinks, mismat
     const read = source => prepareExplainerDiagrams(documentOf([{ id: 'tree', type: 'diagram', diagramType: 'tree', source }]), { baseDir });
     for (const source of ['../outside.json', outside, 'linked.json', 'sub/loop/linked.json', 'outside.txt']) {
       await assert.rejects(read(source), error => {
-        assert.match(error.archifyDiagnostics[0].code, /^explainer\/diagram-source-/); return true;
+        assert.match(error.schematicsDiagnostics[0].code, /^explainer\/diagram-source-/); return true;
       });
     }
     fs.writeFileSync(path.join(baseDir, 'invalid.json'), '{ "secret":');
     await assert.rejects(read('invalid.json'), error => {
-      assert.equal(error.archifyDiagnostics[0].code, 'explainer/diagram-json');
-      assert.doesNotMatch(JSON.stringify(error.archifyDiagnostics), /secret/); return true;
+      assert.equal(error.schematicsDiagnostics[0].code, 'explainer/diagram-json');
+      assert.doesNotMatch(JSON.stringify(error.schematicsDiagnostics), /secret/); return true;
     });
     fs.writeFileSync(path.join(baseDir, 'mismatch.json'), JSON.stringify({ diagram_type: 'sequence' }));
-    await assert.rejects(read('mismatch.json'), error => error.archifyDiagnostics[0].code === 'explainer/diagram-type-mismatch');
+    await assert.rejects(read('mismatch.json'), error => error.schematicsDiagnostics[0].code === 'explainer/diagram-type-mismatch');
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });
 
@@ -200,7 +200,7 @@ test('explainer diagrams: short phased workflows form one row with phase labels;
   const wider = compileExplainerDiagram('workflow', [...phased, 'a | A | backend | locate', 'b | B | backend | locate', 'c | C | backend | locate', 'd | D | backend | locate', 'fix > a', 'a > b', 'b > c', 'c > d'], { id: 'wider' });
   assert.deepEqual(wider.nodes.filter(node => node.lane === 'locate').map(node => node.col), [0, 1, 2, 3, 4, 5], 'rows restart when a staircase would exceed six columns');
   assert.throws(() => compileExplainerDiagram('workflow', ['lane confirm | Confirm', 'alert | Alert | external | missing'], { id: 'phases' }),
-    error => (error.archifyDiagnostics || error.diagnostics || []).some(item => /undeclared lane/.test(item.message)));
+    error => (error.schematicsDiagnostics || error.diagnostics || []).some(item => /undeclared lane/.test(item.message)));
 });
 
 test('explainer diagrams: sequence phase rows become native segments over the following messages', () => {
@@ -208,7 +208,7 @@ test('explainer diagrams: sequence phase rows become native segments over the fo
   assert.deepEqual(spec.segments.map(segment => segment.label), ['TCP', 'TLS']);
   assert.ok(spec.segments[0].from < spec.messages[0].y && spec.segments[0].to > spec.messages[1].y && spec.segments[0].to < spec.segments[1].from);
   assert.ok(spec.segments[1].from < spec.messages[2].y && spec.segments[1].to > spec.messages[2].y);
-  assert.throws(() => compileExplainerDiagram('sequence', ['b | s | SYN', 'phase | Empty'], { id: 'empty' }), error => (error.archifyDiagnostics || error.diagnostics || []).some(item => /phase needs/.test(item.message)));
+  assert.throws(() => compileExplainerDiagram('sequence', ['b | s | SYN', 'phase | Empty'], { id: 'empty' }), error => (error.schematicsDiagnostics || error.diagnostics || []).some(item => /phase needs/.test(item.message)));
 });
 
 test('explainer diagrams: a linear workflow too wide for one row wraps into rows; questions get the decision mark', () => {

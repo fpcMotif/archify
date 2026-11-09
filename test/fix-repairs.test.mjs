@@ -5,10 +5,10 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { applyRepair } from '../archify/renderers/shared/fixes.ts';
+import { applyRepair } from '../schematics/renderers/shared/fixes.ts';
 
-const skillRoot = fileURLToPath(new URL('../archify/', import.meta.url));
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 
 function validate(type, candidate, directory) {
   const input = path.join(directory, `${type}.json`);
@@ -32,7 +32,7 @@ const cases = [
 
 for (const { type, example, code, op, mutate } of cases) {
   test(`fix repairs: applying the ${code} edits clears it in the renderer`, (t) => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-fix-repairs-'));
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-fix-repairs-'));
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
     const candidate = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', example), 'utf8'));
     mutate(candidate);

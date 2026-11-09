@@ -6,7 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const cases = {
   architecture: ['web-app.architecture.json', 'components'],
   workflow: ['agent-tool-call.workflow.json', 'nodes'],
@@ -17,7 +17,7 @@ const cases = {
 };
 for (const [mode, [example, collection, index = 0]] of Object.entries(cases)) {
   test(`${mode}: icon overrides and hiding preserve all non-icon output`, () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-icons-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-icons-'));
     try {
       const spec = JSON.parse(fs.readFileSync(path.join(root, 'examples', example)));
       const input = path.join(dir, 'input.json');
@@ -61,7 +61,7 @@ for (const [mode, [example, collection, index = 0]] of Object.entries(cases)) {
       }
       spec[collection][index].icon = '<svg onload="alert(1)">';
       fs.writeFileSync(input, JSON.stringify(spec));
-      const rejected = spawnSync(process.execPath, [path.join(root, 'bin/archify.mjs'), 'validate', mode, input, '--json'], { encoding: 'utf8' });
+      const rejected = spawnSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'validate', mode, input, '--json'], { encoding: 'utf8' });
       assert.notEqual(rejected.status, 0);
       assert.match(rejected.stdout + rejected.stderr, /icon/);
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }

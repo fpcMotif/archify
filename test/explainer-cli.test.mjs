@@ -5,16 +5,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { prepareExplainer, writePreparedBundle } from '../archify/explainer/prepare.mjs';
-import { scanHtml } from '../archify/explainer/check.mjs';
-const cli = path.resolve('archify/bin/archify.mjs');
+import { prepareExplainer, writePreparedBundle } from '../schematics/explainer/prepare.mjs';
+import { scanHtml } from '../schematics/explainer/check.mjs';
+const cli = path.resolve('schematics/bin/schematics.mjs');
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a8XcAAAAASUVORK5CYII=', 'base64');
 function run(args,env={}) { return spawnSync(process.execPath,[cli,...args],{encoding:'utf8',maxBuffer:64*1024*1024,env:{...process.env,...env}}); }
 function fixture() {return {schema_version:1,diagram_type:'explainer',meta:{id:'cli-document',title:'How is a draft delivered?',locale:'en'},answer:{summary:'A checked candidate preserves the authored draft.'},panels:[{id:'delivery',title:'What is checked?',blocks:[{id:'delivery-text',type:'prose',text:'The draft is parsed and checked before publication.'}]}],sources:[]};}
-function temporary(t) {const dir=fs.mkdtempSync(path.join(os.tmpdir(),'archify-explainer-cli-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));return dir;}
+function temporary(t) {const dir=fs.mkdtempSync(path.join(os.tmpdir(),'schematics-explainer-cli-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));return dir;}
 function write(dir,document=fixture()) {const input=path.join(dir,'author-draft.json');fs.writeFileSync(input,JSON.stringify(document,null,2)+'\n');return input;}
-function bundle(file) {const scripts=scanHtml(fs.readFileSync(file,'utf8')).scripts;return JSON.parse(scripts.find(script=>script.attrs.id==='archify-explainer-prepared').text);}
+function bundle(file) {const scripts=scanHtml(fs.readFileSync(file,'utf8')).scripts;return JSON.parse(scripts.find(script=>script.attrs.id==='schematics-explainer-prepared').text);}
 
 test('explainer CLI binds original draft bytes through validate, deliver and strict check',t=>{
   const dir=temporary(t),input=write(dir),output=path.join(dir,'result.html');
@@ -41,13 +41,13 @@ test('explainer prepared resource mutation fails before overwriting last good HT
   const delivered=run(['deliver','explainer',input,output,'--json']);assert.equal(delivered.status,0,delivered.stdout+delivered.stderr);const previous=fs.readFileSync(output);
   const prepared=await prepareExplainer(fs.readFileSync(input,'utf8'),{inputPath:input});const preparedPath=writePreparedBundle(dir,prepared);
   fs.writeFileSync(path.join(dir,'asset.png'),Buffer.concat([png,Buffer.from('mutation')]));
-  const result=run(['deliver','explainer',input,output,'--json'],{ARCHIFY_EXPLAINER_PREPARED:preparedPath});assert.equal(result.status,1);assert.ok(JSON.parse(result.stdout).diagnostics.some(d=>d.code==='explainer/dependency-changed'));assert.deepEqual(fs.readFileSync(output),previous);
+  const result=run(['deliver','explainer',input,output,'--json'],{SCHEMATICS_EXPLAINER_PREPARED:preparedPath});assert.equal(result.status,1);assert.ok(JSON.parse(result.stdout).diagnostics.some(d=>d.code==='explainer/dependency-changed'));assert.deepEqual(fs.readFileSync(output),previous);
 });
 
 test('explainer refuses a prepared bundle bound to different original source bytes',async t=>{
   const dir=temporary(t),input=write(dir),output=path.join(dir,'result.html');fs.writeFileSync(output,'last good artifact');
   const prepared=await prepareExplainer(fs.readFileSync(input,'utf8'),{inputPath:input});const preparedPath=writePreparedBundle(dir,prepared);fs.appendFileSync(input,'\n');
-  const result=run(['deliver','explainer',input,output,'--json'],{ARCHIFY_EXPLAINER_PREPARED:preparedPath});assert.equal(result.status,1);assert.equal(JSON.parse(result.stdout).diagnostics[0].code,'explainer/prepared-mismatch');assert.equal(fs.readFileSync(output,'utf8'),'last good artifact');
+  const result=run(['deliver','explainer',input,output,'--json'],{SCHEMATICS_EXPLAINER_PREPARED:preparedPath});assert.equal(result.status,1);assert.equal(JSON.parse(result.stdout).diagnostics[0].code,'explainer/prepared-mismatch');assert.equal(fs.readFileSync(output,'utf8'),'last good artifact');
 });
 
 test('explainer direct render resolves contained resources against author directory',t=>{
@@ -58,14 +58,14 @@ test('explainer direct render resolves contained resources against author direct
 
 test('explainer finalize opts into the browser gate and reports unavailability',t=>{
   const dir=temporary(t),input=write(dir),output=path.join(dir,'final.html');
-  const result=run(['finalize','explainer',input,output,'--browser-check','--json'],{ARCHIFY_CHROME:''});assert.equal(result.status,2,result.stdout+result.stderr);
+  const result=run(['finalize','explainer',input,output,'--browser-check','--json'],{SCHEMATICS_CHROME:''});assert.equal(result.status,2,result.stdout+result.stderr);
   const receipt=JSON.parse(result.stdout);assert.deepEqual(receipt.gates,{validate:'pass',deliver:'pass',check:'pass','browser-check':'skipped'});assert.deepEqual(receipt.browserCheck,{requested:true,ran:false});assert.equal(receipt.quality,'showcase');assert.equal(receipt.specification.sha256,sha(fs.readFileSync(input)));assert.equal(receipt.ok,false);
 });
 
 test('explainer prepared bundle cannot follow same-byte draft into a different author directory',async t=>{
   const dir=temporary(t),input=write(dir),subdir=path.join(dir,'moved');fs.mkdirSync(subdir);const moved=path.join(subdir,'author-draft.json');fs.copyFileSync(input,moved);
   const prepared=await prepareExplainer(fs.readFileSync(input,'utf8'),{inputPath:input});const preparedPath=writePreparedBundle(dir,prepared),output=path.join(dir,'result.html');fs.writeFileSync(output,'last good');
-  const result=run(['deliver','explainer',moved,output,'--json'],{ARCHIFY_EXPLAINER_PREPARED:preparedPath});assert.equal(result.status,1);assert.equal(JSON.parse(result.stdout).diagnostics[0].evidence.reason,'draft-path-mismatch');assert.equal(fs.readFileSync(output,'utf8'),'last good');
+  const result=run(['deliver','explainer',moved,output,'--json'],{SCHEMATICS_EXPLAINER_PREPARED:preparedPath});assert.equal(result.status,1);assert.equal(JSON.parse(result.stdout).diagnostics[0].evidence.reason,'draft-path-mismatch');assert.equal(fs.readFileSync(output,'utf8'),'last good');
 });
 
 test('explainer public writing modes warn, reject strict drafts, and permit explicit off',t=>{
@@ -80,12 +80,12 @@ test('explainer public writing modes warn, reject strict drafts, and permit expl
 
 test('explainer prepared writing mode cannot silently change across stages',async t=>{
   const dir=temporary(t),input=write(dir),output=path.join(dir,'result.html');fs.writeFileSync(output,'last good');const prepared=await prepareExplainer(fs.readFileSync(input,'utf8'),{inputPath:input,writingMode:'off'});const preparedPath=writePreparedBundle(dir,prepared);
-  const result=run(['deliver','explainer',input,output,'--writing','strict','--json'],{ARCHIFY_EXPLAINER_PREPARED:preparedPath});assert.equal(result.status,1);assert.equal(JSON.parse(result.stdout).diagnostics[0].evidence.reason,'writing-mode-mismatch');assert.equal(fs.readFileSync(output,'utf8'),'last good');
+  const result=run(['deliver','explainer',input,output,'--writing','strict','--json'],{SCHEMATICS_EXPLAINER_PREPARED:preparedPath});assert.equal(result.status,1);assert.equal(JSON.parse(result.stdout).diagnostics[0].evidence.reason,'writing-mode-mismatch');assert.equal(fs.readFileSync(output,'utf8'),'last good');
 });
 
 test('default explainer finalize succeeds without discovering or launching a browser',t=>{
  const dir=temporary(t),input=write(dir),output=path.join(dir,'fast.html');
- const result=run(['finalize','explainer',input,output,'--json'],{ARCHIFY_CHROME:path.join(dir,'does-not-exist')});assert.equal(result.status,0,result.stdout+result.stderr);
+ const result=run(['finalize','explainer',input,output,'--json'],{SCHEMATICS_CHROME:path.join(dir,'does-not-exist')});assert.equal(result.status,0,result.stdout+result.stderr);
  const summary=JSON.parse(result.stdout);assert.deepEqual(summary.gates,{validate:'pass',deliver:'pass',check:'pass','browser-check':'not-run'});assert.deepEqual(summary.browserCheck,{requested:false,ran:false});assert.equal(summary.ok,true);
  const full=JSON.parse(fs.readFileSync(summary.evidence.receipt,'utf8'));assert.deepEqual(full.browserCheck,summary.browserCheck);assert.equal(full.stages['browser-check'].execution,'not-requested');
 });

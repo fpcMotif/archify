@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { parse } from 'parse5';
-import { renderExplainer } from '../archify/explainer/render.mjs';
-import { computeExplainerRevision } from '../archify/explainer/revision.mjs';
-import { unpackPageBundle } from '../archify/explainer/page-bundle.mjs';
+import { renderExplainer } from '../schematics/explainer/render.mjs';
+import { computeExplainerRevision } from '../schematics/explainer/revision.mjs';
+import { unpackPageBundle } from '../schematics/explainer/page-bundle.mjs';
 
 const sha = value => createHash('sha256').update(value).digest('hex');
 const all = (node, test) => [ ...(test(node) ? [node] : []), ...(node.childNodes || []).flatMap(child=>all(child,test)) ];
@@ -35,7 +35,7 @@ const resources = () => ({preparedSources:{sources:{'code-source':{...source,rev
 test('renderer: every shape remains statically readable and authored text cannot become markup',()=>{
   const html = renderExplainer(fixture(),resources()); const tree = parse(html);
   assert.ok(Buffer.byteLength(html.slice(0, html.indexOf('<meta charset='))) < 1024, 'charset must precede the software notices');
-  const softwareNotice = all(tree,node=>attr(node,'id') === 'archify-software-notices')[0];
+  const softwareNotice = all(tree,node=>attr(node,'id') === 'schematics-software-notices')[0];
   assert.match(JSON.parse(text(softwareNotice)), /Apache License/);
   assert.equal(all(tree,node=>node.tagName === 'img').length,1);
   assert.equal(all(tree,node=>attr(node,'onerror')).length,0);
@@ -58,10 +58,10 @@ test('renderer: canonical input, draft, child bytes and prepared bundle survive 
   const draft = '# draft\n</script>\n& literal text';
   const bundle = {sourceText:draft,document:input,...resources(),dependencies:[],digest:'prepared-digest'};
   const tree = parse(renderExplainer(input,{...resources(),sourceText:draft,preparedBundle:bundle}));
-  assert.deepEqual(payload(tree,'archify-explainer-prepared').document,input);
-  assert.equal(payload(tree,'archify-explainer-prepared').sourceText,draft);
-  assert.deepEqual(payload(tree,'archify-explainer-prepared'),bundle);
-  assert.equal(payload(tree,'archify-explainer-prepared').preparedDiagrams.diagrams['native-diagram'].html,nativeHtml);
+  assert.deepEqual(payload(tree,'schematics-explainer-prepared').document,input);
+  assert.equal(payload(tree,'schematics-explainer-prepared').sourceText,draft);
+  assert.deepEqual(payload(tree,'schematics-explainer-prepared'),bundle);
+  assert.equal(payload(tree,'schematics-explainer-prepared').preparedDiagrams.diagrams['native-diagram'].html,nativeHtml);
   const manifest = payload(tree,'explainer-manifest');
   assert.equal(manifest.sourceSha256,sha(draft));
   assert.notEqual(manifest.revision,manifest.sourceSha256);
@@ -112,7 +112,7 @@ test('renderer: multiple native diagrams retain independent preview IDs and orig
   assert.ok(find(tree,'preview-native-diagram-arrow'));
   assert.ok(find(tree,'preview-second-diagram-arrow'));
   assert.equal(all(tree,node=>attr(node,'id')).length,new Set(all(tree,node=>attr(node,'id')).map(node=>attr(node,'id'))).size);
-  const bundle = payload(tree,'archify-explainer-prepared');
+  const bundle = payload(tree,'schematics-explainer-prepared');
   assert.equal(bundle.preparedDiagrams.diagrams['native-diagram'].html,nativeHtml);
   assert.equal(bundle.preparedDiagrams.diagrams['second-diagram'].html,nativeHtml);
   const manifest = payload(tree,'explainer-manifest');
@@ -167,7 +167,7 @@ test('renderer: native diagram panels receive responsive space without changing 
   const tree = parse(renderExplainer(input,resources()));
   assert.ok(attr(find(tree,'panel-main'),'class').split(' ').includes('diagram-panel'));
   assert.ok(!attr(find(tree,'text-only'),'class').split(' ').includes('diagram-panel'));
-  const bundle = payload(tree,'archify-explainer-prepared');
+  const bundle = payload(tree,'schematics-explainer-prepared');
   assert.equal(bundle.preparedDiagrams.diagrams['native-diagram'].html,nativeHtml);
   assert.equal(bundle.preparedDiagrams.diagrams['native-diagram'].svg,diagram.svg);
   assert.equal(payload(tree,'explainer-manifest').children['native-diagram'].sha256,sha(nativeHtml));
@@ -183,7 +183,7 @@ test('renderer: native system-dark aliases exclude print rules and printing over
   assert.match(darkAlias,/--native-ink:#eee/);
   assert.doesNotMatch(darkAlias,/--native-ink:#456/,'print declarations must not change screen-dark aliases');
   assert.match(styles,/@media print\{\.preview-native-diagram,\.preview-native-diagram\[data-theme\],\.preview-native-diagram:not\(\[data-theme\]\)\{/);
-  assert.equal(payload(tree,'archify-explainer-prepared').preparedDiagrams.diagrams['native-diagram'].html,nativeHtml);
+  assert.equal(payload(tree,'schematics-explainer-prepared').preparedDiagrams.diagrams['native-diagram'].html,nativeHtml);
 });
 
 test('renderer: source markers number first appearances including blank labels and remain plain text',()=>{
@@ -209,7 +209,7 @@ test('renderer: shared pages omit disposable native checker filenames but retain
   const check={ok:true,file:'/private/build-user/scratch/diagram.html',artifact:{sha256:diagram.sha256},composition:{profile:'standard'}};
   prepared.preparedDiagrams.diagrams['native-diagram']={...diagram,checks:{check}};
   const tree=parse(renderExplainer(fixture(),{...prepared,sourcePath:'/published/draft.json',pageDirectory:'/published'}));
-  const frozen=payload(tree,'archify-explainer-prepared'),manifest=JSON.parse(text(find(tree,'explainer-manifest')));
+  const frozen=payload(tree,'schematics-explainer-prepared'),manifest=JSON.parse(text(find(tree,'explainer-manifest')));
   for(const saved of [frozen.preparedDiagrams.diagrams['native-diagram'].checks.check,manifest.children['native-diagram'].checks.check]){
     assert.equal('file' in saved,false);assert.equal(saved.ok,true);assert.deepEqual(saved.artifact,check.artifact);assert.deepEqual(saved.composition,check.composition);
   }
@@ -220,7 +220,7 @@ test('renderer: shared pages omit disposable native checker filenames but retain
 test('renderer: manifest warnings use the same portable locations as the prepared bundle',()=>{
   const diagnostics=[{code:'writing/test',severity:'warning',subject:{input:'/author/draft.md',output:'/published/page.html'}}];
   const tree=parse(renderExplainer(fixture(),{...resources(),diagnostics,sourcePath:'/author/draft.md',pageDirectory:'/published'}));
-  const frozen=payload(tree,'archify-explainer-prepared'),manifest=JSON.parse(text(find(tree,'explainer-manifest')));
+  const frozen=payload(tree,'schematics-explainer-prepared'),manifest=JSON.parse(text(find(tree,'explainer-manifest')));
   assert.deepEqual(manifest.diagnostics,frozen.diagnostics);assert.equal(manifest.diagnostics[0].subject.input.replaceAll('\\','/'),'../author/draft.md');
 });
 
@@ -229,6 +229,6 @@ test('renderer: Windows cross-volume source locations are omitted instead of exp
   const document=fixture(),sourceText=JSON.stringify(document),prepared=resources();
   const preparedBundle={...prepared,document,sourceText,diagnostics,sourcePath:'D:\\author\\draft.md',baseDir:'D:\\author',dependencies:[{kind:'image',id:'image',path:'D:\\author\\example.png'}]};
   const tree=parse(renderExplainer(document,{...prepared,sourceText,preparedBundle,diagnostics,pageDirectory:'C:\\published'}));
-  const frozen=payload(tree,'archify-explainer-prepared'),manifest=JSON.parse(text(find(tree,'explainer-manifest')));
+  const frozen=payload(tree,'schematics-explainer-prepared'),manifest=JSON.parse(text(find(tree,'explainer-manifest')));
   assert.equal(frozen.sourcePath,null);assert.equal(frozen.baseDir,null);assert.equal(frozen.dependencies[0].path,null);assert.equal(manifest.diagnostics[0].subject.input,null);
 });

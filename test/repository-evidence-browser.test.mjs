@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 import { git, fixture, run } from './helpers/repository-evidence-fixture.mjs';
 
 test('browser renders local-only sources as searchable text and web sources as links', {
-  skip: process.env.ARCHIFY_CHROME ? false : 'Set ARCHIFY_CHROME to run evidence browser checks.',
+  skip: process.env.SCHEMATICS_CHROME ? false : 'Set SCHEMATICS_CHROME to run evidence browser checks.',
   timeout: 60000,
 }, async () => {
   const data = fixture();
@@ -66,7 +66,7 @@ test('browser renders local-only sources as searchable text and web sources as l
 });
 
 test('browser announces verified source counts without visual marks and restores canonical export labels', {
-  skip: process.env.ARCHIFY_CHROME ? false : 'Set ARCHIFY_CHROME to run evidence browser checks.',
+  skip: process.env.SCHEMATICS_CHROME ? false : 'Set SCHEMATICS_CHROME to run evidence browser checks.',
   timeout: 30000,
 }, async (t) => {
   const data = fixture();
@@ -77,7 +77,7 @@ test('browser announces verified source counts without visual marks and restores
   const delivered = run(['deliver', 'architecture', data.input, artifactPath, '--repo-root', data.root, '--json']);
   assert.equal(delivered.status, 0, delivered.stderr || delivered.stdout);
   const html = fs.readFileSync(artifactPath, 'utf8');
-  const initialization = html.match(/Archify\.sourceEvidence = \(function \(\) \{[\s\S]*?\}\)\(\);/)?.[0];
+  const initialization = html.match(/Schematics\.sourceEvidence = \(function \(\) \{[\s\S]*?\}\)\(\);/)?.[0];
   assert.ok(initialization);
   const browser = new ChromeVisualBrowser(findChrome());
   try {
@@ -100,7 +100,7 @@ test('browser announces verified source counts without visual marks and restores
         const reinitialize = () => { ${initialization} };
         const svg = document.querySelector('.diagram-container > svg');
         const node = svg.querySelector('[data-node-id="users"]');
-        const element = document.getElementById('archify-source-evidence-data');
+        const element = document.getElementById('schematics-source-evidence-data');
         const payload = JSON.parse(element.textContent);
         const originalSources = payload.nodes.users.slice();
         const authoredLabel = node.getAttribute('data-source-evidence-original-label');
@@ -110,7 +110,7 @@ test('browser announces verified source counts without visual marks and restores
         const repeated = node.getAttribute('aria-label');
         const noVisualMarks = !svg.querySelector('[data-source-evidence-beacon], .source-evidence-beacon');
         const geometryPreserved = geometry === [...svg.querySelectorAll('rect,path,line,polyline,text')].map(el => el.outerHTML).join('');
-        Archify.focus.set('users', { toggle: false });
+        Schematics.focus.set('users', { toggle: false });
         const passportLinks = document.querySelectorAll('#focus-evidence a[href]').length;
         const before = svg.outerHTML;
         const originalCreate = URL.createObjectURL;
@@ -121,7 +121,7 @@ test('browser announces verified source counts without visual marks and restores
         };
         let exportPreservesLive;
         try {
-          const pending = Archify.exportMenu.run('svg');
+          const pending = Schematics.exportMenu.run('svg');
           exportPreservesLive = before === svg.outerHTML;
           await pending;
         } finally { URL.createObjectURL = originalCreate; }
@@ -130,7 +130,7 @@ test('browser announces verified source counts without visual marks and restores
         const exportClean = !exported.querySelector('[data-source-evidence-count], [data-source-evidence-original-label], [data-reader-legend-corner], [data-source-evidence-beacon]');
         // The download anchor can clear Focus through its existing outside-click
         // behavior. Reopen via the public interface to verify sources survive.
-        Archify.focus.set('users', { toggle: false });
+        Schematics.focus.set('users', { toggle: false });
         const passportLinksAfter = document.querySelectorAll('#focus-evidence a[href]').length;
         payload.nodes.users = [];
         element.textContent = JSON.stringify(payload);
@@ -153,7 +153,7 @@ test('browser announces verified source counts without visual marks and restores
             if (blob.type.startsWith('image/svg+xml')) labelBlob = blob;
             return originalCreate.call(URL, blob);
           };
-          try { await Archify.exportMenu.run('svg'); }
+          try { await Schematics.exportMenu.run('svg'); }
           finally { URL.createObjectURL = originalCreate; }
           const exportedNode = new DOMParser().parseFromString(await labelBlob.text(), 'image/svg+xml').querySelector('[data-node-id="users"]');
           payload.nodes.users = [];
@@ -191,7 +191,7 @@ test('browser announces verified source counts without visual marks and restores
     }
     const restored = await browser.cdp.send('Runtime.evaluate', {
       expression: `(() => {
-        const element = document.getElementById('archify-source-evidence-data');
+        const element = document.getElementById('schematics-source-evidence-data');
         const payload = JSON.parse(element.textContent);
         payload.verified = true;
         element.textContent = JSON.stringify(payload);

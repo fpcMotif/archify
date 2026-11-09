@@ -6,8 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-straight-routes-'));
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-straight-routes-'));
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 const common = { schema_version: 1, meta: { title: 'Direct handoff', quality_profile: 'standard' } };
 const cases = {
@@ -36,7 +36,7 @@ const cases = {
 };
 
 function run(...args) {
-  return spawnSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), ...args], { encoding: 'utf8' });
+  return spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), ...args], { encoding: 'utf8' });
 }
 function orthogonalCheck(result) {
   return JSON.parse(result.stdout).checks.find((check) => check.name === 'orthogonal_arrows');

@@ -5,13 +5,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { startPreview } from '../archify/bin/preview.mjs';
-import { loadDiagram, writeDiagram } from '../archify/renderers/shared/cli.mjs';
-import { pathsAlias } from '../archify/renderers/shared/output-path.mjs';
+import { startPreview } from '../schematics/bin/preview.mjs';
+import { loadDiagram, writeDiagram } from '../schematics/renderers/shared/cli.mjs';
+import { pathsAlias } from '../schematics/renderers/shared/output-path.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(here, '..', 'archify');
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const skillRoot = path.resolve(here, '..', 'schematics');
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 const workflowFixture = path.join(skillRoot, 'examples/agent-tool-call.workflow.json');
 const baseFixture = path.join(skillRoot, 'examples/checkout-platform.base.architecture.json');
 const headFixture = path.join(skillRoot, 'examples/checkout-platform.head.architecture.json');
@@ -57,12 +57,12 @@ function directoryAliasesNames(directory, authoredName, lookupName) {
 }
 
 test('future-path aliases follow the containing directory case and Unicode semantics', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-semantics-'));
-  const caseInsensitive = directoryAliasesNames(cwd, 'ArchifyCaseProbe', 'archifycaseprobe');
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-semantics-'));
+  const caseInsensitive = directoryAliasesNames(cwd, 'SchematicsCaseProbe', 'schematicscaseprobe');
   const normalizationInsensitive = directoryAliasesNames(
     cwd,
-    'archify-norm-\u00e9-probe',
-    'archify-norm-e\u0301-probe',
+    'schematics-norm-\u00e9-probe',
+    'schematics-norm-e\u0301-probe',
   );
 
   assert.equal(
@@ -76,8 +76,8 @@ test('future-path aliases follow the containing directory case and Unicode seman
 });
 
 test('compare rejects case-only future targets before input work when the directory aliases case', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-compare-case-'));
-  const caseInsensitive = directoryAliasesNames(cwd, 'ArchifyCaseProbe', 'archifycaseprobe');
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-compare-case-'));
+  const caseInsensitive = directoryAliasesNames(cwd, 'SchematicsCaseProbe', 'schematicscaseprobe');
   const output = path.join(cwd, 'Future.HTML');
   const receiptPath = path.join(cwd, 'future.html');
 
@@ -100,7 +100,7 @@ test('compare rejects case-only future targets before input work when the direct
 });
 
 test('render reports an output symlink cycle as a structured output diagnostic', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-cycle-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-cycle-'));
   const input = path.join(cwd, 'diagram.workflow.json');
   const output = path.join(cwd, 'cycle-a.html');
   const otherLink = path.join(cwd, 'cycle-b.html');
@@ -114,7 +114,7 @@ test('render reports an output symlink cycle as a structured output diagnostic',
     {
       cwd,
       encoding: 'utf8',
-      env: { ...process.env, ARCHIFY_DIAGNOSTIC_FORMAT: 'json' },
+      env: { ...process.env, SCHEMATICS_DIAGNOSTIC_FORMAT: 'json' },
     },
   );
 
@@ -126,7 +126,7 @@ test('render reports an output symlink cycle as a structured output diagnostic',
 });
 
 test('render rejects an output symlink that aliases its JSON input', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-render-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-render-'));
   const input = path.join(cwd, 'diagram.workflow.json');
   const output = path.join(cwd, 'diagram.html');
   const source = fs.readFileSync(workflowFixture);
@@ -141,7 +141,7 @@ test('render rejects an output symlink that aliases its JSON input', () => {
 });
 
 test('render rejects an existing output hard link to its JSON input', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-render-hardlink-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-render-hardlink-'));
   const input = path.join(cwd, 'diagram.workflow.json');
   const output = path.join(cwd, 'diagram.html');
   const source = fs.readFileSync(workflowFixture);
@@ -156,7 +156,7 @@ test('render rejects an existing output hard link to its JSON input', () => {
 });
 
 test('render rejects an absolute meta.output when no CLI output is provided', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-meta-absolute-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-meta-absolute-'));
   const input = path.join(cwd, 'diagram.workflow.json');
   const output = path.join(cwd, 'authored.html');
   const source = JSON.parse(fs.readFileSync(workflowFixture, 'utf8'));
@@ -171,7 +171,7 @@ test('render rejects an absolute meta.output when no CLI output is provided', ()
 });
 
 test('render rejects a parent segment in portable meta.output before filesystem containment', () => {
-  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-meta-parent-'));
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-meta-parent-'));
   const cwd = path.join(parent, 'work');
   fs.mkdirSync(cwd);
   const input = path.join(cwd, 'diagram.workflow.json');
@@ -189,7 +189,7 @@ test('render rejects a parent segment in portable meta.output before filesystem 
 });
 
 test('render rejects a meta.output that escapes through a directory symlink', () => {
-  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-meta-link-'));
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-meta-link-'));
   const cwd = path.join(parent, 'work');
   const outside = path.join(parent, 'outside');
   fs.mkdirSync(cwd);
@@ -209,7 +209,7 @@ test('render rejects a meta.output that escapes through a directory symlink', ()
 });
 
 test('render requires a meta.output target with an html extension', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-meta-extension-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-meta-extension-'));
   const input = path.join(cwd, 'diagram.workflow.json');
   const output = path.join(cwd, 'authored.json');
   const source = JSON.parse(fs.readFileSync(workflowFixture, 'utf8'));
@@ -224,7 +224,7 @@ test('render requires a meta.output target with an html extension', () => {
 });
 
 test('render rejects a meta.output symlink that resolves to a non-html target', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-meta-extension-link-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-meta-extension-link-'));
   const input = path.join(cwd, 'diagram.workflow.json');
   const target = path.join(cwd, 'authored.json');
   const output = path.join(cwd, 'authored.html');
@@ -242,7 +242,7 @@ test('render rejects a meta.output symlink that resolves to a non-html target', 
 });
 
 test('deliver rejects a future-path alias of its JSON input with a structured diagnostic', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-deliver-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-deliver-'));
   const realDirectory = path.join(cwd, 'real');
   const linkedDirectory = path.join(cwd, 'linked');
   fs.mkdirSync(realDirectory);
@@ -262,7 +262,7 @@ test('deliver rejects a future-path alias of its JSON input with a structured di
 });
 
 test('deliver rechecks aliases immediately before committing a verified candidate', { timeout: 10000 }, async () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-deliver-race-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-deliver-race-'));
   const installedRoot = path.join(cwd, 'skill');
   const installedBin = path.join(installedRoot, 'bin');
   const installedShared = path.join(installedRoot, 'renderers/shared');
@@ -272,7 +272,7 @@ test('deliver rechecks aliases immediately before committing a verified candidat
   fs.mkdirSync(installedShared, { recursive: true });
   fs.mkdirSync(installedRenderer, { recursive: true });
   fs.mkdirSync(installedScripts, { recursive: true });
-  fs.copyFileSync(cli, path.join(installedBin, 'archify.mjs'));
+  fs.copyFileSync(cli, path.join(installedBin, 'schematics.mjs'));
   fs.copyFileSync(
     path.join(skillRoot, 'renderers/shared/output-path.mjs'),
     path.join(installedShared, 'output-path.mjs'),
@@ -296,8 +296,8 @@ test('deliver rechecks aliases immediately before committing a verified candidat
   fs.writeFileSync(path.join(installedRenderer, 'render-workflow.mjs'), `
 import fs from 'node:fs';
 const [, output] = process.argv.slice(2);
-fs.writeFileSync(process.env.ARCHIFY_TEST_RENDER_STARTED, output);
-const release = process.env.ARCHIFY_TEST_RENDER_RELEASE;
+fs.writeFileSync(process.env.SCHEMATICS_TEST_RENDER_STARTED, output);
+const release = process.env.SCHEMATICS_TEST_RENDER_RELEASE;
 const deadline = Date.now() + 5000;
 while (!fs.existsSync(release) && Date.now() < deadline) {
   await new Promise((resolve) => setTimeout(resolve, 20));
@@ -331,15 +331,15 @@ export const checkArtifact = () => ({
   const release = path.join(cwd, 'renderer-release');
 
   const child = spawn(process.execPath, [
-    path.join(installedBin, 'archify.mjs'),
+    path.join(installedBin, 'schematics.mjs'),
     'deliver', 'workflow', input, output, '--json',
   ], {
     cwd,
     encoding: 'utf8',
     env: {
       ...process.env,
-      ARCHIFY_TEST_RENDER_STARTED: marker,
-      ARCHIFY_TEST_RENDER_RELEASE: release,
+      SCHEMATICS_TEST_RENDER_STARTED: marker,
+      SCHEMATICS_TEST_RENDER_RELEASE: release,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -373,7 +373,7 @@ export const checkArtifact = () => ({
 });
 
 test('compare rejects an artifact path that aliases either architecture input', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-compare-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-compare-'));
   const realDirectory = path.join(cwd, 'real');
   const linkedDirectory = path.join(cwd, 'linked');
   fs.mkdirSync(realDirectory);
@@ -393,7 +393,7 @@ test('compare rejects an artifact path that aliases either architecture input', 
 });
 
 test('compare rejects a receipt path that aliases either architecture input', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-compare-receipt-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-compare-receipt-'));
   const base = path.join(cwd, 'base.json');
   const output = path.join(cwd, 'delta.html');
   const baseSource = fs.readFileSync(baseFixture);
@@ -413,7 +413,7 @@ test('compare rejects a receipt path that aliases either architecture input', ()
 });
 
 test('compare rejects a dangling receipt symlink to the future artifact path', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-compare-pair-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-compare-pair-'));
   const output = path.join(cwd, 'delta.html');
   const receiptPath = path.join(cwd, 'delta.receipt.json');
   fs.symlinkSync(output, receiptPath, 'file');
@@ -432,7 +432,7 @@ test('compare rejects a dangling receipt symlink to the future artifact path', (
 });
 
 test('compare preserves dangling output symlinks and commits to their physical targets', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-compare-links-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-compare-links-'));
   const output = path.join(cwd, 'delta.html');
   const receiptPath = path.join(cwd, 'delta.receipt.json');
   const outputTarget = path.join(cwd, 'rendered.html');
@@ -458,7 +458,7 @@ test('compare preserves dangling output symlinks and commits to their physical t
 for (const slot of ['artifact', 'receipt']) {
   for (const initialState of ['absent', 'existing']) {
     test(`compare does not overwrite an ${initialState} ${slot} slot changed after staging`, () => {
-      const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `archify-output-compare-${slot}-${initialState}-`));
+      const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `schematics-output-compare-${slot}-${initialState}-`));
       const output = path.join(cwd, 'delta.html');
       const receiptPath = path.join(cwd, 'delta.receipt.json');
       const changedPath = slot === 'artifact' ? output : receiptPath;
@@ -487,7 +487,7 @@ for (const slot of ['artifact', 'receipt']) {
           const result = originalWrite.call(this, file, ...args);
           if (!changed
             && path.basename(String(file)) === ${JSON.stringify(path.basename(receiptPath))}
-            && path.basename(path.dirname(String(file))).startsWith('.archify-compare-')) {
+            && path.basename(path.dirname(String(file))).startsWith('.schematics-compare-')) {
             changed = true;
             ${replaceExisting}
             originalWrite.call(fs, changedPath, ${JSON.stringify(changedBytes)});
@@ -508,14 +508,14 @@ for (const slot of ['artifact', 'receipt']) {
       assert.equal(failure.diagnostics[0].code, 'output/target-changed');
       assert.equal(fs.readFileSync(changedPath, 'utf8'), changedBytes);
       assert.equal(fs.readFileSync(stablePath, 'utf8'), stableBytes);
-      assert.equal(fs.readdirSync(cwd).some((name) => name.startsWith('.archify-compare-')), false);
+      assert.equal(fs.readdirSync(cwd).some((name) => name.startsWith('.schematics-compare-')), false);
     });
   }
 }
 
 for (const slot of ['artifact', 'receipt']) {
   test(`compare preserves a concurrent ${slot} replacement made after final verification`, () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `archify-output-compare-backup-race-${slot}-`));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `schematics-output-compare-backup-race-${slot}-`));
     const output = path.join(cwd, 'delta.html');
     const receiptPath = path.join(cwd, 'delta.receipt.json');
     const changedPath = slot === 'artifact' ? output : receiptPath;
@@ -542,7 +542,7 @@ for (const slot of ['artifact', 'receipt']) {
       fs.renameSync = function(source, target, ...args) {
         if (!changed
           && String(source) === changedPath
-          && path.basename(path.dirname(String(target))).startsWith('.archify-remove-')) {
+          && path.basename(path.dirname(String(target))).startsWith('.schematics-remove-')) {
           changed = true;
           originalRename(changedPath, ${JSON.stringify(detachedPath)});
           originalWrite(changedPath, ${JSON.stringify(changedBytes)});
@@ -573,7 +573,7 @@ for (const slot of ['artifact', 'receipt']) {
 
 for (const slot of ['artifact', 'receipt']) {
   test(`compare preserves an absent ${slot} slot claimant made during publish`, () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `archify-output-compare-publish-race-${slot}-`));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `schematics-output-compare-publish-race-${slot}-`));
     const output = path.join(cwd, 'delta.html');
     const receiptPath = path.join(cwd, 'delta.receipt.json');
     const changedPath = slot === 'artifact' ? output : receiptPath;
@@ -598,7 +598,7 @@ for (const slot of ['artifact', 'receipt']) {
       fs.linkSync = function(source, target, ...args) {
         if (!changed
           && String(target) === changedPath
-          && path.basename(path.dirname(String(source))).startsWith('.archify-compare-')) {
+          && path.basename(path.dirname(String(source))).startsWith('.schematics-compare-')) {
           changed = true;
           originalWrite(changedPath, ${JSON.stringify(changedBytes)});
         }
@@ -622,13 +622,13 @@ for (const slot of ['artifact', 'receipt']) {
     );
     assert.equal(fs.readFileSync(changedPath, 'utf8'), changedBytes);
     assert.equal(fs.readFileSync(stablePath, 'utf8'), stableBytes);
-    assert.equal(fs.readdirSync(cwd).some((name) => name.startsWith('.archify-compare-')), false);
+    assert.equal(fs.readdirSync(cwd).some((name) => name.startsWith('.schematics-compare-')), false);
   });
 }
 
 for (const slot of ['artifact', 'receipt']) {
   test(`compare rejects and preserves a same-inode ${slot} candidate byte mutation before publish`, () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `archify-output-compare-candidate-bytes-${slot}-`));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `schematics-output-compare-candidate-bytes-${slot}-`));
     const output = path.join(cwd, 'delta.html');
     const receiptPath = path.join(cwd, 'delta.receipt.json');
     const physicalOutput = path.join(fs.realpathSync.native(cwd), path.basename(output));
@@ -652,7 +652,7 @@ for (const slot of ['artifact', 'receipt']) {
         if (!mutated
           && String(source) === physicalOutput
           && path.basename(String(target)) === '.previous-output'
-          && path.basename(path.dirname(String(target))).startsWith('.archify-compare-')) {
+          && path.basename(path.dirname(String(target))).startsWith('.schematics-compare-')) {
           mutated = true;
           originalAppend(path.join(path.dirname(String(target)), candidateName), '\\nexternally mutated candidate bytes\\n');
         }
@@ -677,7 +677,7 @@ for (const slot of ['artifact', 'receipt']) {
     assert.equal(fs.readFileSync(output, 'utf8'), outputBytes);
     assert.equal(fs.readFileSync(receiptPath, 'utf8'), receiptBytes);
     const recoveryDirectories = fs.readdirSync(cwd)
-      .filter((name) => name.startsWith('.archify-compare-'));
+      .filter((name) => name.startsWith('.schematics-compare-'));
     assert.equal(recoveryDirectories.length, 1);
     const preservedCandidate = path.join(cwd, recoveryDirectories[0], candidateName);
     assert.match(fs.readFileSync(preservedCandidate, 'utf8'), /externally mutated candidate bytes/);
@@ -685,7 +685,7 @@ for (const slot of ['artifact', 'receipt']) {
 }
 
 test('compare preserves a same-inode edit to the first published member when the second publish fails', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-compare-published-edit-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-compare-published-edit-'));
   const output = path.join(cwd, 'delta.html');
   const receiptPath = path.join(cwd, 'delta.receipt.json');
   const physicalDirectory = fs.realpathSync.native(cwd);
@@ -707,7 +707,7 @@ test('compare preserves a same-inode edit to the first published member when the
     const physicalReceipt = ${JSON.stringify(physicalReceipt)};
     let artifactPublished = false;
     fs.linkSync = function(source, target, ...args) {
-      const inCompareStaging = path.basename(path.dirname(String(source))).startsWith('.archify-compare-');
+      const inCompareStaging = path.basename(path.dirname(String(source))).startsWith('.schematics-compare-');
       if (inCompareStaging && String(target) === physicalOutput) {
         const result = originalLink(source, target, ...args);
         artifactPublished = true;
@@ -751,7 +751,7 @@ test('compare preserves a same-inode edit to the first published member when the
 
 for (const slot of ['artifact', 'receipt']) {
   test(`compare rejects and preserves a same-inode ${slot} candidate mode mutation before publish`, { skip: process.platform === 'win32' }, () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `archify-output-compare-candidate-mode-${slot}-`));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `schematics-output-compare-candidate-mode-${slot}-`));
     const output = path.join(cwd, 'delta.html');
     const receiptPath = path.join(cwd, 'delta.receipt.json');
     const physicalOutput = path.join(fs.realpathSync.native(cwd), path.basename(output));
@@ -777,7 +777,7 @@ for (const slot of ['artifact', 'receipt']) {
         if (!mutated
           && String(source) === physicalOutput
           && path.basename(String(target)) === '.previous-output'
-          && path.basename(path.dirname(String(target))).startsWith('.archify-compare-')) {
+          && path.basename(path.dirname(String(target))).startsWith('.schematics-compare-')) {
           mutated = true;
           originalChmod(path.join(path.dirname(String(target)), candidateName), 0o600);
         }
@@ -804,7 +804,7 @@ for (const slot of ['artifact', 'receipt']) {
     assert.equal(fs.statSync(output).mode & 0o777, 0o640);
     assert.equal(fs.statSync(receiptPath).mode & 0o777, 0o640);
     const recoveryDirectories = fs.readdirSync(cwd)
-      .filter((name) => name.startsWith('.archify-compare-'));
+      .filter((name) => name.startsWith('.schematics-compare-'));
     assert.equal(recoveryDirectories.length, 1);
     const preservedCandidate = path.join(cwd, recoveryDirectories[0], candidateName);
     assert.equal(fs.statSync(preservedCandidate).mode & 0o777, 0o600);
@@ -813,7 +813,7 @@ for (const slot of ['artifact', 'receipt']) {
 
 for (const slot of ['artifact', 'receipt']) {
   test(`compare rolls back both targets when the staged ${slot} link cannot be released`, () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `archify-output-compare-unlink-${slot}-`));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `schematics-output-compare-unlink-${slot}-`));
     const output = path.join(cwd, 'delta.html');
     const receiptPath = path.join(cwd, 'delta.receipt.json');
     const outputBytes = '<!doctype html><title>trusted artifact owner</title>\n';
@@ -831,8 +831,8 @@ for (const slot of ['artifact', 'receipt']) {
       fs.unlinkSync = function(file, ...args) {
         if (!rejected
           && path.basename(String(file)) === ${JSON.stringify(candidateName)}
-          && path.basename(path.dirname(String(file))).startsWith('.archify-remove-')
-          && path.basename(path.dirname(path.dirname(String(file)))).startsWith('.archify-compare-')) {
+          && path.basename(path.dirname(String(file))).startsWith('.schematics-remove-')
+          && path.basename(path.dirname(path.dirname(String(file)))).startsWith('.schematics-compare-')) {
           rejected = true;
           const error = new Error('injected candidate unlink failure');
           error.code = 'EACCES';
@@ -859,11 +859,11 @@ for (const slot of ['artifact', 'receipt']) {
     assert.equal(fs.readFileSync(output, 'utf8'), outputBytes);
     assert.equal(fs.readFileSync(receiptPath, 'utf8'), receiptBytes);
     const [recoveryDirectory] = fs.readdirSync(cwd)
-      .filter((name) => name.startsWith('.archify-compare-'));
+      .filter((name) => name.startsWith('.schematics-compare-'));
     assert.ok(recoveryDirectory);
     const recoveryRoot = path.join(cwd, recoveryDirectory);
     const [quarantineDirectory] = fs.readdirSync(recoveryRoot)
-      .filter((name) => name.startsWith('.archify-remove-'));
+      .filter((name) => name.startsWith('.schematics-remove-'));
     assert.ok(quarantineDirectory);
     assert.equal(
       fs.statSync(path.join(recoveryRoot, quarantineDirectory, candidateName)).isFile(),
@@ -873,7 +873,7 @@ for (const slot of ['artifact', 'receipt']) {
 }
 
 test('compare preserves the modes of both existing pair targets', { skip: process.platform === 'win32' }, () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-compare-modes-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-compare-modes-'));
   const output = path.join(cwd, 'delta.html');
   const receiptPath = path.join(cwd, 'delta.receipt.json');
   fs.writeFileSync(output, 'trusted artifact bytes\n');
@@ -894,7 +894,7 @@ test('compare preserves the modes of both existing pair targets', { skip: proces
 });
 
 test('compare rejects a hard-linked pair target before staging either output', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-compare-hardlink-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-compare-hardlink-'));
   const output = path.join(cwd, 'delta.html');
   const receiptPath = path.join(cwd, 'delta.receipt.json');
   const receiptAlias = path.join(cwd, 'receipt-owner.json');
@@ -925,11 +925,11 @@ test('compare rejects a hard-linked pair target before staging either output', (
   assert.equal(fs.readFileSync(output, 'utf8'), outputBytes);
   assert.equal(fs.readFileSync(receiptPath, 'utf8'), receiptBytes);
   assert.equal(fs.readFileSync(receiptAlias, 'utf8'), receiptBytes);
-  assert.equal(fs.readdirSync(cwd).some((name) => name.startsWith('.archify-compare-')), false);
+  assert.equal(fs.readdirSync(cwd).some((name) => name.startsWith('.schematics-compare-')), false);
 });
 
 test('preview applies the meta.output relative-path boundary before starting a server', async () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-preview-meta-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-preview-meta-'));
   const input = path.join(cwd, 'diagram.workflow.json');
   const output = path.join(cwd, 'authored.html');
   const source = JSON.parse(fs.readFileSync(workflowFixture, 'utf8'));
@@ -953,7 +953,7 @@ test('preview applies the meta.output relative-path boundary before starting a s
 });
 
 test('the shared renderer rechecks its guarded output immediately before writing', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-render-race-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-render-race-'));
   const inputDirectory = path.join(cwd, 'input');
   const initialOutputDirectory = path.join(cwd, 'safe-output');
   const linkedDirectory = path.join(cwd, 'linked-output');
@@ -989,7 +989,7 @@ test('the shared renderer rechecks its guarded output immediately before writing
 });
 
 test('compare rechecks every target immediately before committing the artifact pair', { timeout: 10000 }, async () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-compare-race-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-compare-race-'));
   const installedRoot = path.join(cwd, 'skill');
   const installedBin = path.join(installedRoot, 'bin');
   const installedShared = path.join(installedRoot, 'renderers/shared');
@@ -999,7 +999,7 @@ test('compare rechecks every target immediately before committing the artifact p
   for (const directory of [installedBin, installedShared, installedRenderer, installedScripts, installedDelta]) {
     fs.mkdirSync(directory, { recursive: true });
   }
-  fs.copyFileSync(cli, path.join(installedBin, 'archify.mjs'));
+  fs.copyFileSync(cli, path.join(installedBin, 'schematics.mjs'));
   fs.copyFileSync(
     path.join(skillRoot, 'renderers/shared/output-path.mjs'),
     path.join(installedShared, 'output-path.mjs'),
@@ -1025,7 +1025,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 const [, output] = process.argv.slice(2);
 if (path.basename(output) === 'head.html') {
-  const marker = process.env.ARCHIFY_TEST_RENDER_STARTED;
+  const marker = process.env.SCHEMATICS_TEST_RENDER_STARTED;
   const markerCandidate = marker + '.tmp';
   fs.writeFileSync(markerCandidate, output);
   fs.renameSync(markerCandidate, marker);
@@ -1078,12 +1078,12 @@ export const validateArchitectureDeltaHtml = () => ({ checksPassed: 1, checkCoun
   const marker = path.join(cwd, 'renderer-started');
 
   const child = spawn(process.execPath, [
-    path.join(installedBin, 'archify.mjs'),
+    path.join(installedBin, 'schematics.mjs'),
     'compare', 'architecture', base, head, output, '--json',
   ], {
     cwd,
     encoding: 'utf8',
-    env: { ...process.env, ARCHIFY_TEST_RENDER_STARTED: marker },
+    env: { ...process.env, SCHEMATICS_TEST_RENDER_STARTED: marker },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let stdout = '';
@@ -1112,12 +1112,12 @@ export const validateArchitectureDeltaHtml = () => ({ checksPassed: 1, checkCoun
 });
 
 test('doctor reports a missing output-path safety runtime in an installed skill', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-doctor-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-doctor-'));
   const installedRoot = path.join(cwd, 'skill');
   copyInstalledSkill(installedRoot);
   fs.rmSync(path.join(installedRoot, 'renderers/shared/output-path.mjs'));
 
-  const result = spawnSync(process.execPath, [path.join(installedRoot, 'bin/archify.mjs'), 'doctor'], {
+  const result = spawnSync(process.execPath, [path.join(installedRoot, 'bin/schematics.mjs'), 'doctor'], {
     cwd: installedRoot,
     encoding: 'utf8',
   });
@@ -1132,12 +1132,12 @@ for (const [relative, label] of [
   ['renderers/shared/sidecar-path.mjs', 'Sidecar path naming runtime'],
 ]) {
   test(`doctor reports a missing ${path.basename(relative)} runtime without crashing`, () => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-doctor-dependency-'));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-doctor-dependency-'));
     const installedRoot = path.join(cwd, 'skill');
     copyInstalledSkill(installedRoot);
     fs.rmSync(path.join(installedRoot, relative));
 
-    const result = spawnSync(process.execPath, [path.join(installedRoot, 'bin/archify.mjs'), 'doctor'], {
+    const result = spawnSync(process.execPath, [path.join(installedRoot, 'bin/schematics.mjs'), 'doctor'], {
       cwd: installedRoot,
       encoding: 'utf8',
     });

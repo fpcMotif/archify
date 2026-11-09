@@ -5,9 +5,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { analyzeSvgPath } from '../archify/renderers/shared/svg-path-analysis.ts';
+import { analyzeSvgPath } from '../schematics/renderers/shared/svg-path-analysis.ts';
 
-const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
 const epsilon = 0.0001;
 const attributes = tag => Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1], match[2]]));
 
@@ -52,7 +52,7 @@ function fixture({ horizontal = false, conflict, dashed = false, offset = 0, wid
 }
 
 function render(t, document) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-erd-bridge-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-erd-bridge-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'input.erd.json');
   const output = path.join(directory, 'output.html');

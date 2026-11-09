@@ -5,9 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
-const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
 
 const contains = (outer, inner) => inner.left >= outer.left - 0.1 && inner.right <= outer.right + 0.1
   && inner.top >= outer.top - 0.1 && inner.bottom <= outer.bottom + 0.1;
@@ -50,10 +50,10 @@ async function observeSequence(browser, session) {
 }
 
 test('authored sequence canvases default to spread and keep real browser labels inside their columns', async (t) => {
-  if (!Object.hasOwn(process.env, 'ARCHIFY_CHROME')) return t.skip('Set ARCHIFY_CHROME for real browser checks');
+  if (!Object.hasOwn(process.env, 'SCHEMATICS_CHROME')) return t.skip('Set SCHEMATICS_CHROME for real browser checks');
   const chrome = findChrome();
   assert.ok(chrome, 'The configured browser regression requires Chrome');
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-sequence-width-default-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-sequence-width-default-'));
   const browser = new ChromeVisualBrowser(chrome);
   try {
     const session = await browser.sessionPromise;
@@ -119,10 +119,10 @@ test('authored sequence canvases default to spread and keep real browser labels 
 });
 
 test('automatic sequence spread recovers crowded headers without losing real browser glyphs or masks', async (t) => {
-  if (!Object.hasOwn(process.env, 'ARCHIFY_CHROME')) return t.skip('Set ARCHIFY_CHROME for real browser checks');
+  if (!Object.hasOwn(process.env, 'SCHEMATICS_CHROME')) return t.skip('Set SCHEMATICS_CHROME for real browser checks');
   const chrome = findChrome();
   assert.ok(chrome, 'The configured browser regression requires Chrome');
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-sequence-capacity-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-sequence-capacity-'));
   const browser = new ChromeVisualBrowser(chrome);
   try {
     const session = await browser.sessionPromise;

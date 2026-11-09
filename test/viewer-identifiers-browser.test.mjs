@@ -5,10 +5,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chrome = process.env.ARCHIFY_CHROME ? findChrome() : null;
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
 const cases = {
   architecture: ['web-app.architecture.json', 'components', 'connections'],
   workflow: ['agent-tool-call.workflow.json', 'nodes', 'edges'],
@@ -18,9 +18,9 @@ const cases = {
 };
 
 test('valid identifiers preserve Viewer selection, routes and relationship links', {
-  skip: chrome ? false : 'Set ARCHIFY_CHROME to run real-browser identifier checks.',
+  skip: chrome ? false : 'Set SCHEMATICS_CHROME to run real-browser identifier checks.',
 }, async (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-viewer-ids-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-viewer-ids-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const browser = new ChromeVisualBrowser(chrome);
   t.after(() => browser.close());
@@ -44,7 +44,7 @@ test('valid identifiers preserve Viewer selection, routes and relationship links
     await send('Page.navigate', { url: pathToFileURL(file).href + `?case=${++navigation}` + hash });
     await loaded;
     await run('document.fonts.ready');
-    await run('Archify.viewerChromeLayout.whenStable()');
+    await run('Schematics.viewerChromeLayout.whenStable()');
   }
 
   for (const [type, [example, nodeCollection, edgeCollection]] of Object.entries(cases)) {
@@ -66,7 +66,7 @@ test('valid identifiers preserve Viewer selection, routes and relationship links
       // Use the public CLI and final artifact: these IDs already satisfy the
       // schema and must retain the same meaning in every shared Viewer.
       const receipt = JSON.parse(execFileSync(process.execPath, [
-        path.join(skillRoot, 'bin/archify.mjs'), 'deliver', type, input, output, '--json',
+        path.join(skillRoot, 'bin/schematics.mjs'), 'deliver', type, input, output, '--json',
       ], { encoding: 'utf8' }));
       assert.equal(receipt.ok, true);
       const ordinary = diagram[nodeCollection].find(node => !['constructor', 'hasOwnProperty'].includes(node.id)).id;
@@ -78,37 +78,37 @@ test('valid identifiers preserve Viewer selection, routes and relationship links
 
       await t.test('focus excludes unselected identifiers', async () => {
         await load(output);
-        await run(`Archify.focus.set(${JSON.stringify(ordinary)}, {toggle:false})`);
+        await run(`Schematics.focus.set(${JSON.stringify(ordinary)}, {toggle:false})`);
         assert.deepEqual(await run(`[...document.querySelectorAll('[data-node-id][data-focus-selected]')].map(node=>node.dataset.nodeId)`), [ordinary]);
         assert.deepEqual((await run(`[...document.querySelectorAll('[data-node-id][data-focus-match]')].map(node=>node.dataset.nodeId)`)).sort(), [...neighborhood].sort());
-        assert.equal(await run(`Archify.focus.set('valueOf', {toggle:false})`), false, 'an inherited name is not a node unless authored');
+        assert.equal(await run(`Schematics.focus.set('valueOf', {toggle:false})`), false, 'an inherited name is not a node unless authored');
       });
       await t.test('Intent Trace includes only the authored neighborhood', async () => {
         await load(output);
-        assert.equal(await run(`Archify.intentTrace.show(${JSON.stringify(ordinary)})`), true);
+        assert.equal(await run(`Schematics.intentTrace.show(${JSON.stringify(ordinary)})`), true);
         assert.deepEqual((await run(`[...document.querySelectorAll('[data-node-id][data-intent-trace-match]')].map(node=>node.dataset.nodeId)`)).sort(), [...neighborhood].sort());
       });
       await t.test('Camera does not infer a target from an empty selection', async () => {
         await load(output);
-        const before = await run('Archify.view.state()');
-        assert.equal(await run('Archify.view.reveal([], {instant:true})'), false);
-        assert.deepEqual(await run('Archify.view.state()'), before);
+        const before = await run('Schematics.view.state()');
+        assert.equal(await run('Schematics.view.reveal([], {instant:true})'), false);
+        assert.deepEqual(await run('Schematics.view.state()'), before);
       });
       await t.test('Route Probe follows the authored edge and exposes the target', async () => {
         await load(output);
-        await run(`Archify.routeProbe.begin({source:'constructor'})`);
-        assert.ok((await run('Archify.routeProbe.finderContext().allowedIds')).includes('hasOwnProperty'));
-        assert.equal(await run(`Archify.routeProbe.choose('hasOwnProperty')`), true);
-        assert.deepEqual((await run('Archify.routeProbe.result()')).nodes, ['constructor', 'hasOwnProperty']);
+        await run(`Schematics.routeProbe.begin({source:'constructor'})`);
+        assert.ok((await run('Schematics.routeProbe.finderContext().allowedIds')).includes('hasOwnProperty'));
+        assert.equal(await run(`Schematics.routeProbe.choose('hasOwnProperty')`), true);
+        assert.deepEqual((await run('Schematics.routeProbe.result()')).nodes, ['constructor', 'hasOwnProperty']);
       });
       await t.test('a unique relationship ID restores from a share link', async () => {
         await load(output, '#relation=toString');
-        assert.equal((await run('Archify.focus.relationship()'))?.id, 'toString');
+        assert.equal((await run('Schematics.focus.relationship()'))?.id, 'toString');
       });
       await t.test('Semantic Lens includes the authored node and its relationships', async () => {
         await load(output);
         const kind = await run(`document.querySelector('[data-node-id="constructor"]').dataset.nodeKind`);
-        await run(`Archify.semanticLens.select(${JSON.stringify(kind)})`);
+        await run(`Schematics.semanticLens.select(${JSON.stringify(kind)})`);
         assert.equal(await run(`document.querySelector('[data-node-id="constructor"]').hasAttribute('data-lens-selected')`), true);
         assert.equal(await run(`document.querySelector('[data-edge-id="toString"]').hasAttribute('data-lens-match')`), true);
       });

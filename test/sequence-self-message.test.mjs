@@ -5,13 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { validateSchema } from '../archify/renderers/shared/validator.mjs';
+import { validateSchema } from '../schematics/renderers/shared/validator.mjs';
 
-const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
 
 for (const quality of ['standard', 'showcase']) {
   test(`sequence ${quality} names unsupported self-messages without advertising a spacing repair`, t => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-sequence-self-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-sequence-self-'));
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
     const input = path.join(dir, 'input.json');
     const doc = {

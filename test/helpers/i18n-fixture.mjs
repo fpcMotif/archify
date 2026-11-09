@@ -7,8 +7,8 @@ import path from 'node:path';
 import { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-export const skillRoot = fileURLToPath(new URL('../../archify/', import.meta.url));
-export const cli = path.join(skillRoot, 'bin/archify.mjs');
+export const skillRoot = fileURLToPath(new URL('../../schematics/', import.meta.url));
+export const cli = path.join(skillRoot, 'bin/schematics.mjs');
 export const ES_TRANSLATIONS = JSON.parse(fs.readFileSync(path.join(skillRoot, 'locales/es.json'), 'utf8'));
 
 // locales/ holds the package-owned catalogs that meta.locale selects through
@@ -91,7 +91,7 @@ export function localeDocument(type, meta) {
 
 // Each suite owns its files; sharing fixture code never shares rendered output.
 export function createLocaleFixture() {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-i18n-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-i18n-'));
   after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   let sequence = 0;
 

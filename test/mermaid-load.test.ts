@@ -2,21 +2,21 @@ import { afterAll, afterEach, expect, test } from 'bun:test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import * as source from '../archify/mermaid/import.ts';
-import { bytecodeCacheRoot, loadMermaidImporter } from '../archify/mermaid/load.ts';
+import * as source from '../schematics/mermaid/import.ts';
+import { bytecodeCacheRoot, loadMermaidImporter } from '../schematics/mermaid/load.ts';
 
-const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-mermaid-load-'));
-const previousCacheDir = Bun.env.ARCHIFY_CACHE_DIR;
+const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-mermaid-load-'));
+const previousCacheDir = Bun.env.SCHEMATICS_CACHE_DIR;
 afterEach(() => {
-  if (previousCacheDir === undefined) delete Bun.env.ARCHIFY_CACHE_DIR;
-  else Bun.env.ARCHIFY_CACHE_DIR = previousCacheDir;
+  if (previousCacheDir === undefined) delete Bun.env.SCHEMATICS_CACHE_DIR;
+  else Bun.env.SCHEMATICS_CACHE_DIR = previousCacheDir;
 });
 afterAll(() => fs.rmSync(workDir, { recursive: true, force: true }));
 
 const FLOWCHART = 'flowchart LR\n  A[Client] --> B(API)\n  B -.-> C[(DB)]';
 
 function useCache(name: string): string {
-  Bun.env.ARCHIFY_CACHE_DIR = path.join(workDir, name);
+  Bun.env.SCHEMATICS_CACHE_DIR = path.join(workDir, name);
   return bytecodeCacheRoot();
 }
 
@@ -45,7 +45,7 @@ test('a new build removes bundles left by other Bun versions or sources', async 
 test('an unwritable cache still imports from source', async () => {
   const blocker = path.join(workDir, 'not-a-directory');
   fs.writeFileSync(blocker, '');
-  Bun.env.ARCHIFY_CACHE_DIR = blocker;
+  Bun.env.SCHEMATICS_CACHE_DIR = blocker;
   const importer = await loadMermaidImporter();
   expect(importer.importMermaid(FLOWCHART).type).toBe('workflow');
   expect(fs.statSync(blocker).isFile()).toBe(true);

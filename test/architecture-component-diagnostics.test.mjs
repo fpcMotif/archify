@@ -6,15 +6,15 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('../archify/', import.meta.url));
-const cli = path.join(root, 'bin/archify.mjs');
+const root = fileURLToPath(new URL('../schematics/', import.meta.url));
+const cli = path.join(root, 'bin/schematics.mjs');
 
 // Component-level failures are the highest-traffic hand-placement mistakes.
 // Their messages already carried the repair; these tests pin the structured
 // fields the authoring contract tells agents to consume, and prove the offered
 // repairs clear the diagnostics they belong to.
 function setup(t, components, viewBox = [640, 360]) {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-component-diagnostics-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-component-diagnostics-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const input = path.join(cwd, 'source.json');
   const diagram = {

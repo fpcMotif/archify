@@ -5,20 +5,20 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
-const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
 const fixture = fileURLToPath(new URL('./fixtures/lifecycle-dense-exit-notes.json', import.meta.url));
 
 test('Lifecycle notes retain their content and reading depth with readable Full-detail ink', async (t) => {
-  if (!Object.hasOwn(process.env, 'ARCHIFY_CHROME')) return t.skip('Set ARCHIFY_CHROME for real browser checks');
+  if (!Object.hasOwn(process.env, 'SCHEMATICS_CHROME')) return t.skip('Set SCHEMATICS_CHROME for real browser checks');
   const chrome = findChrome();
   assert.ok(chrome, 'The configured browser regression requires Chrome');
   const source = fs.readFileSync(fixture);
   const expected = JSON.parse(source).transitions.filter(edge => edge.note)
     .map(edge => ({ id: edge.id, label: edge.label, note: edge.note }));
   assert.ok(expected.length > 0, 'the public fixture carries transition notes');
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-lifecycle-note-contrast-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-lifecycle-note-contrast-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const artifact = path.join(scratch, 'lifecycle.html');
   const input = path.join(scratch, 'lifecycle.json');
@@ -65,8 +65,8 @@ test('Lifecycle notes retain their content and reading depth with readable Full-
     await t.test(`${theme} Read hides notes and Full meets opaque-plate contrast`, async () => {
       await browser.inspect({ artifactPath: artifact, width: 1440, height: 1100, theme });
       const read = await run(`(async () => {
-        Archify.view.reset();
-        await Archify.readerLayout.whenStable();
+        Schematics.view.reset();
+        await Schematics.readerLayout.whenStable();
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const panel = document.querySelector('.diagram-container');
         return { primary: ${primaryLabel}, detail: panel.dataset.detailLevel, notes: [...panel.querySelectorAll('g[data-edge-id] text[data-detail="fine"]')].map(note => ({
@@ -86,7 +86,7 @@ test('Lifecycle notes retain their content and reading depth with readable Full-
         assert.equal(note.groupOpacity, '1', 'the label group remains visible');
       }
       const full = await run(`(async () => {
-        Archify.view.reveal([...document.querySelectorAll('[data-node-id]')].map(node => node.dataset.nodeId), { instant: true, maxScale: 1 });
+        Schematics.view.reveal([...document.querySelectorAll('[data-node-id]')].map(node => node.dataset.nodeId), { instant: true, maxScale: 1 });
         const panel = document.querySelector('.diagram-container');
         await Promise.all(panel.getAnimations({ subtree: true }).map(animation => animation.finished.catch(() => {})));
         const rgba = value => {

@@ -13,14 +13,14 @@ import {
   compareArchitecture,
   renderArchitectureDeltaHtml,
   validateArchitectureDeltaHtml,
-} from '../archify/delta/architecture-delta.mjs';
+} from '../schematics/delta/architecture-delta.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 const baseFixture = path.join(skillRoot, 'examples/checkout-platform.base.architecture.json');
 const headFixture = path.join(skillRoot, 'examples/checkout-platform.head.architecture.json');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-delta-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-delta-'));
 
 const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const run = (args) => spawnSync(process.execPath, [cli, ...args], { cwd: skillRoot, encoding: 'utf8' });
@@ -41,8 +41,8 @@ function provenanceFixture() {
   const sourceDirectory = path.join(root, 'src');
   fs.mkdirSync(sourceDirectory);
   git(root, 'init');
-  git(root, 'config', 'user.name', 'Archify Tests');
-  git(root, 'config', 'user.email', 'archify@example.test');
+  git(root, 'config', 'user.name', 'Schematics Tests');
+  git(root, 'config', 'user.email', 'schematics@example.test');
   git(root, 'remote', 'add', 'origin', 'git@github.com:example/provenance-repo.git');
   fs.writeFileSync(path.join(sourceDirectory, 'service.js'), 'export const version = 1;\n');
   git(root, 'add', 'src/service.js');
@@ -594,7 +594,7 @@ test('compare CLI writes a deterministic three-state artifact and complete sidec
   const replacement = run(['compare', 'architecture', baseFixture, headFixture, first, '--json']);
   assert.equal(replacement.status, 0, replacement.stderr);
   assert.equal(
-    fs.readdirSync(tmp).some((entry) => entry.startsWith('.archify-compare-')),
+    fs.readdirSync(tmp).some((entry) => entry.startsWith('.schematics-compare-')),
     false,
     'successful replacement must remove only its identity-bound staging entries',
   );
@@ -619,7 +619,7 @@ test('compare CLI writes a deterministic three-state artifact and complete sidec
   assert.match(firstHtml, /title="After architecture explorer"/);
   assert.match(firstHtml, /id="export-svg"[^>]*>Export SVG</);
   assert.match(firstHtml, /id="share-card"[^>]*>Share Card</);
-  assert.match(firstHtml, /window\.Archify\.deltaExport = \{ canonicalSvg: canonicalDeltaSvg, shareCard/);
+  assert.match(firstHtml, /window\.Schematics\.deltaExport = \{ canonicalSvg: canonicalDeltaSvg, shareCard/);
   assert.match(firstHtml, /canvas\.width = 1200;[\s\S]*canvas\.height = 630;/);
   assert.match(firstHtml, /structural-frame.*stroke:var\(--delta\)!important/);
   assert.match(firstHtml, /structural-frame.*data-delta-state="changed".*stroke-dasharray:2 3!important/);
@@ -637,7 +637,7 @@ test('compare CLI writes a deterministic three-state artifact and complete sidec
   assert.match(firstHtml, /:not\(\[data-delta-review-current\]\)/);
   assert.match(firstHtml, /--review-same-opacity:1;--review-change-opacity:1/);
   assert.match(firstHtml, /--d-focus:#006b8f/);
-  assert.match(firstHtml, /document\.querySelectorAll\('#archify-compare-receipt'\)\.length !== 1/);
+  assert.match(firstHtml, /document\.querySelectorAll\('#schematics-compare-receipt'\)\.length !== 1/);
   assert.match(firstHtml, /targetsMatch\(reviewSources\[index\], row, matches\)/);
   assert.match(firstHtml, /document\.addEventListener\('visibilitychange'/);
   assert.match(firstHtml, /window\.addEventListener\('beforeprint', overview\)/);
@@ -668,7 +668,7 @@ import path from 'node:path';
 const rmdirSync = fs.rmdirSync.bind(fs);
 let claimed = false;
 fs.rmdirSync = (directory, ...args) => {
-  if (!claimed && path.basename(String(directory)).startsWith('.archify-compare-')) {
+  if (!claimed && path.basename(String(directory)).startsWith('.schematics-compare-')) {
     claimed = true;
     fs.writeFileSync(path.join(directory, 'unknown-claimant.txt'), 'preserve compare claimant');
   }
@@ -707,7 +707,7 @@ test('compare default receipts preserve distinct HTML extension spellings only w
     assert.ok(receipts.includes('delta.receipt.json'));
     assert.match(
       receipts.find((name) => name !== 'delta.receipt.json'),
-      /^delta\.HTML\.~archify-[0-9a-f]{64}\.receipt\.json$/u,
+      /^delta\.HTML\.~schematics-[0-9a-f]{64}\.receipt\.json$/u,
     );
   }
 });
@@ -750,7 +750,7 @@ import path from 'node:path';
 import { syncBuiltinESMExports } from 'node:module';
 const openSync = fs.openSync;
 fs.openSync = (file, ...args) => {
-  if (path.basename(String(file)).startsWith('.archify-path-semantics-')) {
+  if (path.basename(String(file)).startsWith('.schematics-path-semantics-')) {
     const error = new Error('synthetic sidecar probe denial');
     error.code = 'EACCES';
     throw error;
@@ -848,7 +848,7 @@ test('artifact validation fails closed on missing, duplicate, or self-blessed re
       && error.details.failures.includes('missing Delta target state relationship:fraud-check'),
   );
 
-  const receiptNode = html.match(/<script id="archify-compare-receipt"[\s\S]*?<\/script>/)?.[0];
+  const receiptNode = html.match(/<script id="schematics-compare-receipt"[\s\S]*?<\/script>/)?.[0];
   assert.ok(receiptNode);
   const duplicateReceipt = html.replace(receiptNode, `${receiptNode}${receiptNode}`);
   assert.throws(
@@ -1000,7 +1000,7 @@ for (const side of ['base', 'head']) {
         assert.equal(fs.readFileSync(output, 'utf8'), 'trusted html');
         assert.equal(fs.readFileSync(receiptPath, 'utf8'), 'trusted receipt');
       }
-      assert.equal(fs.readdirSync(caseRoot).some(name => name.startsWith('.archify-compare-')), false);
+      assert.equal(fs.readdirSync(caseRoot).some(name => name.startsWith('.schematics-compare-')), false);
     });
   }
 }
@@ -1044,6 +1044,6 @@ for (const side of ['base', 'head']) {
     ]);
     assert.equal(fs.readFileSync(output, 'utf8'), 'trusted html');
     assert.equal(fs.readFileSync(receiptPath, 'utf8'), 'trusted receipt');
-    assert.equal(fs.readdirSync(caseRoot).some(name => name.startsWith('.archify-compare-')), false);
+    assert.equal(fs.readdirSync(caseRoot).some(name => name.startsWith('.schematics-compare-')), false);
   });
 }

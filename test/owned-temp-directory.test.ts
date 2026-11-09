@@ -1,11 +1,11 @@
 import { expect, test } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { createOwnedTempDirectory } from '../archify/renderers/shared/owned-temp-directory.mjs';
+import { createOwnedTempDirectory } from '../schematics/renderers/shared/owned-temp-directory.mjs';
 
 test('cleanup finishes while another process deletes the same directory', async () => {
   for (let round = 0; round < 5; round++) {
-    const owned = createOwnedTempDirectory('archify-owned-race-');
+    const owned = createOwnedTempDirectory('schematics-owned-race-');
     for (let i = 0; i < 200; i++) {
       const child = path.join(owned.path, `d${i}`);
       fs.mkdirSync(child);

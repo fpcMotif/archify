@@ -6,7 +6,7 @@
        through Finder, Outline, or a shared link expands its ancestors. Export
        always writes the complete tree (see Export Cleanup).
        ============================================================ */
-    Archify.treeBranches = (function () {
+    Schematics.treeBranches = (function () {
       var svg = document.querySelector('.diagram-container > svg[data-tree-ui]');
       if (!svg) return { active: false };
       var collapsed = Object.create(null);

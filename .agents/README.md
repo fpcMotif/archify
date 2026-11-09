@@ -9,13 +9,13 @@ They are repository files, usable without a global installation or personal file
 | test-value | [tt-a1i/test-value](https://github.com/tt-a1i/test-value) | `e111931defac959ad11ddc67b8eb2f3743d08129` | SKILL.md, references/, agents/, LICENSE |
 
 All included files match the recorded upstream commits except the two SKILL.md
-frontmatters, which add `metadata.internal: true` using Archify’s existing
+frontmatters, which add `metadata.internal: true` using Schematics’s existing
 maintainer-Skill convention. This keeps them available as project guidance while
 excluding them from the public Skills CLI installation list. Instruction bodies,
 MIT licenses, and attribution remain unchanged. simplify-codebase uses the text-only release
 before the optional Cleanup Map renderer was introduced; PR preparation needs
 its consumer/contract proof workflow. Its included references are complete for
-this revision. Runtime diagram sources and the distributed Archify Skill remain
+this revision. Runtime diagram sources and the distributed Schematics Skill remain
 separate from these maintainer tools.
 
 ## Updating a source

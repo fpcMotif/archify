@@ -14,6 +14,6 @@
     "skipLibCheck": true,
     "types": ["bun"]
   },
-  "include": ["archify/**/*.ts"],
+  "include": ["schematics/**/*.ts"],
   "exclude": ["**/node_modules"]
 }

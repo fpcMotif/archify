@@ -5,11 +5,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { rectsOverlap, segmentRectClearanceWithin } from '../archify/renderers/shared/geometry.ts';
+import { rectsOverlap, segmentRectClearanceWithin } from '../schematics/renderers/shared/geometry.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const cli = path.join(root, 'archify/bin/archify.mjs');
-const renderer = path.join(root, 'archify/renderers/erd/render-erd.mjs');
+const cli = path.join(root, 'schematics/bin/schematics.mjs');
+const renderer = path.join(root, 'schematics/renderers/erd/render-erd.mjs');
 const rows = count => Array.from({ length: count }, (_, index) => ({ name: `field_${index}`, type: 'TEXT' }));
 
 function fixture(quality = 'standard') {
@@ -41,7 +41,7 @@ function verticalFixture(quality = 'standard') {
 }
 
 function invoke(t, document, command = 'render') {
-  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-erd-label-capacity-'));
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-erd-label-capacity-'));
   t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
   const input = path.join(folder, 'input.json');
   const output = path.join(folder, 'output.html');

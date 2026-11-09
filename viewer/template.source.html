@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="generator" content="archify 3.2.0">
-  <meta name="archify-reader-contract" content="declared-wide-v1">
+  <meta name="generator" content="schematics 3.2.0">
+  <meta name="schematics-reader-contract" content="declared-wide-v1">
   <title>[PROJECT NAME] Architecture Diagram</title>
   <script>
     // Resolve the theme before first paint so light-preference users don't
@@ -23,7 +23,7 @@
           }
         } catch (_) {}
         if (!theme) {
-          try { theme = localStorage.getItem('archify-theme'); } catch (_) {}
+          try { theme = localStorage.getItem('schematics-theme'); } catch (_) {}
         }
         if (theme !== 'light' && theme !== 'dark') {
           theme = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
@@ -32,7 +32,7 @@
       } catch (_) {}
     })();
   </script>
-  <style id="archify-fonts">
+  <style id="schematics-fonts">
 /*
 JetBrains Mono variable WOFF2 subsets from Google Fonts service revision v24.
 These fixed bytes are shared by the viewer and its SVG/raster exports.
@@ -274,7 +274,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   </style>
   <style>
-/* ARCHIFY:VIEWER_CSS */
+/* SCHEMATICS:VIEWER_CSS */
   </style>
 </head>
 <body>
@@ -381,11 +381,11 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       <p class="subtitle">[Subtitle description]</p>
     </div>
 
-    <!-- ARCHIFY:SOURCE_EVIDENCE_DATA -->
-    <!-- ARCHIFY:I18N_DATA -->
+    <!-- SCHEMATICS:SOURCE_EVIDENCE_DATA -->
+    <!-- SCHEMATICS:I18N_DATA -->
     <!-- Main Diagram -->
     <div class="diagram-container" data-detail-level="read" data-scroll-hint="{{i18n:viewer.nav.scrollHint}}">
-      <!-- ARCHIFY:SVG_SLOT_START -->
+      <!-- SCHEMATICS:SVG_SLOT_START -->
       <svg viewBox="0 0 1000 680" role="img" aria-label="[PROJECT NAME] architecture diagram">
         <!-- Definitions -->
         <defs>
@@ -532,7 +532,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         <rect x="720" y="178" width="16" height="10" rx="2" class="c-security-group" stroke-width="1"/>
         <text x="742" y="186" class="t-muted" font-size="8">Security Group</text>
       </svg>
-      <!-- ARCHIFY:SVG_SLOT_END -->
+      <!-- SCHEMATICS:SVG_SLOT_END -->
       <p class="intent-trace-status no-print" id="intent-trace-status" role="status" aria-live="polite" aria-atomic="true"></p>
       <div class="diagram-guide no-print" id="diagram-guide" hidden role="dialog" aria-modal="false" aria-labelledby="diagram-guide-title">
         <div class="diagram-guide-head">
@@ -574,7 +574,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <span><kbd>E</kbd> {{i18n:viewer.guide.shortcut.export}}</span><span><kbd>T</kbd> {{i18n:viewer.guide.shortcut.theme}}</span><span><kbd>S</kbd> {{i18n:viewer.guide.shortcut.style}}</span><span><kbd>0</kbd> {{i18n:viewer.guide.shortcut.reset}}</span><span><kbd>+</kbd> {{i18n:viewer.guide.shortcut.zoomIn}}</span><span><kbd>-</kbd> {{i18n:viewer.guide.shortcut.zoomOut}}</span><span><kbd>Esc</kbd> {{i18n:viewer.guide.shortcut.close}}</span>
         </div>
         <p class="diagram-guide-feedback" id="diagram-guide-feedback" aria-live="polite"></p>
-        <a class="diagram-guide-credit" href="https://github.com/tt-a1i/archify" target="_blank" rel="noopener noreferrer"><span>{{i18n:viewer.guide.credit}}</span><span class="diagram-guide-credit-link"><span class="diagram-guide-star" aria-hidden="true"></span>{{i18n:viewer.guide.star}} <span aria-hidden="true">&#8599;</span></span></a>
+        <a class="diagram-guide-credit" href="https://github.com/fpcMotif/schematics" target="_blank" rel="noopener noreferrer"><span>{{i18n:viewer.guide.credit}}</span><span class="diagram-guide-credit-link"><span class="diagram-guide-star" aria-hidden="true"></span>{{i18n:viewer.guide.star}} <span aria-hidden="true">&#8599;</span></span></a>
       </div>
       <div class="node-finder no-print" id="node-finder" hidden role="dialog" aria-modal="false" aria-labelledby="node-finder-title">
         <div class="node-finder-head">
@@ -705,7 +705,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       <button class="rail-control" id="rail-placement" type="button" hidden aria-label="{{i18n:viewer.rail.bottom}}" title="{{i18n:viewer.rail.bottom}}" data-placement="right"><span class="rail-control-icon placement" aria-hidden="true"></span></button>
       <button class="rail-control" id="rail-collapse" type="button" hidden aria-controls="reader-rail" aria-expanded="true" aria-label="{{i18n:viewer.rail.collapse}}" title="{{i18n:viewer.rail.collapse}}"><span class="rail-control-icon collapse" aria-hidden="true"></span></button>
     </div>
-    <!-- ARCHIFY:CARDS_SLOT_START -->
+    <!-- SCHEMATICS:CARDS_SLOT_START -->
     <div class="cards">
       <div class="card">
         <div class="card-header">
@@ -746,7 +746,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         </ul>
       </div>
     </div>
-    <!-- ARCHIFY:CARDS_SLOT_END -->
+    <!-- SCHEMATICS:CARDS_SLOT_END -->
     <nav class="node-outline no-print" id="node-outline" hidden aria-labelledby="node-outline-title">
       <div class="node-outline-head">
         <strong id="node-outline-title">{{i18n:viewer.outline.title}}</strong>
@@ -759,16 +759,16 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
   </div>
 
   <script>
-    var Archify = {};
-    var archifyI18nData = (function () {
-      var node = document.getElementById('archify-i18n-data');
+    var Schematics = {};
+    var schematicsI18nData = (function () {
+      var node = document.getElementById('schematics-i18n-data');
       try { return JSON.parse(node ? node.textContent : '{}'); }
       catch (_) { return { locale: 'en', messages: {} }; }
     })();
-    Archify.locale = archifyI18nData.locale || 'en';
+    Schematics.locale = schematicsI18nData.locale || 'en';
 
     function viewerText(key, values) {
-      var messages = archifyI18nData.messages || {};
+      var messages = schematicsI18nData.messages || {};
       var template = Object.prototype.hasOwnProperty.call(messages, key) ? messages[key] : key;
       return String(template).replace(/\{([a-zA-Z0-9_]+)\}/g, function (match, name) {
         return values && Object.prototype.hasOwnProperty.call(values, name) ? String(values[name]) : match;
@@ -854,7 +854,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
        live page and canonical SVG together, but never rewrites the source,
        URL, or a later diagram's authored default.
        ============================================================ */
-    Archify.preset = (function () {
+    Schematics.preset = (function () {
       var PRESETS = ['classic', 'blueprint', 'editorial'];
       var LABELS = {
         classic: viewerText('viewer.preset.classic.short'),
@@ -900,7 +900,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       function isOpen() { return menu.classList.contains('open'); }
       function open(focusLast) {
         if (html.getAttribute('data-embed') === 'true') return false;
-        if (Archify.exportMenu && Archify.exportMenu.isOpen()) Archify.exportMenu.close(false);
+        if (Schematics.exportMenu && Schematics.exportMenu.isOpen()) Schematics.exportMenu.close(false);
         menu.classList.add('open');
         btn.setAttribute('aria-expanded', 'true');
         var available = options();
@@ -969,8 +969,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
        Theme toggle — persists to localStorage, respects system pref
        ============================================================ */
 
-    Archify.theme = (function () {
-      var STORAGE_KEY = 'archify-theme';
+    Schematics.theme = (function () {
+      var STORAGE_KEY = 'schematics-theme';
       var html = document.documentElement;
       var btn = document.getElementById('btn-theme');
       var label = document.getElementById('theme-label');
@@ -1033,16 +1033,16 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       return { toggle: toggle };
     })();
 
-/* ARCHIFY:EXPORT */
+/* SCHEMATICS:EXPORT */
 
-/* ARCHIFY:MOTION_GOVERNOR */
+/* SCHEMATICS:MOTION_GOVERNOR */
 
     /* Verified repository evidence is emitted only after the renderer checks
        the authored GitHub revision, source blobs, and optional line ranges
        against the explicit --repo-root. It remains outside the SVG so every
        canonical visual export stays free of repository paths. */
-    Archify.sourceEvidence = (function () {
-      var element = document.getElementById('archify-source-evidence-data');
+    Schematics.sourceEvidence = (function () {
+      var element = document.getElementById('schematics-source-evidence-data');
       var payload = null;
       if (element) {
         try {
@@ -1080,11 +1080,11 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       };
     })();
 
-/* ARCHIFY:TREE_BRANCHES */
+/* SCHEMATICS:TREE_BRANCHES */
 
-/* ARCHIFY:FOCUS */
+/* SCHEMATICS:FOCUS */
 
-/* ARCHIFY:INTENT_TRACE */
+/* SCHEMATICS:INTENT_TRACE */
 
     /* ============================================================
        Adaptive Reader Shell — one diagram across laptop and monitor.
@@ -1095,8 +1095,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
        established layout contracts.
        ============================================================ */
     // Fixed script-private participants; the CLI sees only the joint wait below.
-    const archifyLayoutOwners = { reader: null, viewerChrome: null };
-    Archify.waitForStableLayout = function (options) {
+    const schematicsLayoutOwners = { reader: null, viewerChrome: null };
+    Schematics.waitForStableLayout = function (options) {
       options = options || {};
       var maximumFrames = Math.max(1, Number(options.maximumFrames) || 240);
       var fontsReady = document.fonts && document.fonts.ready
@@ -1136,12 +1136,12 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       });
     };
 
-/* ARCHIFY:READER_LAYOUT */
-/* ARCHIFY:CHROME_LAYOUT */
-    Archify.layoutStability = {
+/* SCHEMATICS:READER_LAYOUT */
+/* SCHEMATICS:CHROME_LAYOUT */
+    Schematics.layoutStability = {
       whenStable: function () {
-        var reader = archifyLayoutOwners.reader;
-        var chrome = archifyLayoutOwners.viewerChrome;
+        var reader = schematicsLayoutOwners.reader;
+        var chrome = schematicsLayoutOwners.viewerChrome;
         if (!reader || !chrome) {
           return Promise.reject(new Error('Joint layout owners are unavailable.'));
         }
@@ -1164,7 +1164,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           }
           return fontCyclePending || Boolean(fonts && fonts.status === 'loading');
         }
-        return Archify.waitForStableLayout({
+        return Schematics.waitForStableLayout({
           maximumFrames: 960,
           schedule: scheduleOwners,
           pending: function () {
@@ -1181,8 +1181,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         });
       }
     };
-/* ARCHIFY:CAMERA */
-/* ARCHIFY:RADAR */
+/* SCHEMATICS:CAMERA */
+/* SCHEMATICS:RADAR */
 
     /* ============================================================
        Presentation Stage — a shareable, viewport-filling live view.
@@ -1190,7 +1190,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
        serialization remain untouched. Escape first clears an active
        focus, then exits the stage.
        ============================================================ */
-    Archify.presentation = (function () {
+    Schematics.presentation = (function () {
       var html = document.documentElement;
       var btn = document.getElementById('btn-present');
       var label = document.getElementById('present-label');
@@ -1222,7 +1222,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           return next;
         }
         if (next) {
-          if (Archify.semanticLens && typeof Archify.semanticLens.clearPreview === 'function') Archify.semanticLens.clearPreview();
+          if (Schematics.semanticLens && typeof Schematics.semanticLens.clearPreview === 'function') Schematics.semanticLens.clearPreview();
           previousScrollY = window.scrollY || 0;
           html.setAttribute('data-present', 'true');
           try { window.scrollTo(0, 0); } catch (_) {}
@@ -1232,10 +1232,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         render(next);
         if (options.updateUrl !== false) updateUrl(next);
         requestAnimationFrame(function () {
-          if (Archify.view && typeof Archify.view.reset === 'function') {
-            Archify.view.reset({ automatic: true });
+          if (Schematics.view && typeof Schematics.view.reset === 'function') {
+            Schematics.view.reset({ automatic: true });
             requestAnimationFrame(function () {
-              if (Archify.view && typeof Archify.view.sync === 'function') Archify.view.sync();
+              if (Schematics.view && typeof Schematics.view.sync === 'function') Schematics.view.sync();
             });
           }
           if (!next && previousScrollY) {
@@ -1258,14 +1258,14 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       };
     })();
 
-/* ARCHIFY:NODE_FINDER */
+/* SCHEMATICS:NODE_FINDER */
 
-/* ARCHIFY:NODE_OUTLINE */
+/* SCHEMATICS:NODE_OUTLINE */
 
 
-/* ARCHIFY:ROUTE_PROBE */
+/* SCHEMATICS:ROUTE_PROBE */
 
-/* ARCHIFY:SEMANTIC_LENS */
+/* SCHEMATICS:SEMANTIC_LENS */
 
     /* ============================================================
        Diagram Guide — a factual command deck over existing interactions.
@@ -1273,7 +1273,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
        Probe, Semantic Radar, Semantic Lens, Presentation, theme, export, and
        camera without adding a second command implementation or SVG state.
        ============================================================ */
-    Archify.guide = (function () {
+    Schematics.guide = (function () {
       var html = document.documentElement;
       var container = document.querySelector('.diagram-container');
       var svg = container.querySelector(':scope > svg');
@@ -1327,13 +1327,13 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       }
       function open() {
         if (html.getAttribute('data-embed') === 'true') return false;
-        if (Archify.semanticLens && typeof Archify.semanticLens.clearPreview === 'function') Archify.semanticLens.clearPreview();
-        if (Archify.exportMenu && Archify.exportMenu.isOpen()) Archify.exportMenu.close(false);
-        if (Archify.finder && Archify.finder.isOpen()) Archify.finder.close({ restoreFocus: false });
-        if (Archify.radar && Archify.radar.isOpen()) Archify.radar.close({ restoreFocus: false });
-        if (Archify.semanticLens && Archify.semanticLens.isOpen()) Archify.semanticLens.close({ restoreFocus: false });
-        if (Archify.routeProbe && Archify.routeProbe.isJourneyPlaying && Archify.routeProbe.isJourneyPlaying()) {
-          Archify.routeProbe.pauseJourney({ preserveElapsed: true, reason: 'guide' });
+        if (Schematics.semanticLens && typeof Schematics.semanticLens.clearPreview === 'function') Schematics.semanticLens.clearPreview();
+        if (Schematics.exportMenu && Schematics.exportMenu.isOpen()) Schematics.exportMenu.close(false);
+        if (Schematics.finder && Schematics.finder.isOpen()) Schematics.finder.close({ restoreFocus: false });
+        if (Schematics.radar && Schematics.radar.isOpen()) Schematics.radar.close({ restoreFocus: false });
+        if (Schematics.semanticLens && Schematics.semanticLens.isOpen()) Schematics.semanticLens.close({ restoreFocus: false });
+        if (Schematics.routeProbe && Schematics.routeProbe.isJourneyPlaying && Schematics.routeProbe.isJourneyPlaying()) {
+          Schematics.routeProbe.pauseJourney({ preserveElapsed: true, reason: 'guide' });
         }
         returnFocus = document.activeElement;
         renderFacts();
@@ -1353,17 +1353,17 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       function execute(action) {
         feedback.textContent = '';
         close({ restoreFocus: false });
-        if (action === 'find') return Archify.finder.open();
-        if (action === 'route') return Archify.routeProbe.begin({ focusNode: true });
-        if (action === 'map') return Archify.radar.open();
-        if (action === 'lens') return Archify.semanticLens.open();
-        if (action === 'present') return Archify.presentation.enter();
-        if (action === 'export') return Archify.exportMenu.open();
-        if (action === 'theme') return Archify.theme.toggle();
-        if (action === 'preset') return Archify.preset.cycle();
-        if (action === 'reset') return Archify.view.reset();
-        if (action === 'zoom-in') return Archify.view.zoomIn();
-        if (action === 'zoom-out') return Archify.view.zoomOut();
+        if (action === 'find') return Schematics.finder.open();
+        if (action === 'route') return Schematics.routeProbe.begin({ focusNode: true });
+        if (action === 'map') return Schematics.radar.open();
+        if (action === 'lens') return Schematics.semanticLens.open();
+        if (action === 'present') return Schematics.presentation.enter();
+        if (action === 'export') return Schematics.exportMenu.open();
+        if (action === 'theme') return Schematics.theme.toggle();
+        if (action === 'preset') return Schematics.preset.cycle();
+        if (action === 'reset') return Schematics.view.reset();
+        if (action === 'zoom-in') return Schematics.view.zoomIn();
+        if (action === 'zoom-out') return Schematics.view.zoomOut();
         return false;
       }
       function actionForKey(key) {
@@ -1462,72 +1462,72 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       if (e.defaultPrevented) return;
       var t = e.target;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-      if (Archify.preset && Archify.preset.isOpen() && e.key !== 'Escape' && e.key !== 's' && e.key !== 'S') {
-        Archify.preset.close(false);
+      if (Schematics.preset && Schematics.preset.isOpen() && e.key !== 'Escape' && e.key !== 's' && e.key !== 'S') {
+        Schematics.preset.close(false);
       }
       if (e.key === '?') {
         e.preventDefault();
-        Archify.guide.toggle();
+        Schematics.guide.toggle();
       } else if (e.key === '/') {
         e.preventDefault();
-        Archify.finder.open();
+        Schematics.finder.open();
       } else if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
-        Archify.theme.toggle();
+        Schematics.theme.toggle();
       } else if (e.key === 's' || e.key === 'S') {
         e.preventDefault();
-        Archify.preset.cycle();
+        Schematics.preset.cycle();
       } else if (e.key === 'e' || e.key === 'E') {
         e.preventDefault();
-        if (!Archify.exportMenu.isOpen()) Archify.exportMenu.open();
+        if (!Schematics.exportMenu.isOpen()) Schematics.exportMenu.open();
       } else if (e.key === 'f' || e.key === 'F') {
         e.preventDefault();
-        Archify.presentation.toggle();
+        Schematics.presentation.toggle();
       } else if (e.key === 'm' || e.key === 'M') {
         e.preventDefault();
-        Archify.radar.toggle();
+        Schematics.radar.toggle();
       } else if (e.key === 'l' || e.key === 'L') {
         e.preventDefault();
-        Archify.semanticLens.toggle();
+        Schematics.semanticLens.toggle();
       } else if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
-        Archify.routeProbe.toggle({ focusNode: true });
+        Schematics.routeProbe.toggle({ focusNode: true });
       } else if (e.key === '+' || e.key === '=') {
         e.preventDefault();
-        Archify.view.zoomIn();
+        Schematics.view.zoomIn();
       } else if (e.key === '-') {
         e.preventDefault();
-        Archify.view.zoomOut();
+        Schematics.view.zoomOut();
       } else if (e.key === '0') {
         e.preventDefault();
-        Archify.view.reset();
-      } else if (e.key === 'Escape' && Archify.preset.isOpen()) {
+        Schematics.view.reset();
+      } else if (e.key === 'Escape' && Schematics.preset.isOpen()) {
         e.preventDefault();
-        Archify.preset.close(true);
-      } else if (e.key === 'Escape' && Archify.semanticLens.isOpen()) {
+        Schematics.preset.close(true);
+      } else if (e.key === 'Escape' && Schematics.semanticLens.isOpen()) {
         e.preventDefault();
-        Archify.semanticLens.close({ restoreFocus: true });
-      } else if (e.key === 'Escape' && Archify.semanticLens.active()) {
+        Schematics.semanticLens.close({ restoreFocus: true });
+      } else if (e.key === 'Escape' && Schematics.semanticLens.active()) {
         e.preventDefault();
-        Archify.semanticLens.clear({ preserveView: true });
-      } else if (e.key === 'Escape' && Archify.guide.isOpen()) {
+        Schematics.semanticLens.clear({ preserveView: true });
+      } else if (e.key === 'Escape' && Schematics.guide.isOpen()) {
         e.preventDefault();
-        Archify.guide.close({ restoreFocus: true });
-      } else if (e.key === 'Escape' && Archify.radar.isOpen()) {
+        Schematics.guide.close({ restoreFocus: true });
+      } else if (e.key === 'Escape' && Schematics.radar.isOpen()) {
         e.preventDefault();
-        Archify.radar.close({ restoreFocus: true });
-      } else if (e.key === 'Escape' && Archify.routeProbe.active()) {
+        Schematics.radar.close({ restoreFocus: true });
+      } else if (e.key === 'Escape' && Schematics.routeProbe.active()) {
         e.preventDefault();
-        Archify.routeProbe.escape({ restoreFocus: true });
-      } else if (e.key === 'Escape' && Archify.intentTrace.active()) {
+        Schematics.routeProbe.escape({ restoreFocus: true });
+      } else if (e.key === 'Escape' && Schematics.intentTrace.active()) {
         e.preventDefault();
-        Archify.intentTrace.clear();
-      } else if (e.key === 'Escape' && Archify.focus.active()) {
+        Schematics.intentTrace.clear();
+      } else if (e.key === 'Escape' && Schematics.focus.active()) {
         e.preventDefault();
-        Archify.focus.clear({ restoreFocus: true });
-      } else if (e.key === 'Escape' && Archify.presentation.active()) {
+        Schematics.focus.clear({ restoreFocus: true });
+      } else if (e.key === 'Escape' && Schematics.presentation.active()) {
         e.preventDefault();
-        Archify.presentation.exit();
+        Schematics.presentation.exit();
       }
     });
   </script>

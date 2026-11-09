@@ -5,10 +5,10 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { compactFinalizeReceipt } from '../archify/bin/finalize.mjs';
+import { compactFinalizeReceipt } from '../schematics/bin/finalize.mjs';
 
-const root = fileURLToPath(new URL('../archify/', import.meta.url));
-const cli = path.join(root, 'bin/archify.mjs');
+const root = fileURLToPath(new URL('../schematics/', import.meta.url));
+const cli = path.join(root, 'bin/schematics.mjs');
 const checker = path.join(root, 'scripts/check-render-output.mjs');
 
 function sequence(count = 6) {
@@ -22,7 +22,7 @@ function sequence(count = 6) {
 }
 
 function render(t, spec) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-sequence-width-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-sequence-width-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const input = path.join(dir, 'candidate.json');
   const output = path.join(dir, 'diagram.html');
@@ -229,7 +229,7 @@ test('an authored six-column canvas spreads by default without a width repair', 
 
 
 test('public finalize preserves a passing fixed candidate and publishes a reversible width-review recommendation', {
-  skip: !process.env.ARCHIFY_CHROME ? 'Set ARCHIFY_CHROME for public finalize browser checks' : false,
+  skip: !process.env.SCHEMATICS_CHROME ? 'Set SCHEMATICS_CHROME for public finalize browser checks' : false,
 }, t => {
   const spec = sequence();
   spec.meta.column_fit = 'fixed';

@@ -5,26 +5,26 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {checkExplainerHtml,scanHtml} from '../archify/explainer/check.mjs';
-import {computeExplainerRevision} from '../archify/explainer/revision.mjs';
+import {checkExplainerHtml,scanHtml} from '../schematics/explainer/check.mjs';
+import {computeExplainerRevision} from '../schematics/explainer/revision.mjs';
 const hash=text=>createHash('sha256').update(text).digest('hex');
 const json=value=>JSON.stringify(value).replace(/[<>&]/g,c=>`\\u${c.charCodeAt(0).toString(16).padStart(4,'0')}`);
 function fixture({children={},dependencies=[],asset}={}) {
  const document={schema_version:1,diagram_type:'explainer',meta:{id:'case',title:'Case'},answer:{summary:'Answer'},panels:[{id:'question',title:'Why?',blocks:[{id:'explanation',type:'prose',text:'Explanation'},...Object.keys(children).map(id=>({id,type:'diagram'}))]}],sources:[]};
  const source={text:JSON.stringify(document)};
  const manifest={version:1,artifactId:'case',revision:hash(source.text),sourceSha256:hash(source.text),documentSha256:hash(JSON.stringify(document)),dependencies,children:Object.fromEntries(Object.entries(children).map(([id,c])=>[id,{sha256:c.sha256,bytes:c.bytes}])),assets:asset?{image:asset}:{},sources:{}};
- const bundle={schemaVersion:1,kind:'archify-explainer-prepared',document,sourceText:source.text,source:{sha256:hash(source.text),bytes:Buffer.byteLength(source.text)},dependencies,preparedSources:{sources:{}},preparedDiagrams:{diagrams:children},quality:Object.keys(children).length?'showcase':'standard'};bundle.digest=hash(JSON.stringify(bundle));
+ const bundle={schemaVersion:1,kind:'schematics-explainer-prepared',document,sourceText:source.text,source:{sha256:hash(source.text),bytes:Buffer.byteLength(source.text)},dependencies,preparedSources:{sources:{}},preparedDiagrams:{diagrams:children},quality:Object.keys(children).length?'showcase':'standard'};bundle.digest=hash(JSON.stringify(bundle));
  manifest.revision=computeExplainerRevision(bundle);
  delete manifest.dependencies;
- const payloads={'archify-explainer-prepared':bundle,'explainer-manifest':manifest};
- return `<!doctype html><html data-archify-artifact="explainer" data-revision="${manifest.revision}"><head><title>Case</title></head><body><main id="question"><p id="explanation">Explanation</p>${Object.keys(children).map(id=>`<div id="${id}">Diagram preview</div>`).join('')}${asset?`<img alt="contained" src="data:${asset.mime};base64,${dependencies[0].contentBase64}">`:''}</main>${Object.entries(payloads).map(([id,p])=>`<script id="${id}" type="application/json">${json(p)}</script>`).join('')}</body></html>`;
+ const payloads={'schematics-explainer-prepared':bundle,'explainer-manifest':manifest};
+ return `<!doctype html><html data-schematics-artifact="explainer" data-revision="${manifest.revision}"><head><title>Case</title></head><body><main id="question"><p id="explanation">Explanation</p>${Object.keys(children).map(id=>`<div id="${id}">Diagram preview</div>`).join('')}${asset?`<img alt="contained" src="data:${asset.mime};base64,${dependencies[0].contentBase64}">`:''}</main>${Object.entries(payloads).map(([id,p])=>`<script id="${id}" type="application/json">${json(p)}</script>`).join('')}</body></html>`;
 }
 test('zero native diagrams is a valid explainer family and CLI check dispatch',()=>{
  const html=fixture();assert.equal(checkExplainerHtml(html).ok,true);
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'explainer-check-test-'));try {const file=path.join(dir,'page.html');fs.writeFileSync(file,html);const run=spawnSync(process.execPath,['archify/scripts/check-render-output.mjs',file],{encoding:'utf8'});assert.equal(run.status,0,run.stdout+run.stderr);assert.equal(JSON.parse(run.stdout).family,'explainer');}finally{fs.rmSync(dir,{recursive:true,force:true});}
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'explainer-check-test-'));try {const file=path.join(dir,'page.html');fs.writeFileSync(file,html);const run=spawnSync(process.execPath,['schematics/scripts/check-render-output.mjs',file],{encoding:'utf8'});assert.equal(run.status,0,run.stdout+run.stderr);assert.equal(JSON.parse(run.stdout).family,'explainer');}finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 test('each frozen native diagram receives the existing native geometry checks',()=>{
- const native=fs.readFileSync(new URL('../archify/examples/erd-orders-rendered.html',import.meta.url),'utf8');
+ const native=fs.readFileSync(new URL('../schematics/examples/erd-orders-rendered.html',import.meta.url),'utf8');
  const child={html:native,sha256:hash(native),bytes:Buffer.byteLength(native)};
  const receipt=checkExplainerHtml(fixture({children:{diagram:child}}));assert.equal(receipt.ok,true,JSON.stringify(receipt.diagnostics));assert.equal(receipt.composition.nativeDiagrams.length,1);assert.ok(receipt.composition.nativeDiagrams[0].receipt.checks.some(c=>c.name==='single_svg'));
  const multiple=checkExplainerHtml(fixture({children:{first:child,second:child}}));assert.equal(multiple.ok,true,JSON.stringify(multiple.diagnostics));assert.equal(multiple.composition.nativeDiagrams.length,2);assert.ok(multiple.composition.nativeDiagrams.every(c=>c.receipt.ok&&c.receipt.artifact.sha256===child.sha256));
@@ -33,7 +33,7 @@ test('each frozen native diagram receives the existing native geometry checks',(
  assert.ok(checkExplainerHtml(fixture({children:{diagram:bad}})).diagnostics.some(d=>d.code==='explainer/native-check'));
 });
 test('a recomputed prepared-bundle digest cannot retain a stale content revision after resource changes',()=>{
- const original=fixture(),script=scanHtml(original).scripts.find(s=>s.attrs.id==='archify-explainer-prepared'),bundle=JSON.parse(script.text),bytes=Buffer.from('new frozen resource');
+ const original=fixture(),script=scanHtml(original).scripts.find(s=>s.attrs.id==='schematics-explainer-prepared'),bundle=JSON.parse(script.text),bytes=Buffer.from('new frozen resource');
  bundle.dependencies.push({kind:'image',id:'new-image',sha256:hash(bytes),bytes:bytes.length,contentBase64:bytes.toString('base64')});bundle.digest=hash(JSON.stringify({...bundle,digest:undefined}));
  const changed=original.slice(0,original.indexOf(script.text))+json(bundle)+original.slice(original.indexOf(script.text)+script.text.length);
  const receipt=checkExplainerHtml(changed);assert.deepEqual(receipt.diagnostics.map(d=>d.code),['explainer/content-revision']);assert.equal(receipt.checks.find(c=>c.name==='explainer_dependencies').ok,true,'Frozen bytes and bundle digest remain valid; stale semantic identity is rejected independently');

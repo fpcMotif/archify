@@ -31,7 +31,7 @@
         clone.removeAttribute('data-share-reach');
         Array.prototype.forEach.call(clone.querySelectorAll('[data-reader-legend-corner]'), function (el) {
           el.removeAttribute('data-reader-legend-corner');
-          el.style.removeProperty('--archify-reader-legend-transform');
+          el.style.removeProperty('--schematics-reader-legend-transform');
         });
         Array.prototype.forEach.call(clone.querySelectorAll('[data-intent-trace-overlay]'), function (el) {
           el.remove();

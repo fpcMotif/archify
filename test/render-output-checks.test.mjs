@@ -6,11 +6,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { compactFinalizeReceipt } from '../archify/bin/finalize.mjs';
+import { compactFinalizeReceipt } from '../schematics/bin/finalize.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-output-checks-'));
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-checks-'));
 const checker = path.join(skillRoot, 'scripts/check-render-output.mjs');
 
 test('render output check: finite_svg preserves slashes in unquoted HTML attribute values', () => {
@@ -169,7 +169,7 @@ test('render output check: recognized declared-wide Reader admits the hard floor
       <text x="120" y="160" class="t-muted" font-size="8">method path body</text>
       <text data-detail="fine" x="120" y="172" class="t-dim" font-size="1">fine annotation</text>
     </g>
-  `, 'showcase', '0 0 1438 800', '<meta name="archify-reader-contract" content="declared-wide-v1">', ' data-reader-fit="intrinsic-height" data-reader-min-text="7.5"');
+  `, 'showcase', '0 0 1438 800', '<meta name="schematics-reader-contract" content="declared-wide-v1">', ' data-reader-fit="intrinsic-height" data-reader-min-text="7.5"');
 
   assert.equal(code, 0, JSON.stringify(result, null, 2));
   assert.equal(result.composition.desktopReadability.budgetBasis, 'recognized-declared-wide');
@@ -185,7 +185,7 @@ test('render output check: recognized declared-wide Reader admits the hard floor
 
 test('render output check: width-first preserves the intrinsic declared-wide readability budget', () => {
   const body = '<g data-node-id="node"><text data-node-label x="160" y="126" class="t-primary" font-size="8">Node</text></g>';
-  const head = '<meta name="archify-reader-contract" content="declared-wide-v1">';
+  const head = '<meta name="schematics-reader-contract" content="declared-wide-v1">';
   const intrinsic = checkHtml('intrinsic-budget', body, 'showcase', '0 0 1438 800', head, ' data-reader-fit="intrinsic-height" data-reader-min-text="7.5"');
   const widthFirst = checkHtml('width-first-budget', body, 'showcase', '0 0 1438 800', head, ' data-reader-fit="width-first" data-reader-min-text="7.5"');
   assert.equal(widthFirst.code, intrinsic.code);
@@ -218,10 +218,10 @@ test('render output check: marker recognition is exact and old fit/min-only HTML
   const svgAttributes = ' data-reader-fit="intrinsic-height" data-reader-min-text="7.5"';
   for (const [name, head, attributes] of [
     ['old-fit-min-only', '', svgAttributes],
-    ['unknown-reader-contract', '<meta name="archify-reader-contract" content="declared-wide-v2">', svgAttributes],
-    ['duplicate-reader-contract', '<meta name="archify-reader-contract" content="declared-wide-v1"><meta name="archify-reader-contract" content="declared-wide-v1">', svgAttributes],
-    ['invalid-reader-minimum', '<meta name="archify-reader-contract" content="declared-wide-v1">', ' data-reader-fit="intrinsic-height" data-reader-min-text="NaN"'],
-    ['explicit-viewbox-geometry', '<meta name="archify-reader-contract" content="declared-wide-v1">', ' data-reader-min-text="7.5"'],
+    ['unknown-reader-contract', '<meta name="schematics-reader-contract" content="declared-wide-v2">', svgAttributes],
+    ['duplicate-reader-contract', '<meta name="schematics-reader-contract" content="declared-wide-v1"><meta name="schematics-reader-contract" content="declared-wide-v1">', svgAttributes],
+    ['invalid-reader-minimum', '<meta name="schematics-reader-contract" content="declared-wide-v1">', ' data-reader-fit="intrinsic-height" data-reader-min-text="NaN"'],
+    ['explicit-viewbox-geometry', '<meta name="schematics-reader-contract" content="declared-wide-v1">', ' data-reader-min-text="7.5"'],
   ]) {
     const { code, result } = checkHtml(name, body, 'showcase', '0 0 1438 800', head, attributes);
     assert.notEqual(code, 0, name);
@@ -236,7 +236,7 @@ test('render output check: an edge below 6 remains warning in standard and error
       <text x="120" y="160" class="t-muted" font-size="5">short semantic edge label</text>
     </g>
   `;
-  const head = '<meta name="archify-reader-contract" content="declared-wide-v1">';
+  const head = '<meta name="schematics-reader-contract" content="declared-wide-v1">';
   const svgAttributes = ' data-reader-fit="intrinsic-height" data-reader-min-text="7.5"';
   const standard = checkHtml('declared-wide-standard-edge', body, 'standard', '0 0 1438 800', head, svgAttributes);
   const showcase = checkHtml('declared-wide-showcase-edge', body, 'showcase', '0 0 1438 800', head, svgAttributes);
@@ -247,7 +247,7 @@ test('render output check: an edge below 6 remains warning in standard and error
 });
 
 test('render output check: finite non-positive semantic text remains below the 6px floor', () => {
-  const contract = '<meta name="archify-reader-contract" content="declared-wide-v1">';
+  const contract = '<meta name="schematics-reader-contract" content="declared-wide-v1">';
   const attributes = ' data-reader-fit="intrinsic-height" data-reader-min-text="7.5"';
   for (const [name, body] of [
     ['zero-only', '<g data-edge-from="a" data-edge-to="b" data-detail="context"><text x="1" y="1" font-size="0">zero</text></g>'],
@@ -270,7 +270,7 @@ test('render output check: fine detail on a context edge is excluded before owne
       <text x="1" y="1" font-size="8">ordinary relationship label</text>
       <g data-detail="fine"><text x="1" y="2" font-size="1">fine nested note</text></g>
     </g>
-  `, 'showcase', '0 0 1438 800', '<meta name="archify-reader-contract" content="declared-wide-v1">', ' data-reader-fit="intrinsic-height" data-reader-min-text="7.5"');
+  `, 'showcase', '0 0 1438 800', '<meta name="schematics-reader-contract" content="declared-wide-v1">', ' data-reader-fit="intrinsic-height" data-reader-min-text="7.5"');
   assert.equal(code, 0, JSON.stringify(result, null, 2));
   assert.equal(result.composition.desktopReadability.minimumOwner.kind, 'edge');
   assert.equal(result.composition.desktopReadability.semanticTextCount, 1);

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { parse } from 'yaml';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.join(here, '..', 'archify');
+const skillRoot = path.join(here, '..', 'schematics');
 const skill = readFileSync(path.join(skillRoot, 'SKILL.md'), 'utf8');
 const defaults = readFileSync(path.join(skillRoot, 'references', 'authoring-defaults.md'), 'utf8');
 const authoringContract = readFileSync(path.join(skillRoot, 'references', 'authoring-contract.md'), 'utf8');
@@ -15,7 +15,7 @@ const frontmatter = skill.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
 test('skill description is portable across 1024-character runtimes and remains searchable', () => {
   assert.ok(frontmatter, 'SKILL.md must start with YAML frontmatter');
   const metadata = parse(frontmatter[1]);
-  assert.equal(metadata.name, 'archify');
+  assert.equal(metadata.name, 'schematics');
   const description = metadata.description;
   assert.equal(typeof description, 'string', 'frontmatter description must be a YAML string');
   assert.ok(description.trim(), 'frontmatter must include a nonempty description');
@@ -82,10 +82,10 @@ test('skill keeps the title hierarchy compact by default', () => {
 // The review Skill remains available to repository maintainers, but must not
 // enter an unfiltered consumer install from the repository root.
 test('contributor review skill is internal and retains its repository references', () => {
-  const reviewRoot = path.resolve(skillRoot, '..', '.agents', 'skills', 'archify-review');
+  const reviewRoot = path.resolve(skillRoot, '..', '.agents', 'skills', 'schematics-review');
   const review = readFileSync(path.join(reviewRoot, 'SKILL.md'), 'utf8');
   const metadata = parse(review.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)[1]);
-  assert.equal(metadata.name, 'archify-review');
+  assert.equal(metadata.name, 'schematics-review');
   assert.equal(metadata.metadata?.internal, true);
   for (const document of ['../../../REVIEWING.md', '../../../CONTRIBUTING.md']) {
     assert.ok(review.includes(document));

@@ -14,10 +14,10 @@ import {
   MIN_PROJECTED_NODE_TEXT_PX,
   minimumReadableSourceTextPx,
   projectedNodeTextPx,
-} from '../archify/renderers/shared/desktop-readability.ts';
+} from '../schematics/renderers/shared/desktop-readability.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const template = fs.readFileSync(path.join(skillRoot, 'assets', 'template.html'), 'utf8');
 const skill = fs.readFileSync(path.join(skillRoot, 'references/authoring-defaults.md'), 'utf8');
 test('desktop readability budget matches the minimum adaptive reader at 1440 by 900', () => {
@@ -65,7 +65,7 @@ test('declared-wide budget is additive and reports a cap without changing the le
 // reader-readability-maintained-browser; these checks keep the public declaration
 // and authoring documentation aligned without prescribing the scheduler's code.
 test('reader declaration and authoring guidance preserve the public readability contract', () => {
-  assert.equal((template.match(/<meta name="archify-reader-contract" content="declared-wide-v1">/g) || []).length, 1);
+  assert.equal((template.match(/<meta name="schematics-reader-contract" content="declared-wide-v1">/g) || []).length, 1);
   assert.match(skill, /Automated browser evidence\]\(delivery-contract\.md#automated-browser-evidence\)/);
   assert.match(skill, /intrinsic-height page scroll/);
   const delivery = fs.readFileSync(path.join(skillRoot, 'references/delivery-contract.md'), 'utf8');

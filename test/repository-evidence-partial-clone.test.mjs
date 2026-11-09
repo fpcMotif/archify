@@ -23,13 +23,13 @@ for (const [fallback, ignoreNoLazyFetch] of [[false, false], [true, false], [fal
 
     const helpers = path.join(data.root, 'helpers');
     fs.mkdirSync(helpers);
-    fs.writeFileSync(path.join(helpers, 'git-remote-https'), '#!/bin/sh\nprintf "%s\\n" "$*" >> "$ARCHIFY_TRANSPORT_TRACE"\nexit 99\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(helpers, 'git-remote-https'), '#!/bin/sh\nprintf "%s\\n" "$*" >> "$SCHEMATICS_TRANSPORT_TRACE"\nexit 99\n', { mode: 0o755 });
     const trace = path.join(data.root, 'transport.log');
     const env = {
       ...process.env,
       GIT_EXEC_PATH: helpers,
       GIT_NO_LAZY_FETCH: '0', // The verifier must override the caller's setting.
-      ARCHIFY_TRANSPORT_TRACE: trace.replaceAll('\\', '/'),
+      SCHEMATICS_TRANSPORT_TRACE: trace.replaceAll('\\', '/'),
     };
     const wrapper = path.join(data.root, 'force-fallback.mjs');
     if (fallback || ignoreNoLazyFetch) fs.writeFileSync(wrapper, `

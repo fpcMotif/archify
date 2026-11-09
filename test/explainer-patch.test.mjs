@@ -4,16 +4,16 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { scanHtml } from '../archify/explainer/check.mjs';
+import { scanHtml } from '../schematics/explainer/check.mjs';
 import { createHash } from 'node:crypto';
-import { preparePanelPatch } from '../archify/explainer/patch.mjs';
-import { packPageBundle, unpackPageBundle } from '../archify/explainer/page-bundle.mjs';
-import { compileExplainerDiagram } from '../archify/explainer/diagrams.mjs';
-const cli=path.resolve('archify/bin/archify.mjs');
+import { preparePanelPatch } from '../schematics/explainer/patch.mjs';
+import { packPageBundle, unpackPageBundle } from '../schematics/explainer/page-bundle.mjs';
+import { compileExplainerDiagram } from '../schematics/explainer/diagrams.mjs';
+const cli=path.resolve('schematics/bin/schematics.mjs');
 const run=args=>spawnSync(process.execPath,[cli,...args],{encoding:'utf8',maxBuffer:64*1024*1024,env:process.env});
-const read=file=>unpackPageBundle(JSON.parse(scanHtml(fs.readFileSync(file,'utf8')).scripts.find(s=>s.attrs.id==='archify-explainer-prepared').text));
+const read=file=>unpackPageBundle(JSON.parse(scanHtml(fs.readFileSync(file,'utf8')).scripts.find(s=>s.attrs.id==='schematics-explainer-prepared').text));
 const manifest=file=>JSON.parse(scanHtml(fs.readFileSync(file,'utf8')).scripts.find(s=>s.attrs.id==='explainer-manifest').text);
-function temp(t){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'archify-explainer-patch-test-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));return dir;}
+function temp(t){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'schematics-explainer-patch-test-'));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));return dir;}
 function fixture(){return {schema_version:1,diagram_type:'explainer',meta:{id:'patch-document',title:'What can change?',locale:'en'},answer:{summary:'One stable panel can be replaced.'},panels:[{id:'first',title:'What changes?',blocks:[{id:'first-text',type:'prose',text:'This text may change.'}]},{id:'second',title:'What stays?',blocks:[{id:'second-text',type:'prose',text:'This text remains exactly the same.'}]}],sources:[]};}
 function deliver(dir,doc=fixture(),options=[]){const input=path.join(dir,'author.json'),artifact=path.join(dir,'original.html');fs.writeFileSync(input,JSON.stringify(doc,null,2)+'\n');const result=run(['deliver','explainer',input,artifact,...options,'--json']);assert.equal(result.status,0,result.stdout+result.stderr);return {input,artifact};}
 
@@ -125,7 +125,7 @@ test('a page without its source directory can patch prose but cannot read unrela
   const dir=temp(t),{artifact}=deliver(dir),bundle=read(artifact),replacementPath=path.join(dir,'replacement.json');
   bundle.sourcePath=null;bundle.baseDir=null;
   bundle.digest=createHash('sha256').update(JSON.stringify({...bundle,digest:undefined})).digest('hex');
-  fs.writeFileSync(artifact,fs.readFileSync(artifact,'utf8').replace(/(<script type="application\/json" id="archify-explainer-prepared">)[\s\S]*?(<\/script>)/,(_,open,close)=>open+JSON.stringify(packPageBundle(bundle))+close));
+  fs.writeFileSync(artifact,fs.readFileSync(artifact,'utf8').replace(/(<script type="application\/json" id="schematics-explainer-prepared">)[\s\S]*?(<\/script>)/,(_,open,close)=>open+JSON.stringify(packPageBundle(bundle))+close));
   const panel={...fixture().panels[0],title:'Updated prose'};fs.writeFileSync(replacementPath,JSON.stringify(panel));
   const result=await preparePanelPatch({artifactPath:artifact,panelId:'first',replacementPath});assert.equal(result.bundle.baseDir,null);
   fs.writeFileSync(path.join(dir,'asset.png'),'An unrelated file beside the HTML');

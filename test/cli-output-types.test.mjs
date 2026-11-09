@@ -5,17 +5,17 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { startPreview } from '../archify/bin/preview.mjs';
+import { startPreview } from '../schematics/bin/preview.mjs';
 
-const root = fileURLToPath(new URL('../archify/', import.meta.url));
-const cli = path.join(root, 'bin/archify.mjs');
+const root = fileURLToPath(new URL('../schematics/', import.meta.url));
+const cli = path.join(root, 'bin/schematics.mjs');
 const workflow = path.join(root, 'examples/agent-tool-call.workflow.json');
 const architecture = path.join(root, 'examples/web-app.architecture.json');
 const base = path.join(root, 'examples/checkout-platform.base.architecture.json');
 const head = path.join(root, 'examples/checkout-platform.head.architecture.json');
 const marker = 'MARKER=do-not-destroy';
 function workspace(t) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-cli-types-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-cli-types-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
@@ -48,7 +48,7 @@ test('preview rejects a non-HTML target before publishing or starting a server',
   try {
     await assert.rejects(async () => {
       session = await startPreview({ type: 'workflow', input: workflow, output, cwd, open: false });
-    }, error => error.archifyDiagnostics?.[0]?.code === 'output/cli-extension');
+    }, error => error.schematicsDiagnostics?.[0]?.code === 'output/cli-extension');
   } finally {
     if (session) { session.stop(); await session.closed; }
   }

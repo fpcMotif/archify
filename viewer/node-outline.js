@@ -4,7 +4,7 @@
        selection delegates to the Finder's focus-and-reveal path. It reads
        the canonical SVG and never changes geometry or export state.
        ============================================================ */
-    Archify.outline = (function () {
+    Schematics.outline = (function () {
       var panel = document.getElementById('node-outline');
       var list = document.getElementById('node-outline-list');
       var count = document.getElementById('node-outline-count');
@@ -22,21 +22,21 @@
         return match && TONES.indexOf(match[1]) !== -1 ? match[1] : 'external';
       }
       function preview(id) {
-        if (Archify.intentTrace && typeof Archify.intentTrace.show === 'function') Archify.intentTrace.show(id);
+        if (Schematics.intentTrace && typeof Schematics.intentTrace.show === 'function') Schematics.intentTrace.show(id);
       }
       function clearPreview() {
-        if (Archify.intentTrace && typeof Archify.intentTrace.clear === 'function') Archify.intentTrace.clear({ announce: false });
+        if (Schematics.intentTrace && typeof Schematics.intentTrace.clear === 'function') Schematics.intentTrace.clear({ announce: false });
       }
       function select(id) {
         clearPreview();
-        var finder = Archify.finder;
+        var finder = Schematics.finder;
         if (finder && typeof finder.select === 'function') {
           if (finder.select(id)) return;
-          var routeMode = Archify.routeProbe && typeof Archify.routeProbe.active === 'function' ? Archify.routeProbe.active() : 'idle';
+          var routeMode = Schematics.routeProbe && typeof Schematics.routeProbe.active === 'function' ? Schematics.routeProbe.active() : 'idle';
           // Only an active endpoint picker owns a refused selection.
           if (routeMode === 'source' || routeMode === 'target') return;
         }
-        if (Archify.focus && typeof Archify.focus.set === 'function') Archify.focus.set(id, { toggle: false });
+        if (Schematics.focus && typeof Schematics.focus.set === 'function') Schematics.focus.set(id, { toggle: false });
       }
 
       var groups = [];
@@ -145,12 +145,12 @@
           var open = toggle.getAttribute('aria-expanded') !== 'true';
           toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
           panel.toggleAttribute('data-open', open);
-          if (Archify.readerLayout && typeof Archify.readerLayout.schedule === 'function') Archify.readerLayout.schedule();
+          if (Schematics.readerLayout && typeof Schematics.readerLayout.schedule === 'function') Schematics.readerLayout.schedule();
         });
       }
       panel.hidden = nodes.length < 2;
       syncCurrent();
-      if (Archify.readerLayout && typeof Archify.readerLayout.schedule === 'function') Archify.readerLayout.schedule();
+      if (Schematics.readerLayout && typeof Schematics.readerLayout.schedule === 'function') Schematics.readerLayout.schedule();
 
       return { count: nodes.length, select: select };
     })();

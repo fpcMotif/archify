@@ -7,8 +7,8 @@ import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const cli = path.join(skillRoot, 'bin', 'archify.mjs');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
 const architectureExample = path.join(skillRoot, 'examples', 'web-app.architecture.json');
 const workflowFixture = path.join(
   __dirname,
@@ -17,7 +17,7 @@ const workflowFixture = path.join(
 );
 
 function workspace(t) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-meta-output-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-meta-output-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   return directory;
 }
@@ -212,7 +212,7 @@ for (const [label, output] of [['missing', undefined], ['non-string', 42]]) {
       assert.equal(result.status, 1, `${command}: ${result.stderr || result.stdout}`);
       assert.equal(fs.existsSync(commandDirectory), false, `${command} created its output directory`);
       assert.equal(
-        fs.readdirSync(directory).some((entry) => /delivery|archify-render/u.test(entry)),
+        fs.readdirSync(directory).some((entry) => /delivery|schematics-render/u.test(entry)),
         false,
         `${command} left a sidecar or staging entry`,
       );

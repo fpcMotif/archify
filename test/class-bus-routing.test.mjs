@@ -6,7 +6,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
 const epsilon = 0.0001;
 const attrs = (tag) => Object.fromEntries([...tag.matchAll(/([\w-]+)="([^"]*)"/g)].map((match) => [match[1], match[2]]));
 
@@ -56,7 +56,7 @@ function run(args, cwd) {
 }
 
 function render(t, document, quality = 'showcase') {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-class-bus-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-class-bus-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'input.class.json');
   const output = path.join(directory, 'output.html');

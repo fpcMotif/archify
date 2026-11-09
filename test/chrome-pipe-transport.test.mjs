@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { test } from 'node:test';
 
-import { ChromeVisualBrowser, CHROME_STARTUP_TIMEOUT_MS } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, CHROME_STARTUP_TIMEOUT_MS } from '../schematics/bin/visual-check.mjs';
 
 function chromeChild() {
   const child = new EventEmitter();

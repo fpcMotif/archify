@@ -8,15 +8,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const renderer = path.join(skillRoot, 'renderers', 'timeline', 'render-timeline.mjs');
 const checker = path.join(skillRoot, 'scripts', 'check-render-output.mjs');
 const small = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'payment-incident.timeline.json'), 'utf8'));
-const large = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'archify-dev-activity.timeline.json'), 'utf8'));
+const large = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'schematics-dev-activity.timeline.json'), 'utf8'));
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
 function run(diagram, extra = []) {
-  const directory = createScratchDirectory(path.join(os.tmpdir(), 'archify-timeline-'));
+  const directory = createScratchDirectory(path.join(os.tmpdir(), 'schematics-timeline-'));
   const input = path.join(directory, 'candidate.timeline.json');
   const output = path.join(directory, 'candidate.html');
   fs.writeFileSync(input, JSON.stringify(diagram));

@@ -6,8 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 const fixtures = path.join(skillRoot, '..', 'test', 'fixtures/architecture-first-draft');
 
 function validate(type, input, ...extra) {
@@ -21,7 +21,7 @@ function layout(input) {
 }
 
 test('architecture: automatic routes avoid the final minimum title rail while keeping authored sides', t => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-title-rail-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-title-rail-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'diagram.json');
   const spec = {
@@ -55,7 +55,7 @@ test('architecture: automatic routes avoid the final minimum title rail while ke
 });
 
 test('architecture: adjacent request and callback stay straight when their complete labels fit outside the pair', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-reciprocal-label-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-reciprocal-label-'));
   try {
     const input = path.join(tmp, 'pair.json');
     const spec = { schema_version: 1, diagram_type: 'architecture',
@@ -88,7 +88,7 @@ test('architecture: adjacent request and callback stay straight when their compl
 });
 
 test('architecture: pinned sides clear a boundary without changing authored geometry', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-border-corridor-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-border-corridor-'));
   try {
     const input = path.join(tmp, 'border.json');
     const spec = { schema_version: 1, diagram_type: 'architecture',
@@ -125,7 +125,7 @@ test('architecture: pinned sides clear a boundary without changing authored geom
 });
 
 test('architecture: automatic side changes keep incoming arrowheads distinct', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-final-ports-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-final-ports-'));
   try {
     const input = path.join(tmp, 'ports.json');
     fs.writeFileSync(input, JSON.stringify({
@@ -153,7 +153,7 @@ test('architecture: automatic side changes keep incoming arrowheads distinct', (
 });
 
 test('architecture: wide incoming arrows reserve a whole side before routing', () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-wide-ports-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-wide-ports-'));
   try {
     for (const { widths, height } of [
       { widths: [4, 4], height: 68 },
@@ -235,7 +235,7 @@ test('architecture: a self-loop with cramped explicit sides names the loop and t
   assert.match(issue.message, /remove fromSide\/toSide/);
   assert.doesNotMatch(issue.message, /farther apart/);
 
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-self-loop-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-self-loop-'));
   try {
     const candidate = JSON.parse(fs.readFileSync(input, 'utf8'));
     for (const conn of candidate.connections) {
@@ -283,7 +283,7 @@ test('architecture: a component inside a boundary frame it is not wrapped by is 
 });
 
 test('architecture: non-member enclosure keeps standard compatibility and rejects misleading showcase membership', (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-boundary-profile-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-boundary-profile-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const candidate = JSON.parse(fs.readFileSync(path.join(fixtures, 'queue-sol.architecture.json'), 'utf8'));
   // Isolate ownership from the source fixture's unrelated label-gap defects.

@@ -6,13 +6,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
-import { MIN_PROJECTED_NODE_TEXT_PX } from '../archify/renderers/shared/desktop-readability.ts';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
+import { MIN_PROJECTED_NODE_TEXT_PX } from '../schematics/renderers/shared/desktop-readability.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-viewer-chrome-layout-'));
-const chromePath = process.env.ARCHIFY_CHROME ? findChrome() : null;
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-viewer-chrome-layout-'));
+const chromePath = process.env.SCHEMATICS_CHROME ? findChrome() : null;
 const renderedArtifacts = new Map();
 
 const CASES = {
@@ -28,7 +28,7 @@ function render(mode, example) {
   if (renderedArtifacts.has(key)) return renderedArtifacts.get(key);
   const output = path.join(tmp, `${mode}-${renderedArtifacts.size}.html`);
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'bin', 'archify.mjs'),
+    path.join(skillRoot, 'bin', 'schematics.mjs'),
     'render',
     mode,
     path.join(skillRoot, 'examples', example),
@@ -48,7 +48,7 @@ function renderWithoutLegend() {
   const output = path.join(tmp, 'architecture-no-legend.html');
   fs.writeFileSync(input, `${JSON.stringify(source, null, 2)}\n`);
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'bin', 'archify.mjs'),
+    path.join(skillRoot, 'bin', 'schematics.mjs'),
     'render',
     'architecture',
     input,
@@ -102,7 +102,7 @@ async function waitForLayout(browser, sessionId) {
             rect(document.querySelector('[data-legend]')),
             rect(document.getElementById('semantic-lens')),
             rect(document.getElementById('overview-map')),
-            container ? getComputedStyle(container).getPropertyValue('--archify-nav-reserve') : ''
+            container ? getComputedStyle(container).getPropertyValue('--schematics-nav-reserve') : ''
           ].join('|');
           if (current === previous) stableFrames += 1;
           else {
@@ -142,9 +142,9 @@ async function finalGeometry(browser, sessionId) {
     var lens = document.getElementById('semantic-lens');
     var radar = document.getElementById('overview-map');
     var passport = document.getElementById('focus-chip');
-    var chromeReceipt = window.Archify && Archify.viewerChromeLayout
-      && typeof Archify.viewerChromeLayout.receipt === 'function'
-      ? Archify.viewerChromeLayout.receipt()
+    var chromeReceipt = window.Schematics && Schematics.viewerChromeLayout
+      && typeof Schematics.viewerChromeLayout.receipt === 'function'
+      ? Schematics.viewerChromeLayout.receipt()
       : null;
     var viewBox = svg && svg.viewBox && svg.viewBox.baseVal;
     var projectedScale = svg && viewBox && viewBox.width > 0
@@ -164,9 +164,9 @@ async function finalGeometry(browser, sessionId) {
     }
     var legendRect = legend && getComputedStyle(legend).display !== 'none' ? legend.getBoundingClientRect() : null;
     var navRect = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect() : null;
-    var stageRect = window.Archify && Archify.viewerChromeLayout
-      && typeof Archify.viewerChromeLayout.stageRect === 'function'
-      ? Archify.viewerChromeLayout.stageRect()
+    var stageRect = window.Schematics && Schematics.viewerChromeLayout
+      && typeof Schematics.viewerChromeLayout.stageRect === 'function'
+      ? Schematics.viewerChromeLayout.stageRect()
       : null;
     var lensRect = lens && !lens.hidden && getComputedStyle(lens).display !== 'none' ? lens.getBoundingClientRect() : null;
     var radarRect = radar && !radar.hidden && getComputedStyle(radar).display !== 'none' ? radar.getBoundingClientRect() : null;
@@ -178,7 +178,7 @@ async function finalGeometry(browser, sessionId) {
         }, 0)
       : 0;
     return {
-      reserve: parseFloat(getComputedStyle(container).getPropertyValue('--archify-nav-reserve')) || 0,
+      reserve: parseFloat(getComputedStyle(container).getPropertyValue('--schematics-nav-reserve')) || 0,
       receiptReserve: chromeReceipt ? chromeReceipt.reserve : null,
       receiptEligible: chromeReceipt ? chromeReceipt.eligible : null,
       receiptStageIntersectionArea: chromeReceipt ? chromeReceipt.stageIntersectionArea : null,
@@ -265,8 +265,8 @@ test('the public CLI gives all typed renderers one final Viewer contract', () =>
     assert.match(html, /data-legend/, mode);
     assert.match(html, directChildSvg, `${mode} keeps the SVG as a direct child`);
     assert.doesNotMatch(html, /class="diagram-stage"/, `${mode} does not re-nest the exported SVG`);
-    assert.doesNotMatch(canonicalSvg(html), /nav-safe-rail|archify-nav-reserve|viewerChromeLayout/, mode);
-    execFileSync(process.execPath, [path.join(skillRoot, 'bin', 'archify.mjs'), 'check', output]);
+    assert.doesNotMatch(canonicalSvg(html), /nav-safe-rail|schematics-nav-reserve|viewerChromeLayout/, mode);
+    execFileSync(process.execPath, [path.join(skillRoot, 'bin', 'schematics.mjs'), 'check', output]);
   }
 });
 
@@ -278,7 +278,7 @@ test('Viewer chrome remains outside the canonical SVG export boundary', () => {
 });
 
 test('Dock Safe Rail keeps typed renderers clear across themes, Presentation, and low-height desktops', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   const matrix = Object.keys(CASES).flatMap((mode) => [
@@ -314,7 +314,7 @@ test('Dock Safe Rail keeps typed renderers clear across themes, Presentation, an
 });
 
 test('an artifact with no Legend still receives the desktop stage rail', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   try {
@@ -331,7 +331,7 @@ test('an artifact with no Legend still receives the desktop stage rail', {
 });
 
 test('Dock Safe Rail resolves a forced Legend collision across the shared diagram viewer', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   try {
@@ -371,11 +371,11 @@ test('Dock Safe Rail resolves a forced Legend collision across the shared diagra
 });
 
 test('Maka remains collision-free at the reported Retina-equivalent viewport', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const output = path.join(tmp, 'maka-architecture.html');
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'bin', 'archify.mjs'),
+    path.join(skillRoot, 'bin', 'schematics.mjs'),
     'render',
     'architecture',
     path.resolve(skillRoot, '..', 'test', 'fixtures', 'maka-architecture.architecture.json'),
@@ -404,7 +404,7 @@ test('Maka remains collision-free at the reported Retina-equivalent viewport', {
 });
 
 test('a real 5px Legend gap keeps the stage rail and Legend clear', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   try {
@@ -432,7 +432,7 @@ test('a real 5px Legend gap keeps the stage rail and Legend clear', {
 });
 
 test('Presentation keeps its visible Dock clear of a colliding Legend', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   try {
@@ -460,7 +460,7 @@ test('Presentation keeps its visible Dock clear of a colliding Legend', {
 });
 
 test('manual zoom and pan reschedules Legend and Dock collision measurement', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   try {
@@ -490,7 +490,7 @@ test('manual zoom and pan reschedules Legend and Dock collision measurement', {
 });
 
 test('camera pan clips authored relationship paint at the protected stage boundary', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   try {
@@ -522,7 +522,7 @@ test('camera pan clips authored relationship paint at the protected stage bounda
 });
 
 test('live camera transitions keep authored relationship paint outside the Dock on every frame', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   const artifact = render('architecture', CASES.architecture);
@@ -600,7 +600,7 @@ test('live camera transitions keep authored relationship paint outside the Dock 
 });
 
 test('zoom keeps the desktop rail stable and reports protected stage geometry', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   try {
@@ -631,7 +631,7 @@ test('zoom keeps the desktop rail stable and reports protected stage geometry', 
 });
 
 test('Reset followed immediately by zoom and pan retains a collision-free desktop rail', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   try {
@@ -663,7 +663,7 @@ test('Reset followed immediately by zoom and pan retains a collision-free deskto
 });
 
 test('zoomed camera restores its bounded desktop rail after crossing the mobile breakpoint', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   try {
@@ -710,7 +710,7 @@ test('zoomed camera restores its bounded desktop rail after crossing the mobile 
 });
 
 test('localized multiline Legends remain clear across required viewports, themes, and presets', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   // Cover every supported viewport and every theme/preset pair without the
@@ -784,7 +784,7 @@ test('localized multiline Legends remain clear across required viewports, themes
 });
 
 test('Semantic Lens and Radar protect the final Legend and Dock rectangles', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   try {
@@ -809,7 +809,7 @@ test('Semantic Lens and Radar protect the final Legend and Dock rectangles', {
 });
 
 test('Radar, Passport, Legend, and Dock remain mutually clear on desktop and narrow viewports', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   try {
@@ -822,8 +822,8 @@ test('Radar, Passport, Legend, and Dock remain mutually clear on desktop and nar
       await evaluate(browser, sessionId, `(function () {
         var container = document.querySelector('.diagram-container');
         window.scrollTo(0, Math.max(0, container.offsetTop));
-        Archify.focus.set('lb', { toggle: false });
-        Archify.radar.open();
+        Schematics.focus.set('lb', { toggle: false });
+        Schematics.radar.open();
         window.dispatchEvent(new Event('resize'));
       })()`);
       await waitForLayout(browser, sessionId);
@@ -843,7 +843,7 @@ test('Radar, Passport, Legend, and Dock remain mutually clear on desktop and nar
 });
 
 test('mobile, embed, and print keep zero reserve while hidden Legends retain the stage rail', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   try {
@@ -877,11 +877,11 @@ test('mobile, embed, and print keep zero reserve while hidden Legends retain the
 
 
 test('Chrome Layout preserves scheduling, mode restoration and Reader handoffs', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async (t) => {
   const browser = new ChromeVisualBrowser(chromePath);
   t.after(() => browser.close());
-  const evidence = process.env.ARCHIFY_CHROME_LAYOUT_EVIDENCE;
+  const evidence = process.env.SCHEMATICS_CHROME_LAYOUT_EVIDENCE;
   if (evidence) fs.mkdirSync(evidence, { recursive: true });
   const observations = [];
   const file = render('architecture', CASES.architecture);
@@ -905,7 +905,7 @@ test('Chrome Layout preserves scheduling, mode restoration and Reader handoffs',
       const container = document.querySelector('.diagram-container');
       const svg = container.querySelector(':scope > svg');
       return {
-        reserve: parseFloat(container.style.getPropertyValue('--archify-nav-reserve')) || 0,
+        reserve: parseFloat(container.style.getPropertyValue('--schematics-nav-reserve')) || 0,
         rootRail: html.getAttribute('data-nav-stage-rail'), rail: container.getAttribute('data-nav-stage-rail'),
         reader: html.getAttribute('data-reader-layout'), width: innerWidth,
         viewBox: svg.getAttribute('viewBox'),
@@ -933,8 +933,8 @@ test('Chrome Layout preserves scheduling, mode restoration and Reader handoffs',
   }
   function variant(name, source) {
     const original = fs.readFileSync(file, 'utf8');
-    const html = original.replace('  <script>\n    var Archify = {};',
-      () => `  <script>${source}</script>\n  <script>\n    var Archify = {};`);
+    const html = original.replace('  <script>\n    var Schematics = {};',
+      () => `  <script>${source}</script>\n  <script>\n    var Schematics = {};`);
     assert.notEqual(html, original);
     const output = path.join(tmp, `chrome-${name}.html`);
     fs.writeFileSync(output, html);
@@ -992,7 +992,7 @@ test('Chrome Layout preserves scheduling, mode restoration and Reader handoffs',
         await send('Emulation.setEmulatedMedia', { media: '' });
         await load(browser, file);
         const initial = await state(`${mode}-ordinary`);
-        await run('Archify.view.zoomIn()');
+        await run('Schematics.view.zoomIn()');
         await waitForLayout(browser, session);
         for (let cycle = 0; cycle < 2; cycle += 1) {
           if (mode === 'embed') await run(`document.documentElement.setAttribute('data-embed', 'true')`);
@@ -1025,7 +1025,7 @@ test('Chrome Layout preserves scheduling, mode restoration and Reader handoffs',
           const shot = await send('Page.captureScreenshot', { format: 'png' });
           fs.writeFileSync(path.join(evidence, `presentation-${theme}.png`), Buffer.from(shot.data, 'base64'));
         }
-        await run('Archify.presentation.exit()');
+        await run('Schematics.presentation.exit()');
         await waitForLayout(browser, session);
         clearStage(await state(`presentation-return-${theme}`));
       }
@@ -1038,16 +1038,16 @@ test('Chrome Layout preserves scheduling, mode restoration and Reader handoffs',
         const initial = await state(`probe-initial-${reject}`);
         assert.ok(initial.reserve > 0);
         const pending = await run(`(() => {
-          const reader = Archify.readerLayout;
+          const reader = Schematics.readerLayout;
           const original = reader.whenStable;
           let release;
           const gate = new Promise((resolve, reject) => { release = ${reject} ? () => reject(new Error('test reader rejection')) : resolve; });
           reader.whenStable = () => gate;
-          const first = Archify.viewerChromeLayout.reprobe();
-          const second = Archify.viewerChromeLayout.reprobe();
-          const measuring = Archify.viewerChromeLayout.measure();
-          const reserve = document.querySelector('.diagram-container').style.getPropertyValue('--archify-nav-reserve');
-          Archify.view.zoomIn();
+          const first = Schematics.viewerChromeLayout.reprobe();
+          const second = Schematics.viewerChromeLayout.reprobe();
+          const measuring = Schematics.viewerChromeLayout.measure();
+          const reserve = document.querySelector('.diagram-container').style.getPropertyValue('--schematics-nav-reserve');
+          Schematics.view.zoomIn();
           window.dispatchEvent(new Event('resize'));
           window.finishChromeProbe = async () => {
             reader.whenStable = original;
@@ -1064,7 +1064,7 @@ test('Chrome Layout preserves scheduling, mode restoration and Reader handoffs',
         const restored = await state(`probe-restored-${reject}`);
         assert.equal(restored.reserve, initial.reserve);
         clearStage(restored);
-        await run(`for (let i = 0; i < 20; i++) { Archify.viewerChromeLayout.schedule(); Archify.viewerChromeLayout.reprobe(); window.dispatchEvent(new Event('resize')); }`);
+        await run(`for (let i = 0; i < 20; i++) { Schematics.viewerChromeLayout.schedule(); Schematics.viewerChromeLayout.reprobe(); window.dispatchEvent(new Event('resize')); }`);
         await waitForLayout(browser, session);
         const repeated = await state(`probe-burst-${reject}`);
         assert.equal(repeated.reserve, initial.reserve);
@@ -1089,7 +1089,7 @@ test('Chrome Layout preserves scheduling, mode restoration and Reader handoffs',
       await loaded;
       const result = await run(`(async () => {
         let resolved = false;
-        const stable = Archify.viewerChromeLayout.whenStable().then(() => { resolved = true; });
+        const stable = Schematics.viewerChromeLayout.whenStable().then(() => { resolved = true; });
         document.querySelector('.diagram-nav').style.height = '100px';
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         const beforeReady = resolved;
@@ -1108,7 +1108,7 @@ test('Chrome Layout preserves scheduling, mode restoration and Reader handoffs',
 });
 
 test('theme switches repaint the page and diagram without dropping the desktop rail', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const file = render('architecture', CASES.architecture);
   const browser = new ChromeVisualBrowser(chromePath);
@@ -1154,7 +1154,7 @@ test('theme switches repaint the page and diagram without dropping the desktop r
 });
 
 test('phone and dock Legend copies keep ERD and class entries named and unpainted', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = new ChromeVisualBrowser(chromePath);
   try {

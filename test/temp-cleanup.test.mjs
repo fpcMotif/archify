@@ -3,13 +3,13 @@ import os from 'node:os';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { createOwnedTempDirectory } from '../archify/renderers/shared/owned-temp-directory.mjs';
+import { createOwnedTempDirectory } from '../schematics/renderers/shared/owned-temp-directory.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { ChromeVisualBrowser } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser } from '../schematics/bin/visual-check.mjs';
 
 function browserWithChild(kill) {
   const child = new EventEmitter();
@@ -66,7 +66,7 @@ test('Chrome close waits for exit after SIGKILL before removing its profile', as
 });
 
 function fixture(t) {
-  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-owned-test-'));
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-owned-test-'));
   t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
   return parent;
 }
@@ -101,7 +101,7 @@ test('relative temp parent stays bound across a cwd change', t => {
   const base = fixture(t);
   fs.mkdirSync(path.join(base, 'temp'));
   fs.mkdirSync(path.join(base, 'other'));
-  const moduleUrl = new URL('../archify/renderers/shared/owned-temp-directory.mjs', import.meta.url).href;
+  const moduleUrl = new URL('../schematics/renderers/shared/owned-temp-directory.mjs', import.meta.url).href;
   const result = spawnSync(process.execPath, ['--input-type=module', '-e', `
     import { createOwnedTempDirectory } from ${JSON.stringify(moduleUrl)};
     import fs from 'node:fs';
@@ -140,7 +140,7 @@ test('permanent cleanup failure reports the retained path after bounded attempts
     }
     return realRemove(target, options);
   });
-  await assert.rejects(owned.cleanup(), error => error.code === 'ARCHIFY_TEMP_CLEANUP'
+  await assert.rejects(owned.cleanup(), error => error.code === 'SCHEMATICS_TEMP_CLEANUP'
     && error.directory === owned.path && error.cause.code === 'EBUSY');
   mock.mock.restore();
   assert.equal(attempts, 4);
@@ -186,14 +186,14 @@ test('validate emits one failed JSON receipt when temporary cleanup is blocked',
     import path from 'node:path';
     const remove = fs.rmSync;
     fs.rmSync = (target, options) => {
-      if (path.basename(String(target)).startsWith('archify-validate-')) {
+      if (path.basename(String(target)).startsWith('schematics-validate-')) {
         throw Object.assign(new Error('injected temporary lock'), { code: 'EPERM' });
       }
       return remove(target, options);
     };
   `);
-  const cli = new URL('../archify/bin/archify.mjs', import.meta.url);
-  const input = new URL('../archify/examples/agent-tool-call.workflow.json', import.meta.url);
+  const cli = new URL('../schematics/bin/schematics.mjs', import.meta.url);
+  const input = new URL('../schematics/examples/agent-tool-call.workflow.json', import.meta.url);
   const result = spawnSync(process.execPath, ['--import', pathToFileURL(preload).href,
     fileURLToPath(cli), 'validate', 'workflow', fileURLToPath(input), '--json'], {
     encoding: 'utf8',
@@ -217,12 +217,12 @@ test('Windows file share lock is reported, then cleanup succeeds after release',
   fs.writeFileSync(lockedFile, 'keep');
   const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `
     $ErrorActionPreference = 'Stop'
-    $stream = [System.IO.File]::Open($env:ARCHIFY_TEST_LOCK, 'Open', 'Read', 'None')
+    $stream = [System.IO.File]::Open($env:SCHEMATICS_TEST_LOCK, 'Open', 'Read', 'None')
     try {
-      [System.IO.File]::WriteAllText($env:ARCHIFY_TEST_READY, 'ready')
+      [System.IO.File]::WriteAllText($env:SCHEMATICS_TEST_READY, 'ready')
       $null = [Console]::ReadLine()
     } finally { $stream.Dispose() }
-  `], { env: { ...process.env, ARCHIFY_TEST_LOCK: lockedFile, ARCHIFY_TEST_READY: ready }, stdio: ['pipe', 'pipe', 'pipe'] });
+  `], { env: { ...process.env, SCHEMATICS_TEST_LOCK: lockedFile, SCHEMATICS_TEST_READY: ready }, stdio: ['pipe', 'pipe', 'pipe'] });
   child.stdin.on('error', () => {});
   let stderr = '';
   child.stderr.on('data', chunk => { stderr += chunk; });
@@ -235,7 +235,7 @@ test('Windows file share lock is reported, then cleanup succeeds after release',
       await delay(20);
     }
     assert.ok(fs.existsSync(ready), `lock process did not become ready: ${stderr}`);
-    await assert.rejects(owned.cleanup(), { code: 'ARCHIFY_TEMP_CLEANUP' });
+    await assert.rejects(owned.cleanup(), { code: 'SCHEMATICS_TEMP_CLEANUP' });
     assert.ok(fs.existsSync(lockedFile));
   } finally {
     child.stdin.end('\n');

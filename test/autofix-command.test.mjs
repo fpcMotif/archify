@@ -4,25 +4,25 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { createOwnedTempDirectory } from '../archify/renderers/shared/owned-temp-directory.mjs';
+import { createOwnedTempDirectory } from '../schematics/renderers/shared/owned-temp-directory.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const archifyBin = path.resolve(__dirname, '../archify/bin/archify.mjs');
+const schematicsBin = path.resolve(__dirname, '../schematics/bin/schematics.mjs');
 
-test('archify chart compiles Mermaid pie chart to static SVG via Pele', () => {
+test('schematics chart compiles Mermaid pie chart to static SVG via Pele', () => {
   const chartInput = `pie title "Market Share"
   "Alpha" : 60
   "Beta" : 40`;
 
-  const res = spawnSync(process.execPath, [archifyBin, 'chart', chartInput], { encoding: 'utf-8' });
+  const res = spawnSync(process.execPath, [schematicsBin, 'chart', chartInput], { encoding: 'utf-8' });
   assert.equal(res.status, 0, res.stderr || res.stdout);
   assert(res.stdout.includes('<svg'), 'Output should contain an SVG root element');
   assert(res.stdout.includes('class="pele pele-pie"'), 'Output should be styled with Pele vector class');
   assert(res.stdout.includes('Alpha'), 'Output should include slice label Alpha');
 });
 
-test('archify autofix converges collided sequence diagrams in a single execution', () => {
-  const tempDir = createOwnedTempDirectory('archify-test-autofix-');
+test('schematics autofix converges collided sequence diagrams in a single execution', () => {
+  const tempDir = createOwnedTempDirectory('schematics-test-autofix-');
   try {
     const candidatePath = path.join(tempDir.path, 'candidate.json');
     const outputPath = path.join(tempDir.path, 'output.html');
@@ -49,7 +49,7 @@ test('archify autofix converges collided sequence diagrams in a single execution
 
     const res = spawnSync(
       process.execPath,
-      [archifyBin, 'autofix', 'sequence', 'candidate.json', 'output.html', '--json'],
+      [schematicsBin, 'autofix', 'sequence', 'candidate.json', 'output.html', '--json'],
       { cwd: tempDir.path, encoding: 'utf-8' }
     );
     assert.equal(res.status, 0, res.stderr || res.stdout);
@@ -65,8 +65,8 @@ test('archify autofix converges collided sequence diagrams in a single execution
   }
 });
 
-test('archify autofix leaves a choice for the agent and keeps the candidate unchanged', () => {
-  const tempDir = createOwnedTempDirectory('archify-test-autofix-choice-');
+test('schematics autofix leaves a choice for the agent and keeps the candidate unchanged', () => {
+  const tempDir = createOwnedTempDirectory('schematics-test-autofix-choice-');
   try {
     const candidatePath = path.join(tempDir.path, 'candidate.json');
     const candidate = {
@@ -84,7 +84,7 @@ test('archify autofix leaves a choice for the agent and keeps the candidate unch
 
     const res = spawnSync(
       process.execPath,
-      [archifyBin, 'autofix', 'sequence', 'candidate.json', 'output.html', '--json'],
+      [schematicsBin, 'autofix', 'sequence', 'candidate.json', 'output.html', '--json'],
       { cwd: tempDir.path, encoding: 'utf-8' },
     );
     assert.equal(res.status, 1, res.stderr || res.stdout);

@@ -7,8 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const renderer = path.resolve(__dirname, '..', 'archify', 'renderers', 'sequence', 'render-sequence.mjs');
-const cli = path.resolve(__dirname, '..', 'archify', 'bin', 'archify.mjs');
+const renderer = path.resolve(__dirname, '..', 'schematics', 'renderers', 'sequence', 'render-sequence.mjs');
+const cli = path.resolve(__dirname, '..', 'schematics', 'bin', 'schematics.mjs');
 // An unedited first draft with two abutting segments (140-300, 300-520). On
 // dev the first label climbed behind the participant headers and the second
 // climbed into the first segment, where it named the wrong phase.
@@ -26,7 +26,7 @@ function spacedScanToPay() {
 }
 
 function render(diagram, publicCli = false) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-sequence-segments-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-sequence-segments-'));
   const input = path.join(directory, 'candidate.json');
   const output = path.join(directory, 'candidate.html');
   fs.writeFileSync(input, JSON.stringify(diagram));

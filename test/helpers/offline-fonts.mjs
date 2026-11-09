@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import { parse } from 'parse5';
 
 const FONT_LICENSES = ['JetBrainsMono-OFL.txt', 'Geist-OFL.txt']
-  .map((file) => fs.readFileSync(new URL(`../../archify/assets/${file}`, import.meta.url), 'utf8').trim());
+  .map((file) => fs.readFileSync(new URL(`../../schematics/assets/${file}`, import.meta.url), 'utf8').trim());
 const LATIN = 'U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD';
 
 // Pinned Google Fonts v24 bytes and coverage, independent of CSS formatting.
@@ -74,7 +74,7 @@ export function assertOfflineArtifact(html, subject) {
   let viewers = 0;
   for (const document of documents) {
     assert.deepEqual(document.resources, [], `${document.subject}: external subresource`);
-    const viewer = document.scripts.some((script) => /Archify\.readerLayout/.test(script));
+    const viewer = document.scripts.some((script) => /Schematics\.readerLayout/.test(script));
     if (viewer) {
       assertFontCss(document.styles.join('\n'), document.subject);
       viewers += 1;

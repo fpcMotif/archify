@@ -6,8 +6,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const cli = path.join(skillRoot, 'bin', 'archify.mjs');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
 const input = path.join(skillRoot, 'examples', 'agent-tool-call.workflow.json');
 
 function run(args, cwd) {
@@ -18,10 +18,10 @@ function windowsShortPath(targetPath) {
   if (process.platform !== 'win32') return null;
   const result = spawnSync(
     process.env.ComSpec || 'cmd.exe',
-    ['/d', '/s', '/c', '"for %I in ("%ARCHIFY_SHORT_PATH_TARGET%") do @echo %~sI"'],
+    ['/d', '/s', '/c', '"for %I in ("%SCHEMATICS_SHORT_PATH_TARGET%") do @echo %~sI"'],
     {
       encoding: 'utf8',
-      env: { ...process.env, ARCHIFY_SHORT_PATH_TARGET: targetPath },
+      env: { ...process.env, SCHEMATICS_SHORT_PATH_TARGET: targetPath },
       windowsHide: true,
       windowsVerbatimArguments: true,
     },
@@ -64,11 +64,11 @@ function assignWindowsShortName(targetPath, shortName) {
 }
 
 function controlledWindowsShortRoot(required) {
-  const root = process.env.ARCHIFY_WINDOWS_8DOT3_ROOT;
-  const shortRoot = process.env.ARCHIFY_WINDOWS_8DOT3_SHORT_ROOT;
+  const root = process.env.SCHEMATICS_WINDOWS_8DOT3_ROOT;
+  const shortRoot = process.env.SCHEMATICS_WINDOWS_8DOT3_SHORT_ROOT;
   if (!root && !shortRoot) {
     if (required) {
-      assert.fail('ARCHIFY_REQUIRE_WINDOWS_8DOT3=1 requires the controlled long and short roots');
+      assert.fail('SCHEMATICS_REQUIRE_WINDOWS_8DOT3=1 requires the controlled long and short roots');
     }
     return null;
   }
@@ -87,7 +87,7 @@ function controlledWindowsShortRoot(required) {
 }
 
 test('delivery keeps every derived sidecar component within portable limits', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-long-sidecars-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-long-sidecars-'));
   const output = path.join(cwd, `${'x'.repeat(245)}.html`);
   const delivered = run(['deliver', 'workflow', input, output, '--json'], cwd);
 
@@ -95,7 +95,7 @@ test('delivery keeps every derived sidecar component within portable limits', ()
   const names = fs.readdirSync(cwd);
   const provenance = names.find((name) => name.endsWith('.delivery.json'));
   assert.ok(provenance, 'delivery provenance must be present');
-  assert.match(provenance, /\.~archify-[0-9a-f]{64}\.delivery\.json$/);
+  assert.match(provenance, /\.~schematics-[0-9a-f]{64}\.delivery\.json$/);
   assert.equal(names.every((name) => (
     name.length <= 255 && Buffer.byteLength(name, 'utf8') <= 255
   )), true);
@@ -108,7 +108,7 @@ test('delivery keeps every derived sidecar component within portable limits', ()
 });
 
 test('strict provenance recognizes legacy sidecars for mixed-case HTML extensions', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-legacy-extension-sidecar-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-legacy-extension-sidecar-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const caseProbe = path.join(cwd, 'case-probe');
   fs.writeFileSync(caseProbe, 'probe');
@@ -140,7 +140,7 @@ test('strict provenance recognizes legacy sidecars for mixed-case HTML extension
 });
 
 test('delivery rejects an illegal output extension before preparing its missing parent', () => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-illegal-output-parent-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-illegal-output-parent-'));
   const parent = path.join(cwd, 'must-remain-absent');
   const output = path.join(parent, 'diagram.txt');
   const delivered = run(['deliver', 'workflow', input, output, '--json'], cwd);
@@ -153,7 +153,7 @@ test('delivery rejects an illegal output extension before preparing its missing 
 });
 
 test('delivery rejects an indeterminate sidecar namespace before creating output state', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-sidecar-unknown-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-sidecar-unknown-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const output = path.join(cwd, `${'A'.repeat(225)}.html`);
   const wrapper = path.join(cwd, 'deny-sidecar-probe.mjs');
@@ -163,7 +163,7 @@ import path from 'node:path';
 import { syncBuiltinESMExports } from 'node:module';
 const openSync = fs.openSync;
 fs.openSync = (file, ...args) => {
-  if (path.basename(String(file)).startsWith('.archify-path-semantics-')) {
+  if (path.basename(String(file)).startsWith('.schematics-path-semantics-')) {
     const error = new Error('synthetic sidecar probe denial');
     error.code = 'EACCES';
     throw error;
@@ -182,7 +182,7 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
   assert.equal(receipt.diagnostics[0].code, 'output/path-resolution');
   assert.equal(
     receipt.diagnostics[0].evidence.systemCode,
-    'ARCHIFY_SIDECAR_NAMESPACE_INDETERMINATE',
+    'SCHEMATICS_SIDECAR_NAMESPACE_INDETERMINATE',
   );
   assert.match(receipt.error, /sidecar-case-semantics-indeterminate/u);
   assert.equal(fs.existsSync(output), false);
@@ -193,7 +193,7 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
 });
 
 test('strict provenance finds a long-stem sidecar through a case-only artifact alias', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-long-sidecar-alias-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-long-sidecar-alias-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const upperOutput = path.join(cwd, `${'A'.repeat(234)}.html`);
   const lowerOutput = path.join(cwd, `${'a'.repeat(234)}.html`);
@@ -219,7 +219,7 @@ test('strict provenance finds a long-stem sidecar through a case-only artifact a
 });
 
 test('delivery sidecars preserve distinct HTML extension spellings only when the filesystem does', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-sidecar-extension-case-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-sidecar-extension-case-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const lower = path.join(cwd, 'diagram.html');
   const upper = path.join(cwd, 'diagram.HTML');
@@ -237,7 +237,7 @@ test('delivery sidecars preserve distinct HTML extension spellings only when the
     assert.ok(receipts.includes('diagram.delivery.json'));
     assert.match(
       receipts.find((name) => name !== 'diagram.delivery.json'),
-      /^diagram\.HTML\.~archify-[0-9a-f]{64}\.delivery\.json$/u,
+      /^diagram\.HTML\.~schematics-[0-9a-f]{64}\.delivery\.json$/u,
     );
   }
   for (const artifactPath of [lower, upper]) {
@@ -247,7 +247,7 @@ test('delivery sidecars preserve distinct HTML extension spellings only when the
 });
 
 test('different long artifact names retain distinct delivery provenance', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-long-sidecar-distinct-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-long-sidecar-distinct-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const shared = 'x'.repeat(233);
   const outputs = ['a', 'b'].map((suffix) => path.join(cwd, `${shared}${suffix}.html`));
@@ -265,7 +265,7 @@ test('different long artifact names retain distinct delivery provenance', (t) =>
 });
 
 test('a crafted bounded stem cannot replace another artifact delivery provenance', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-sidecar-namespace-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-sidecar-namespace-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const longOutput = path.join(cwd, `${'x'.repeat(245)}.html`);
   const first = run(['deliver', 'workflow', input, longOutput, '--json'], cwd);
@@ -289,9 +289,9 @@ test('a crafted bounded stem cannot replace another artifact delivery provenance
 });
 
 test('a pre-namespace raw sidecar remains readable and its pending journal blocks redelivery', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-sidecar-migration-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-sidecar-migration-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
-  const reservedStem = `legacy.~archify-${'a'.repeat(64)}`;
+  const reservedStem = `legacy.~schematics-${'a'.repeat(64)}`;
   const output = path.join(cwd, `${reservedStem}.html`);
   const delivered = run(['deliver', 'workflow', input, output, '--json'], cwd);
   assert.equal(delivered.status, 0, delivered.stderr || delivered.stdout);
@@ -323,9 +323,9 @@ test('a pre-namespace raw sidecar remains readable and its pending journal block
 });
 
 test('a raw legacy pending journal remains the barrier when an encoded journal also exists', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-sidecar-migration-coexistence-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-sidecar-migration-coexistence-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
-  const reservedStem = `legacy.~archify-${'a'.repeat(64)}`;
+  const reservedStem = `legacy.~schematics-${'a'.repeat(64)}`;
   const output = path.join(cwd, `${reservedStem}.html`);
   const delivered = run(['deliver', 'workflow', input, output, '--json'], cwd);
   assert.equal(delivered.status, 0, delivered.stderr || delivered.stdout);
@@ -360,7 +360,7 @@ test('a raw legacy pending journal remains the barrier when an encoded journal a
 });
 
 test('strict provenance follows an artifact symlink into another directory', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-sidecar-file-symlink-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-sidecar-file-symlink-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const realDirectory = path.join(cwd, 'real');
   const aliasDirectory = path.join(cwd, 'alias');
@@ -387,7 +387,7 @@ test('strict provenance follows an artifact symlink into another directory', (t)
 });
 
 test('delivery follows a dangling artifact symlink without replacing the link', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-sidecar-dangling-symlink-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-sidecar-dangling-symlink-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const targetDirectory = path.join(cwd, 'target');
   const aliasDirectory = path.join(cwd, 'alias');
@@ -418,7 +418,7 @@ test('delivery follows a dangling artifact symlink without replacing the link', 
 });
 
 test('delivery and strict checks reject a hard-linked artifact without changing its pair', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-sidecar-hardlink-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-sidecar-hardlink-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const output = path.join(cwd, 'diagram.html');
   const alias = path.join(cwd, 'diagram-hardlink.html');
@@ -462,7 +462,7 @@ test('delivery and strict checks reject a hard-linked artifact without changing 
 });
 
 test('delivery and strict check reject hard-linked provenance without changing the pair', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-provenance-hardlink-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-provenance-hardlink-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const output = path.join(cwd, 'diagram.html');
   const provenance = path.join(cwd, 'diagram.delivery.json');
@@ -503,7 +503,7 @@ test('delivery and strict check reject hard-linked provenance without changing t
 });
 
 test('delivery refuses existing and dangling provenance symlinks without touching their targets', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-provenance-symlink-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-provenance-symlink-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
 
   for (const kind of ['existing', 'dangling']) {
@@ -542,7 +542,7 @@ test('delivery refuses existing and dangling provenance symlinks without touchin
 });
 
 test('a missing-input failure cannot replace hard-linked delivery provenance', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-failure-provenance-hardlink-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-failure-provenance-hardlink-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const output = path.join(cwd, 'diagram.html');
   const provenance = path.join(cwd, 'diagram.delivery.json');
@@ -582,7 +582,7 @@ test('a missing-input failure cannot replace hard-linked delivery provenance', (
 });
 
 test('failed-delivery provenance preserves a replacement that appears after its snapshot', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-failure-provenance-race-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-failure-provenance-race-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const output = path.join(cwd, 'diagram.html');
   const provenance = path.join(cwd, 'diagram.delivery.json');
@@ -611,7 +611,7 @@ fs.writeFileSync = (file, value, options) => {
   const result = writeFileSync(file, value, options);
   if (!replaced
       && path.basename(String(file)) === ${JSON.stringify(path.basename(provenance))}
-      && path.basename(path.dirname(String(file))).startsWith('.archify-provenance-')) {
+      && path.basename(path.dirname(String(file))).startsWith('.schematics-provenance-')) {
     replaced = true;
     fs.renameSync(${JSON.stringify(provenance)}, ${JSON.stringify(displaced)});
     writeFileSync(${JSON.stringify(provenance)}, ${JSON.stringify(claimant)}, { flag: 'wx' });
@@ -634,7 +634,7 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
 });
 
 test('failed-delivery provenance cannot overwrite a claimant in the final publish window', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-failure-provenance-claimant-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-failure-provenance-claimant-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const output = path.join(cwd, 'diagram.html');
   const provenance = path.join(cwd, 'diagram.delivery.json');
@@ -660,7 +660,7 @@ let claimed = false;
 fs.linkSync = (source, target) => {
   if (!claimed
       && path.basename(String(target)) === ${JSON.stringify(provenanceName)}
-      && path.basename(path.dirname(String(source))).startsWith('.archify-provenance-')) {
+      && path.basename(path.dirname(String(source))).startsWith('.schematics-provenance-')) {
     claimed = true;
     writeFileSync(target, ${JSON.stringify(claimant)}, { flag: 'wx' });
   }
@@ -686,7 +686,7 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
 
 for (const candidateRole of ['artifact', 'provenance']) {
   test(`delivery rejects a hard-linked staged ${candidateRole} candidate`, (t) => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `archify-${candidateRole}-candidate-hardlink-`));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `schematics-${candidateRole}-candidate-hardlink-`));
     t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
     const output = path.join(cwd, 'diagram.html');
     const provenance = path.join(cwd, 'diagram.delivery.json');
@@ -705,7 +705,7 @@ let linked = false;
 fs.lstatSync = (file, options) => {
   if (!linked
       && path.basename(String(file)) === ${JSON.stringify(candidateName)}
-      && path.basename(path.dirname(String(file))).startsWith('.archify-delivery-')) {
+      && path.basename(path.dirname(String(file))).startsWith('.schematics-delivery-')) {
     linked = true;
     linkSync(file, ${JSON.stringify(externalAlias)});
   }
@@ -737,7 +737,7 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
 
 for (const candidateRole of ['artifact', 'provenance']) {
   test(`delivery preserves a published ${candidateRole} claimant and its old backup after an external hard link`, (t) => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `archify-${candidateRole}-publish-hardlink-`));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `schematics-${candidateRole}-publish-hardlink-`));
     t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
     const output = path.join(cwd, 'diagram.html');
     const provenance = path.join(cwd, 'diagram.delivery.json');
@@ -756,7 +756,7 @@ fs.linkSync = (source, target) => {
   const result = linkSync(source, target);
   if (!linked
       && path.basename(String(source)) === ${JSON.stringify(candidateName)}
-      && path.basename(path.dirname(String(source))).startsWith('.archify-delivery-')) {
+      && path.basename(path.dirname(String(source))).startsWith('.schematics-delivery-')) {
     linked = true;
     linkSync(source, ${JSON.stringify(externalAlias)});
   }
@@ -796,13 +796,13 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
     assert.ok(backup, 'the displaced previous file must remain recoverable');
     assert.deepEqual(fs.readFileSync(backup.path), affectedBefore);
     assert.equal(fs.existsSync(path.join(cwd, 'diagram.delivery-pending.json')), true);
-    assert.equal(fs.existsSync(path.join(cwd, '.archify-delivery-lock.json')), true);
+    assert.equal(fs.existsSync(path.join(cwd, '.schematics-delivery-lock.json')), true);
   });
 }
 
 for (const targetRole of ['artifact', 'provenance']) {
   test(`delivery preserves the ${targetRole} claimant that replaces the just-published candidate`, (t) => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `archify-${targetRole}-post-link-claimant-`));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `schematics-${targetRole}-post-link-claimant-`));
     t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
     const output = path.join(cwd, 'diagram.html');
     const provenance = path.join(cwd, 'diagram.delivery.json');
@@ -831,7 +831,7 @@ fs.linkSync = (source, finalPath) => {
   const result = linkSync(source, finalPath);
   if (!replaced
       && path.basename(String(source)) === ${JSON.stringify(candidateName)}
-      && path.basename(path.dirname(String(source))).startsWith('.archify-delivery-')) {
+      && path.basename(path.dirname(String(source))).startsWith('.schematics-delivery-')) {
     armedTarget = String(finalPath);
   }
   return result;
@@ -875,13 +875,13 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
       before.get(targetRole === 'artifact' ? output : provenance),
     );
     assert.equal(fs.existsSync(path.join(cwd, 'diagram.delivery-pending.json')), true);
-    assert.equal(fs.existsSync(path.join(cwd, '.archify-delivery-lock.json')), true);
+    assert.equal(fs.existsSync(path.join(cwd, '.schematics-delivery-lock.json')), true);
   });
 }
 
 for (const candidateRole of ['artifact', 'provenance']) {
   test(`delivery preserves a claimant that replaces the staged ${candidateRole} at retirement`, (t) => {
-    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `archify-${candidateRole}-retirement-claimant-`));
+    const cwd = fs.mkdtempSync(path.join(os.tmpdir(), `schematics-${candidateRole}-retirement-claimant-`));
     t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
     const output = path.join(cwd, 'diagram.html');
     assert.equal(run(['deliver', 'workflow', input, output, '--json'], cwd).status, 0);
@@ -899,7 +899,7 @@ const writeFileSync = fs.writeFileSync;
 let replaced = false;
 const isCandidate = (file) => (
   path.basename(String(file)) === ${JSON.stringify(candidateName)}
-  && path.basename(path.dirname(String(file))).startsWith('.archify-delivery-')
+  && path.basename(path.dirname(String(file))).startsWith('.schematics-delivery-')
 );
 const replaceCandidate = (file) => {
   replaced = true;
@@ -918,7 +918,7 @@ fs.unlinkSync = (file, ...args) => {
 fs.renameSync = (source, target, ...args) => {
   if (!replaced
       && isCandidate(source)
-      && path.basename(path.dirname(String(target))).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(String(target))).startsWith('.schematics-remove-')) {
     replaceCandidate(source);
   }
   return renameSync(source, target, ...args);
@@ -930,7 +930,7 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
     const failed = spawnSync(process.execPath, [wrapper], { cwd, encoding: 'utf8' });
     assert.equal(failed.status, 1, failed.stderr || failed.stdout);
     const staging = fs.readdirSync(cwd).filter((name) => (
-      name.startsWith('.archify-delivery-')
+      name.startsWith('.schematics-delivery-')
       && fs.lstatSync(path.join(cwd, name)).isDirectory()
     ));
     assert.equal(staging.length, 1, failed.stderr || failed.stdout);
@@ -950,7 +950,7 @@ for (const initiallyExisting of [false, true]) {
     test(`delivery preserves an ${initiallyExisting ? 'existing replacement' : 'absent-slot claimant'} for the ${targetRole}`, (t) => {
       const cwd = fs.mkdtempSync(path.join(
         os.tmpdir(),
-        `archify-${initiallyExisting ? 'replacement' : 'claimant'}-${targetRole}-`,
+        `schematics-${initiallyExisting ? 'replacement' : 'claimant'}-${targetRole}-`,
       ));
       t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
       const output = path.join(cwd, 'diagram.html');
@@ -983,7 +983,7 @@ fs.writeFileSync = (file, ...args) => {
   const result = writeFileSync(file, ...args);
   if (!injected
       && path.basename(String(file)) === 'delivery-provenance.json'
-      && path.basename(path.dirname(String(file))).startsWith('.archify-delivery-')) {
+      && path.basename(path.dirname(String(file))).startsWith('.schematics-delivery-')) {
     injected = true;
     if (fs.existsSync(${JSON.stringify(target)})) fs.renameSync(${JSON.stringify(target)}, ${JSON.stringify(displaced)});
     writeFileSync(${JSON.stringify(target)}, ${JSON.stringify(claimant)}, { flag: 'wx' });
@@ -1017,7 +1017,7 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
 }
 
 test('delivery rejects a nested directory alias retarget before taking its write-slot snapshot', (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-nested-alias-retarget-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-nested-alias-retarget-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const route = path.join(cwd, 'route');
   const outer = path.join(cwd, 'outer');
@@ -1068,22 +1068,22 @@ await import(${JSON.stringify(pathToFileURL(cli).href)});
   }
   assert.equal(
     [...fs.readdirSync(first), ...fs.readdirSync(second)]
-      .some((name) => name.includes('archify-delivery') || name.includes('delivery-lock')),
+      .some((name) => name.includes('schematics-delivery') || name.includes('delivery-lock')),
     false,
   );
 });
 
 test('Windows delivery accepts an existing 8.3 artifact alias and keeps strict provenance', (t) => {
-  const requiresWindows8dot3 = process.env.ARCHIFY_REQUIRE_WINDOWS_8DOT3 === '1';
+  const requiresWindows8dot3 = process.env.SCHEMATICS_REQUIRE_WINDOWS_8DOT3 === '1';
   if (process.platform !== 'win32') {
-    if (requiresWindows8dot3) assert.fail('ARCHIFY_REQUIRE_WINDOWS_8DOT3=1 requires Windows');
+    if (requiresWindows8dot3) assert.fail('SCHEMATICS_REQUIRE_WINDOWS_8DOT3=1 requires Windows');
     t.skip('Windows-only 8.3 delivery regression');
     return;
   }
   const controlledRoot = controlledWindowsShortRoot(requiresWindows8dot3);
   const cwd = controlledRoot
     ? fs.mkdtempSync(path.join(controlledRoot.root, 'delivery-'))
-    : fs.mkdtempSync(path.join(os.tmpdir(), 'archify-delivery-eight-dot-three-'));
+    : fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-delivery-eight-dot-three-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
   const directory = path.join(cwd, 'directory name requiring short alias');
   fs.mkdirSync(directory);
@@ -1132,7 +1132,7 @@ test('Windows delivery accepts an existing 8.3 artifact alias and keeps strict p
 });
 
 test('normalization aliases contend for one future long-stem delivery lock', async (t) => {
-  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-normalized-sidecar-alias-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-normalized-sidecar-alias-'));
   let active;
   t.after(() => {
     if (active && !fs.existsSync(release)) fs.writeFileSync(release, 'release');

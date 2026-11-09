@@ -6,13 +6,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { findChrome } from '../archify/bin/visual-check.mjs';
+import { findChrome } from '../schematics/bin/visual-check.mjs';
 import { desktopBrowser, desktopPointerCheck } from './helpers/desktop-browser.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-semantic-passport-move-'));
-const chromePath = process.env.ARCHIFY_CHROME ? findChrome() : null;
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-semantic-passport-move-'));
+const chromePath = process.env.SCHEMATICS_CHROME ? findChrome() : null;
 let artifactSequence = 0;
 
 function renderArtifact(locale = 'en', animation = null) {
@@ -112,9 +112,9 @@ async function passportState(browser, sessionId) {
 }
 
 async function focusNode(browser, sessionId, id) {
-  const focused = await evaluate(browser, sessionId, `Archify.focus.set(${JSON.stringify(id)}, { toggle: false })`);
+  const focused = await evaluate(browser, sessionId, `Schematics.focus.set(${JSON.stringify(id)}, { toggle: false })`);
   assert.equal(focused, true, `could not focus ${id}`);
-  await evaluate(browser, sessionId, `Archify.readerLayout.whenStable()`, true);
+  await evaluate(browser, sessionId, `Schematics.readerLayout.whenStable()`, true);
   await settle(browser, sessionId, 40);
   return passportState(browser, sessionId);
 }
@@ -195,7 +195,7 @@ function overlaps(first, second, gap = 0) {
 }
 
 test('Semantic Passport pointer movement honors threshold, capture, four-edge clamp, persistence, cancel, and resets', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = desktopBrowser(chromePath);
   try {
@@ -343,7 +343,7 @@ test('Semantic Passport pointer movement honors threshold, capture, four-edge cl
 });
 
 test('compact ERD Passport reclamps to the settled container when the reader cap stops binding', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const artifact = path.join(tmp, 'compact-erd-passport.html');
   execFileSync(process.execPath, [
@@ -363,9 +363,9 @@ test('compact ERD Passport reclamps to the settled container when the reader cap
       await browser.cdp.send('Emulation.setDeviceMetricsOverride', {
         width, height, deviceScaleFactor: 1, mobile: false,
       }, sessionId);
-      await evaluate(browser, sessionId, `Archify.layoutStability.whenStable()`, true);
+      await evaluate(browser, sessionId, `Schematics.layoutStability.whenStable()`, true);
       await settle(browser, sessionId, 300);
-      await evaluate(browser, sessionId, `Archify.layoutStability.whenStable()`, true);
+      await evaluate(browser, sessionId, `Schematics.layoutStability.whenStable()`, true);
       const state = await passportState(browser, sessionId);
       assert.equal(state.manual, 'true', JSON.stringify(state));
       assert.ok(state.container.height >= state.chip.height + 32, 'panel fits inside the normal container');
@@ -392,7 +392,7 @@ test('compact ERD Passport reclamps to the settled container when the reader cap
 });
 
 test('Semantic Passport keyboard movement uses coarse/fine steps, Home reset, and resize reclamping', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = desktopBrowser(chromePath);
   try {
@@ -463,7 +463,7 @@ test('Semantic Passport keyboard movement uses coarse/fine steps, Home reset, an
 });
 
 test('mobile scrolling and wide coarse pointers keep automatic placement and hide the move affordance', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = desktopBrowser(chromePath);
   try {
@@ -529,7 +529,7 @@ test('mobile scrolling and wide coarse pointers keep automatic placement and hid
 });
 
 test('move affordance exposes localized accessible names and a visible keyboard focus ring', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = desktopBrowser(chromePath);
   try {
@@ -577,7 +577,7 @@ test('move affordance exposes localized accessible names and a visible keyboard 
 });
 
 test('manual Passport placement composes with Radar, Legend, Dock, and clean SVG and PNG export', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const browser = desktopBrowser(chromePath);
   try {
@@ -611,9 +611,9 @@ test('manual Passport placement composes with Radar, Legend, Dock, and clean SVG
         };
       }
       try {
-        await Archify.exportMenu.run('svg');
+        await Schematics.exportMenu.run('svg');
         var svg = await summarize(objectUrlBlobs.splice(0));
-        await Archify.exportMenu.run('png');
+        await Schematics.exportMenu.run('png');
         var png = await summarize(objectUrlBlobs.splice(0));
         return {
           canonical: document.documentElement.getAttribute('data-last-export-canonical'),
@@ -642,14 +642,14 @@ test('manual Passport placement composes with Radar, Legend, Dock, and clean SVG
     assert.equal(exported.liveSvg.includes('btn-focus-move'), false);
 
     const combined = await evaluate(browser, sessionId, `(async function () {
-      Archify.radar.open();
+      Schematics.radar.open();
       await new Promise(function (resolve) { setTimeout(resolve, 120); });
       var radar = document.getElementById('overview-map');
       var radarRect = radar.getBoundingClientRect();
       var passport = document.getElementById('focus-chip');
       var passportRect = passport.getBoundingClientRect();
       var manualBeforeDock = passport.getAttribute('data-manual-placement');
-      var beforeScale = Archify.view.state().scale;
+      var beforeScale = Schematics.view.state().scale;
       document.querySelector('.diagram-nav [data-view="in"]').click();
       await new Promise(function (resolve) {
         requestAnimationFrame(function () { requestAnimationFrame(resolve); });
@@ -661,7 +661,7 @@ test('manual Passport placement composes with Radar, Legend, Dock, and clean SVG
         manualBeforeDock: manualBeforeDock,
         manualAfterDock: passport.getAttribute('data-manual-placement'),
         beforeScale: beforeScale,
-        afterScale: Archify.view.state().scale
+        afterScale: Schematics.view.state().scale
       };
     })()`, true);
     assert.equal(combined.radarHidden, false, JSON.stringify(combined, null, 2));

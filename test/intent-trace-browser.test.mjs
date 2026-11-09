@@ -5,18 +5,18 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { findChrome } from '../archify/bin/visual-check.mjs';
+import { findChrome } from '../schematics/bin/visual-check.mjs';
 import { desktopBrowser, desktopPointerCheck } from './helpers/desktop-browser.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chrome = process.env.ARCHIFY_CHROME ? findChrome() : null;
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
 
 test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
-  skip: chrome ? false : 'Set ARCHIFY_CHROME to run real-browser Intent Trace checks.',
+  skip: chrome ? false : 'Set SCHEMATICS_CHROME to run real-browser Intent Trace checks.',
 }, async (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-intent-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-intent-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
-  const evidence = process.env.ARCHIFY_INTENT_EVIDENCE;
+  const evidence = process.env.SCHEMATICS_INTENT_EVIDENCE;
   if (evidence) fs.mkdirSync(evidence, { recursive: true });
   const records = [];
   t.after(() => {
@@ -56,7 +56,7 @@ test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
     addEventListener('error',e=>intentErrors.push(e.message));
     addEventListener('unhandledrejection',e=>intentErrors.push(String(e.reason)));
     addEventListener('animationend',e=>{if(e.target.matches('.intent-trace-flow'))intentEnds.push({name:e.animationName,trusted:e.isTrusted});},true);
-    try {localStorage.removeItem('archify-motion');} catch (_) {}
+    try {localStorage.removeItem('schematics-motion');} catch (_) {}
     window.intentWait=predicate=>new Promise((resolve,reject)=>{
       const start=performance.now();
       function sample(){if(predicate())return resolve();if(performance.now()-start>12000)return reject(new Error('Intent observation timed out'));requestAnimationFrame(sample);}
@@ -88,7 +88,7 @@ test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
     await send('Page.navigate', { url: pathToFileURL(files[mode]).href + `?theme=${theme}` });
     await loaded;
     await checkPointer();
-    await run('document.fonts.ready'); await run('Archify.viewerChromeLayout.whenStable()');
+    await run('document.fonts.ready'); await run('Schematics.viewerChromeLayout.whenStable()');
   }
   async function point(selector) {
     return run(`(()=>{const r=document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2};})()`);
@@ -109,14 +109,14 @@ test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
   async function snapshot(scenario) {
     const state = await run(`(()=>{
       const svg=document.querySelector('.diagram-container > svg');
-      return {active:Archify.intentTrace.active(),attribute:svg.getAttribute('data-intent-trace-active'),
+      return {active:Schematics.intentTrace.active(),attribute:svg.getAttribute('data-intent-trace-active'),
         selected:[...svg.querySelectorAll('[data-intent-trace-selected]')].map(n=>n.getAttribute('data-node-id')),
         matched:[...svg.querySelectorAll('[data-node-id][data-intent-trace-match]')].map(n=>n.getAttribute('data-node-id')),
         edges:svg.querySelectorAll('[data-edge-from][data-intent-trace-match]').length,
         overlays:svg.querySelectorAll('[data-intent-trace-overlay]').length,
         directions:[...svg.querySelectorAll('.intent-trace-flow')].map(n=>n.getAttribute('data-direction')),
         status:document.getElementById('intent-trace-status').textContent,
-        focus:Archify.focus.active(),route:Archify.routeProbe.active(),owner:Archify.motionGovernor.owner(),
+        focus:Schematics.focus.active(),route:Schematics.routeProbe.active(),owner:Schematics.motionGovernor.owner(),
         errors:intentErrors,external:performance.getEntriesByType('resource').map(e=>e.name).filter(n=>/^https?:/.test(n))};
     })()`);
     assert.deepEqual(state.errors, [], scenario); assert.deepEqual(state.external, [], scenario);
@@ -128,11 +128,11 @@ test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
     for (const mode of Object.keys(cases)) {
       await load(mode); const initial = await snapshot(mode + '-initial');
       assert.equal(initial.active, null); assert.equal(initial.overlays, 0); assert.equal(initial.status, '');
-      assert.deepEqual(await run('Object.keys(Archify.intentTrace).sort()'), ['active', 'clear', 'show']);
+      assert.deepEqual(await run('Object.keys(Schematics.intentTrace).sort()'), ['active', 'clear', 'show']);
     }
     await load();
     const api = await run(`(()=>{
-      const p=Archify.intentTrace;const shown=p.show('api',{announce:true}),text=document.getElementById('intent-trace-status').textContent;
+      const p=Schematics.intentTrace;const shown=p.show('api',{announce:true}),text=document.getElementById('intent-trace-status').textContent;
       const overlay=document.querySelector('[data-intent-trace-overlay]');
       const repeated=p.show('api',{announce:true}),same=overlay===document.querySelector('[data-intent-trace-overlay]');
       const missing=p.show('missing'),retained=document.getElementById('intent-trace-status').textContent===text;
@@ -145,19 +145,19 @@ test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
 
   await t.test('real pointer delay, fast exit, keyboard focus and Escape share cleanup', async () => {
     await load(); await move('api');
-    await run(`intentWait(()=>Archify.intentTrace.active()==='api')`);
+    await run(`intentWait(()=>Schematics.intentTrace.active()==='api')`);
     let state = await snapshot('hover-api'); assert.equal(state.status, ''); assert.equal(state.overlays, 1);
     await move(); await afterTimer(); assert.equal((await snapshot('hover-left')).active, null);
     await move('db'); await move(); await afterTimer(); assert.equal((await snapshot('fast-exit')).active, null);
     await move('api'); await move('db');
-    await run(`intentWait(()=>Archify.intentTrace.active()==='db')`); await afterTimer();
+    await run(`intentWait(()=>Schematics.intentTrace.active()==='db')`); await afterTimer();
     assert.equal((await snapshot('hover-replaced')).active, 'db');
     await run(`document.querySelector('.diagram-container svg [data-node-id="api"]').focus()`);
     state = await snapshot('keyboard-api'); assert.equal(state.active, 'api'); assert.match(state.status, /API Server/);
     const internalFocus = await run(`(()=>{
       const overlay=document.querySelector('[data-intent-trace-overlay]'),child=document.querySelector('.diagram-container svg [data-node-id="api"] text');
       child.setAttribute('tabindex','0');child.focus();
-      const same=overlay===document.querySelector('[data-intent-trace-overlay]')&&Archify.intentTrace.active()==='api';
+      const same=overlay===document.querySelector('[data-intent-trace-overlay]')&&Schematics.intentTrace.active()==='api';
       child.blur();child.removeAttribute('tabindex');return same;
     })()`);
     assert.equal(internalFocus, true);
@@ -166,7 +166,7 @@ test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
     await run(`document.querySelector('.diagram-container svg [data-node-id="api"]').focus()`);
     await key('Escape', 'Escape', 27);
     state = await snapshot('escape'); assert.equal(state.active, null); assert.equal(state.status, '');
-    await move('db'); await run(`intentWait(()=>Archify.intentTrace.active()==='db')`);
+    await move('db'); await run(`intentWait(()=>Schematics.intentTrace.active()==='db')`);
     // Pointerout sync can reuse the retained keyboard reference after clear.
     await move(); assert.equal((await snapshot('retained-focus')).active, 'api');
     await click('.diagram-nav'); await afterTimer();
@@ -189,7 +189,7 @@ test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
       node.parentNode.insertBefore(arrow,node);
     })()`);
     await move('user');
-    await run(`intentWait(()=>Archify.intentTrace.active()==='user'&&
+    await run(`intentWait(()=>Schematics.intentTrace.active()==='user'&&
       getComputedStyle(document.querySelector('[data-node-id="final"]')).fillOpacity==='0.2')`);
     const covered = await run(`(()=>{
       const node=document.querySelector('.diagram-container svg [data-node-id="final"]');
@@ -216,7 +216,7 @@ test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
   await t.test('controlled timers preserve repeated-show, retained-input and input-filter semantics', async () => {
     await load();
     const result = await run(`intentTimerFixture(({node,over,out,queue,delays,fire})=>{
-      const p=Archify.intentTrace;
+      const p=Schematics.intentTrace;
       node('api').focus();const text=document.getElementById('intent-trace-status').textContent;
       over('db');p.show('api',{announce:true});const pending=queue.size;fire();const afterHover=p.active();
       out('db');const afterSync=p.active();
@@ -231,9 +231,9 @@ test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
     })`);
     assert.deepEqual(result, { pending: 1, afterHover: 'db', afterSync: 'api', cancelled: 0, retained: true, reactivated: 'api', internal: 0, touch: 0, coarse: 0, fallback: 1, fallbackActive: 'db', delays: [90, 90, 90] });
     await snapshot('timer-fixture');
-    await load(); await move('api'); await run('Archify.intentTrace.clear()'); await afterTimer();
+    await load(); await move('api'); await run('Schematics.intentTrace.clear()'); await afterTimer();
     assert.equal((await snapshot('pending-clear')).active, null);
-    await run(`Archify.intentTrace.show('api',{announce:true}); window.dispatchEvent(new Event('blur'))`); await afterTimer();
+    await run(`Schematics.intentTrace.show('api',{announce:true}); window.dispatchEvent(new Event('blur'))`); await afterTimer();
     const blurred = await snapshot('blur-fixture'); assert.equal(blurred.active, null); assert.match(blurred.status, /API Server/);
   });
 
@@ -242,13 +242,13 @@ test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
     const result = await run(`(()=>{
       const svg=document.querySelector('.diagram-container > svg');
       svg.innerHTML='<g data-edge-from="a" data-edge-to="b" data-edge-key="ab" transform="translate(3 4)"><path id="original-path" d="M0 0 L10 10" class="original" style="opacity:.7" marker-end="url(#arrow)"/><line x1="1" y1="2" x2="3" y2="4"/></g><path data-edge-from="a" data-edge-to="b" data-edge-key="ab" d="M2 3 L4 5"/><polyline data-edge-from="c" data-edge-to="a" data-edge-label="incoming" points="1,2 3,4"/><path data-edge-from="a" data-edge-to="a" d="M0 0 C1 2 3 4 0 0"/><g data-node-id="a" data-node-label="Alpha"><rect width="10" height="10"/></g><g data-node-id="b"/><g data-node-id="c"/><g data-node-id="solo"/>';
-      const original=svg.querySelector('#original-path').outerHTML;Archify.intentTrace.show('a',{announce:true});
+      const original=svg.querySelector('#original-path').outerHTML;Schematics.intentTrace.show('a',{announce:true});
       const overlay=svg.querySelector('[data-intent-trace-overlay]'),shapes=[...overlay.querySelectorAll('.intent-trace-flow')];
       const data={directions:shapes.map(n=>n.getAttribute('data-direction')),status:document.getElementById('intent-trace-status').textContent,
         transform:overlay.firstElementChild.getAttribute('transform'),d:shapes[0].getAttribute('d'),points:shapes[3].getAttribute('points'),
         stripped:!overlay.querySelector('[id],[style],[marker-end],[data-edge-from]'),pathLength:shapes.every(n=>n.getAttribute('pathLength')==='1'),
         original:svg.querySelector('#original-path').outerHTML===original,beforeEdges:overlay.nextElementSibling.hasAttribute('data-edge-from')};
-      Archify.intentTrace.show('solo',{announce:true});data.solo={active:Archify.intentTrace.active(),overlays:svg.querySelectorAll('[data-intent-trace-overlay]').length,status:document.getElementById('intent-trace-status').textContent};
+      Schematics.intentTrace.show('solo',{announce:true});data.solo={active:Schematics.intentTrace.active(),overlays:svg.querySelectorAll('[data-intent-trace-overlay]').length,status:document.getElementById('intent-trace-status').textContent};
       return data;
     })()`);
     assert.deepEqual(result.directions, ['out', 'out', 'out', 'in', 'loop']);
@@ -264,7 +264,7 @@ test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
   await t.test('blockers gate requests while actual Focus, Route and Lens retain handoff behavior', async () => {
     await load();
     const blockers = await run(`(()=>{
-      const html=document.documentElement,svg=document.querySelector('.diagram-container > svg'),container=svg.parentElement,p=Archify.intentTrace;
+      const html=document.documentElement,svg=document.querySelector('.diagram-container > svg'),container=svg.parentElement,p=Schematics.intentTrace;
       const cases=[[html,'data-embed','true'],[html,'data-guide-open','true'],[svg,'data-lens-active',''],[svg,'data-relationship-preview-active','']];
       const results=cases.map(([el,name,value])=>{p.show('api');el.setAttribute(name,value);const before=p.active(),rejected=p.show('api'),after=p.active();el.removeAttribute(name);return {before,rejected,after};});
       container.classList.add('is-panning');results.push({rejected:p.show('api'),after:p.active()});container.classList.remove('is-panning');return results;
@@ -272,38 +272,38 @@ test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
     for (const row of blockers) { assert.equal(row.rejected, false); assert.equal(row.after, null); }
     assert.ok(blockers.slice(0, 4).every(row => row.before === 'api'));
     for (const [name, action, release] of [
-      ['focus', `Archify.focus.set('api',{toggle:false})`, `Archify.focus.clear({updateUrl:false})`],
-      ['route', `Archify.routeProbe.begin({source:'users'})`, `Archify.routeProbe.clear({updateUrl:false})`],
-      ['lens', `Archify.semanticLens.select('backend')`, `Archify.semanticLens.clear({updateUrl:false})`],
+      ['focus', `Schematics.focus.set('api',{toggle:false})`, `Schematics.focus.clear({updateUrl:false})`],
+      ['route', `Schematics.routeProbe.begin({source:'users'})`, `Schematics.routeProbe.clear({updateUrl:false})`],
+      ['lens', `Schematics.semanticLens.select('backend')`, `Schematics.semanticLens.clear({updateUrl:false})`],
     ]) {
-      await load(); await move('db'); await run(`intentWait(()=>Archify.intentTrace.active()==='db')`);
+      await load(); await move('db'); await run(`intentWait(()=>Schematics.intentTrace.active()==='db')`);
       await run(action); await snapshot(name + '-handoff');
-      assert.equal(await run(`Archify.intentTrace.show('db')`), false);
+      assert.equal(await run(`Schematics.intentTrace.show('db')`), false);
       assert.equal((await snapshot(name + '-blocked')).overlays, 0);
       await run(release); await move(); await move('db');
-      await run(`intentWait(()=>Archify.intentTrace.active()==='db')`);
+      await run(`intentWait(()=>Schematics.intentTrace.active()==='db')`);
       assert.equal((await snapshot(name + '-released')).active, 'db');
     }
   });
 
   await t.test('real CSS completion, Motion ownership, reduced motion and themes preserve previews', async () => {
     await load('trace');
-    await run(`Archify.motionGovernor.resume()`);
+    await run(`Schematics.motionGovernor.resume()`);
     assert.equal(await run(`document.documentElement.getAttribute('data-ambient-motion')`), 'running');
-    await move('api'); await run(`intentWait(()=>Archify.motionGovernor.owner()==='intent')`);
+    await move('api'); await run(`intentWait(()=>Schematics.motionGovernor.owner()==='intent')`);
     assert.equal(await run(`Array.from(document.querySelectorAll('.ambient-edge-flow')).every(e=>e.getAnimations().length===0)`), true);
-    await run(`intentWait(()=>intentEnds.some(e=>e.trusted&&e.name==='archify-intent-trace-flow'))`);
+    await run(`intentWait(()=>intentEnds.some(e=>e.trusted&&e.name==='schematics-intent-trace-flow'))`);
     assert.equal((await snapshot('animation-complete')).active, 'api');
     const direction = await run(`getComputedStyle(document.querySelector('.intent-trace-flow[data-direction="in"]')).animationDirection`);
     assert.equal(direction, 'normal');
-    await move(); await run(`intentWait(()=>Archify.motionGovernor.owner()==='')`);
+    await move(); await run(`intentWait(()=>Schematics.motionGovernor.owner()==='')`);
     await snapshot('owner-cleared');
     assert.equal(await run(`document.querySelector('.ambient-edge-flow').getAnimations().some(a=>a.playState==='running')`), true);
     for (const theme of ['dark', 'light']) {
       await load('trace', { theme, reduced: true });
-      const scheduled = await run(`intentTimerFixture(({over,queue,delays,fire})=>{over('api');const before=Archify.intentTrace.active();fire();return {before,after:Archify.intentTrace.active(),delays};})`);
+      const scheduled = await run(`intentTimerFixture(({over,queue,delays,fire})=>{over('api');const before=Schematics.intentTrace.active();fire();return {before,after:Schematics.intentTrace.active(),delays};})`);
       assert.deepEqual(scheduled, { before: null, after: 'api', delays: [0] });
-      await run(`intentWait(()=>Archify.motionGovernor.owner()==='intent')`);
+      await run(`intentWait(()=>Schematics.motionGovernor.owner()==='intent')`);
       const style = await run(`(()=>{const c=getComputedStyle(document.querySelector('.intent-trace-flow'));return {animation:c.animationName,pointer:getComputedStyle(document.querySelector('.intent-trace-overlay')).pointerEvents,dash:c.strokeDasharray};})()`);
       assert.equal(style.animation, 'none'); assert.equal(style.pointer, 'none'); assert.equal(style.dash, 'none');
       await snapshot('reduced-' + theme);
@@ -316,13 +316,13 @@ test('Intent Trace preserves input handoffs, transient geometry and cleanup', {
       const exported = await run(`(async()=>{
         const original=URL.createObjectURL;let blob;
         URL.createObjectURL=function(v){if(v.type.startsWith('image/svg+xml'))blob=v;return original.call(URL,v);};
-        try {await Archify.exportMenu.run('svg');}finally{URL.createObjectURL=original;}
+        try {await Schematics.exportMenu.run('svg');}finally{URL.createObjectURL=original;}
         const root=new DOMParser().parseFromString(await blob.text(),'image/svg+xml').documentElement;
         return {clean:!root.hasAttribute('data-intent-trace-active')&&!root.querySelector('[data-intent-trace-overlay],[data-intent-trace-match],[data-intent-trace-selected]'),viewBox:root.getAttribute('viewBox')===document.querySelector('.diagram-container > svg').getAttribute('viewBox')};
       })()`);
       assert.deepEqual(exported, { clean: true, viewBox: true });
       await click('.diagram-container svg [data-node-id="api"]');
-      assert.equal(await run('Archify.focus.active()'), 'api');
+      assert.equal(await run('Schematics.focus.active()'), 'api');
     }
   });
 });

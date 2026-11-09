@@ -10,9 +10,9 @@ body:
         Stability comes first. For diagram defects, include a small typed JSON reproduction and validation receipt when available. For installation or Viewer problems, provide the relevant steps and error; explain when a command, JSON, or receipt does not apply.
 
   - type: input
-    id: archify_version
+    id: schematics_version
     attributes:
-      label: Archify version or commit
+      label: Schematics version or commit
       placeholder: "2.12.0 or 0123456789abcdef..."
     validations:
       required: true
@@ -24,7 +24,7 @@ body:
       options:
         - npm package
         - Git clone
-        - Downloaded archify.zip
+        - Downloaded schematics.zip
         - Uploaded skill archive
         - Other
     validations:

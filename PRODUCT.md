@@ -10,11 +10,11 @@ Anyone who needs to understand, plan, or explain something with steps, parts, re
 
 ## Product Purpose
 
-Archify turns repository evidence, a bounded system description, or a plain-language account of a plan or process into a polished, interactive map directly in an agent conversation. Success means a reader can understand the primary story quickly, inspect exact authored relationships and evidence when needed, and carry either the complete artifact or one explicitly scoped Route / Reach Share Card into review, documentation, presentation, or everyday use. Archify maps structure (parts, steps, exchanges, flows, and states); numeric charts and dashboards are outside its scope.
+Schematics turns repository evidence, a bounded system description, or a plain-language account of a plan or process into a polished, interactive map directly in an agent conversation. Success means a reader can understand the primary story quickly, inspect exact authored relationships and evidence when needed, and carry either the complete artifact or one explicitly scoped Route / Reach Share Card into review, documentation, presentation, or everyday use. Schematics maps structure (parts, steps, exchanges, flows, and states); numeric charts and dashboards are outside its scope.
 
 ## Brand Personality
 
-Precise, composed, vivid. Archify should feel like a confident instrument for understanding—technical when the subject is a system, plain-spoken when it is a plan: visually memorable enough to invite exploration, restrained enough to keep topology and evidence authoritative, and explicit about what is generated, verified, optional, or unavailable.
+Precise, composed, vivid. Schematics should feel like a confident instrument for understanding—technical when the subject is a system, plain-spoken when it is a plan: visually memorable enough to invite exploration, restrained enough to keep topology and evidence authoritative, and explicit about what is generated, verified, optional, or unavailable.
 
 ## Anti-references
 

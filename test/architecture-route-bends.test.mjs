@@ -5,9 +5,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRouter } from '../archify/renderers/architecture/routing.mjs';
+import { createRouter } from '../schematics/renderers/architecture/routing.mjs';
 
-const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
 
 function box(id, x, y, width = 230, height = 80) {
   return [id, { id, x, y, width, height, cx: x + width / 2, cy: y + height / 2 }];
@@ -39,7 +39,7 @@ test('architecture keeps a feasible route with label room over a fewer-bend rout
 });
 
 test('showcase shortens a route when a neighboring automatic label can move safely', t => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-label-detour-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-label-detour-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'diagram.json');
   const output = path.join(directory, 'diagram.html');
@@ -72,7 +72,7 @@ test('showcase shortens a route when a neighboring automatic label can move safe
 });
 
 function validate(t, profile, replySides) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-pinned-reply-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-pinned-reply-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'diagram.json');
   fs.writeFileSync(input, JSON.stringify({
@@ -118,7 +118,7 @@ test('architecture straightens a dogleg between facing nodes that overlap across
 });
 
 test('showcase slides a boundary title off a route that crosses its rail', t => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-title-route-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-title-route-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'diagram.json');
   const output = path.join(directory, 'diagram.html');
@@ -143,7 +143,7 @@ test('showcase slides a boundary title off a route that crosses its rail', t => 
 
 
 test('showcase moves a boundary title around an authored connection label', t => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-title-authored-label-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-title-authored-label-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'diagram.json');
   const output = path.join(directory, 'diagram.html');
@@ -174,7 +174,7 @@ test('showcase moves a boundary title around an authored connection label', t =>
 });
 
 test('showcase uses a clear off-centre corner when central ports force a detour', t => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-corner-port-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-corner-port-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'diagram.json');
   const output = path.join(directory, 'diagram.html');

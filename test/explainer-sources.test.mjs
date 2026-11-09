@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { resolveExplainerSources } from '../archify/explainer/sources.mjs';
+import { resolveExplainerSources } from '../schematics/explainer/sources.mjs';
 
 function fixture(t, files = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'explainer-sources-'));
@@ -13,8 +13,8 @@ function fixture(t, files = {}) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
   const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8', env, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
   git('init');
-  git('config', 'user.name', 'Archify Tests');
-  git('config', 'user.email', 'archify@example.test');
+  git('config', 'user.name', 'Schematics Tests');
+  git('config', 'user.email', 'schematics@example.test');
   git('remote', 'add', 'origin', 'https://github.com/example/explainer');
   for (const [name, content] of Object.entries({ 'src/router.js': 'export function route(input) {\n  return input.kind;\n}\n', ...files })) {
     fs.mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
@@ -33,7 +33,7 @@ function document(repository, source = {}) {
 
 async function rejects(document, options, code, forbidden) {
   await assert.rejects(resolveExplainerSources(document, options), error => {
-    const diagnostic = error.archifyDiagnostics?.[0];
+    const diagnostic = error.schematicsDiagnostics?.[0];
     assert.equal(diagnostic?.code, `explainer/${code}`);
     assert.ok(diagnostic.subject.component);
     assert.ok(diagnostic.subject.path);
@@ -41,7 +41,7 @@ async function rejects(document, options, code, forbidden) {
     assert.ok(diagnostic.evidence.reason);
     assert.ok(diagnostic.evidence.example);
     assert.ok(diagnostic.supportedFixes.length);
-    if (forbidden) assert.ok(!JSON.stringify({ message: error.message, diagnostics: error.archifyDiagnostics }).includes(forbidden));
+    if (forbidden) assert.ok(!JSON.stringify({ message: error.message, diagnostics: error.schematicsDiagnostics }).includes(forbidden));
     return true;
   });
 }
@@ -99,7 +99,7 @@ test('repository verification rejects wrong ranges, origin and source revisions'
   await rejects(document(data.repository, { revision: 'f'.repeat(40) }), { repoRoot: data.root }, 'source-revision');
   await rejects(document({ ...data.repository, revision: 'f'.repeat(40) }), { repoRoot: data.root }, 'repository-location');
   await assert.rejects(resolveExplainerSources(document(data.repository)), error => {
-    assert.equal(error.archifyDiagnostics[0].evidence.example, '--repo-root /absolute/path/to/repository');
+    assert.equal(error.schematicsDiagnostics[0].evidence.example, '--repo-root /absolute/path/to/repository');
     return true;
   });
 });
@@ -194,7 +194,7 @@ test('resource ids are required and diagnostics use caller source positions with
   await rejects(doc, {}, 'resource-id');
   await assert.rejects(resolveExplainerSources(imageDocument('../secret.png'), { baseDir: '/nonexistent', sourcePath: '/input/doc.json',
     sourceMap: { '/panels/0/blocks/0/path': { line: 12, column: 6 } } }), error => {
-    assert.deepEqual(error.archifyDiagnostics[0].subject, { path: '/panels/0/blocks/0/path', component: 'image', input: '/input/doc.json', line: 12, column: 6 });
+    assert.deepEqual(error.schematicsDiagnostics[0].subject, { path: '/panels/0/blocks/0/path', component: 'image', input: '/input/doc.json', line: 12, column: 6 });
     return true;
   });
 });

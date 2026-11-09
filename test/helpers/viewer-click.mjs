@@ -31,7 +31,7 @@ function installClickObserver() {
   window.viewerClick = {
     async ready(selector, timeout) {
       document.querySelector(selector)?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
-      await Archify.viewerChromeLayout.whenStable();
+      await Schematics.viewerChromeLayout.whenStable();
       return new Promise((resolve, reject) => {
         const start = performance.now();
         let previous;

@@ -6,15 +6,15 @@ import path from 'node:path';
 import { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-export const skillRoot = fileURLToPath(new URL('../../archify/', import.meta.url));
-export const cli = path.join(skillRoot, 'bin', 'archify.mjs');
+export const skillRoot = fileURLToPath(new URL('../../schematics/', import.meta.url));
+export const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
 
 export function git(repo, ...args) {
   return execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
 }
 
 export function fixture() {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-evidence-repo-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-evidence-repo-'));
   // Own teardown at creation, including initialization failures and callers
   // that only need a short-lived in-process verification fixture.
   after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -22,8 +22,8 @@ export function fixture() {
   fs.writeFileSync(path.join(root, 'src', 'router.js'), 'export function route(input) {\n  return input.kind;\n}\n');
   fs.writeFileSync(path.join(root, 'src', 'store.js'), 'export const store = new Map();\n');
   git(root, 'init');
-  git(root, 'config', 'user.name', 'Archify Tests');
-  git(root, 'config', 'user.email', 'archify@example.test');
+  git(root, 'config', 'user.name', 'Schematics Tests');
+  git(root, 'config', 'user.email', 'schematics@example.test');
   git(root, 'remote', 'add', 'origin', 'git@github.com:example/evidence-repo.git');
   git(root, 'add', '.');
   git(root, 'commit', '-m', 'fixture');
@@ -51,7 +51,7 @@ export function run(args) {
 }
 
 export function evidencePayload(html) {
-  const match = html.match(/<script id="archify-source-evidence-data" type="application\/json">([\s\S]*?)<\/script>/);
+  const match = html.match(/<script id="schematics-source-evidence-data" type="application\/json">([\s\S]*?)<\/script>/);
   assert.ok(match, 'verified evidence payload missing');
   return JSON.parse(match[1]);
 }

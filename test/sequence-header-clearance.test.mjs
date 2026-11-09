@@ -5,18 +5,18 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath,pathToFileURL} from 'node:url';
-import {ChromeVisualBrowser,findChrome} from '../archify/bin/visual-check.mjs';
-import {fittedNodeFontSize} from '../archify/renderers/shared/text-fit.ts';
+import {ChromeVisualBrowser,findChrome} from '../schematics/bin/visual-check.mjs';
+import {fittedNodeFontSize} from '../schematics/renderers/shared/text-fit.ts';
 
 const testDir=path.dirname(fileURLToPath(import.meta.url));
 
 // Public synthetic labels deliberately exercise a maximum-width participant.
 // This fixture carries no application-specific source or private repository.
 test('sequence headers reserve an icon/brand rail without shrinking or changing literal labels', async t=>{
-  if(!Object.hasOwn(process.env,'ARCHIFY_CHROME')){t.skip('Set ARCHIFY_CHROME to run the real browser regression.');return;}
+  if(!Object.hasOwn(process.env,'SCHEMATICS_CHROME')){t.skip('Set SCHEMATICS_CHROME to run the real browser regression.');return;}
   const chrome=findChrome();
   assert.ok(chrome,'The configured browser regression requires Chrome.');
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'archify-sequence-header-'));
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'schematics-sequence-header-'));
   const spec={schema_version:1,diagram_type:'sequence',meta:{title:'Sequence header clearance regression',output:'output.html',quality_profile:'standard',column_fit:'spread',viewBox:[1700,600]},participants:[
     {id:'transfer',type:'backend',label:'Cloud File Transfer (CFTS)',sublabel:'Transfer participant'},
     {id:'without-context',type:'external',label:'Cloud File Transfer (CFTS)'},
@@ -24,7 +24,7 @@ test('sequence headers reserve an icon/brand rail without shrinking or changing 
   ],messages:[{id:'request',from:'transfer',to:'without-context',y:200,label:'Exact request'},{id:'reply',from:'without-context',to:'transfer',y:250,label:'Exact reply',variant:'return'}]};
   const input=path.join(dir,'input.json'),output=path.join(dir,'output.html');
   fs.writeFileSync(input,JSON.stringify(spec));
-  const rendered=spawnSync(process.execPath,[path.resolve(testDir,'../archify/bin/archify.mjs'),'deliver','sequence',input,output,'--quality','standard','--json'],{encoding:'utf8',maxBuffer:16*1024*1024});
+  const rendered=spawnSync(process.execPath,[path.resolve(testDir,'../schematics/bin/schematics.mjs'),'deliver','sequence',input,output,'--quality','standard','--json'],{encoding:'utf8',maxBuffer:16*1024*1024});
   assert.equal(rendered.status,0,rendered.stderr||rendered.stdout);
   const browser=new ChromeVisualBrowser(chrome);
   try{
@@ -33,9 +33,9 @@ test('sequence headers reserve an icon/brand rail without shrinking or changing 
     for(const [width,height]of [[1440,900],[2048,1320]]){
       await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
       await send('Page.navigate',{url:pathToFileURL(output).href});
-      let ready=false;for(let i=0;i<300;i++){if(await evaluate('!!window.Archify?.view')){ready=true;break;}await new Promise(r=>setTimeout(r,25));}assert(ready,'Viewer did not initialize');
+      let ready=false;for(let i=0;i<300;i++){if(await evaluate('!!window.Schematics?.view')){ready=true;break;}await new Promise(r=>setTimeout(r,25));}assert(ready,'Viewer did not initialize');
       for(const theme of ['light','dark'])for(const scale of [.75,1,3]){
-        await evaluate(`(async()=>{await document.fonts.ready;if(document.documentElement.dataset.theme!==${JSON.stringify(theme)})document.getElementById('btn-theme').click();if(Archify.motionGovernor.mode()!=='still')document.getElementById('btn-motion').click();Archify.view.centerAt(850,110,{scale:${scale},instant:true});await Archify.readerLayout.whenStable();await Archify.viewerChromeLayout.whenStable();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));})()`);
+        await evaluate(`(async()=>{await document.fonts.ready;if(document.documentElement.dataset.theme!==${JSON.stringify(theme)})document.getElementById('btn-theme').click();if(Schematics.motionGovernor.mode()!=='still')document.getElementById('btn-motion').click();Schematics.view.centerAt(850,110,{scale:${scale},instant:true});await Schematics.readerLayout.whenStable();await Schematics.viewerChromeLayout.whenStable();await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));})()`);
         const rows=await evaluate(`(()=>{const box=e=>{const r=e.getBoundingClientRect();return{x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height};};return [...document.querySelectorAll('g[data-node-id]')].map(n=>({id:n.dataset.nodeId,label:n.dataset.nodeLabel,box:box(n.querySelector('rect')),text:box(n.querySelector('text[data-node-label]')),sigil:box(n.querySelector('[data-semantic-sigil]')),brand:n.querySelector('.brand-mark')?box(n.querySelector('.brand-mark')):null,context:[...n.querySelectorAll('text')].filter(e=>!e.hasAttribute('data-node-label')).map(box),font:Number(n.querySelector('text[data-node-label]').getAttribute('font-size'))}));})()`);
         assert.deepEqual(rows.map(r=>r.label),spec.participants.map(p=>p.label));
         assert(rows.find(r=>r.id==='branded').brand,'Brand fixture must actually render its mark');

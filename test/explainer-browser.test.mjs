@@ -4,15 +4,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {ChromeVisualBrowser,findChrome,runBrowserCheck} from '../archify/bin/visual-check.mjs';
-import {unpackPageBundle} from '../archify/explainer/page-bundle.mjs';
-import {inspectPublicHtml,inspectExplainerBrowser,inspectNativePreviewLayout,inspectNativeViewer,explainerObservation,explainerObservationDiagnostics} from '../archify/explainer/browser-check.mjs';
+import {ChromeVisualBrowser,findChrome,runBrowserCheck} from '../schematics/bin/visual-check.mjs';
+import {unpackPageBundle} from '../schematics/explainer/page-bundle.mjs';
+import {inspectPublicHtml,inspectExplainerBrowser,inspectNativePreviewLayout,inspectNativeViewer,explainerObservation,explainerObservationDiagnostics} from '../schematics/explainer/browser-check.mjs';
 // Explicit developer diagnostics only; ordinary explainer tests never launch Chrome.
-const chrome=process.env.ARCHIFY_EXPLAINER_BROWSER_TESTS==='1' ? findChrome() : null;
-const dir=fs.mkdtempSync(path.join(os.tmpdir(),'archify-explainer-browser-tests-'));
+const chrome=process.env.SCHEMATICS_EXPLAINER_BROWSER_TESTS==='1' ? findChrome() : null;
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'schematics-explainer-browser-tests-'));
 function artifact(name,html){const file=path.join(dir,name+'.html');fs.writeFileSync(file,html);return file;}
 const style='<style>body{font:16px/1.5 sans-serif;margin:20px;color:#171717;background:white}button{font:inherit}:focus-visible{outline:2px solid blue}@media(prefers-color-scheme:dark){body{background:#171717;color:white}}</style>';
-test('common public HTML QA measures real keyboard, references, themes and horizontal layout without Archify markers',{skip:!chrome},async()=>{
+test('common public HTML QA measures real keyboard, references, themes and horizontal layout without Schematics markers',{skip:!chrome},async()=>{
  const browser=new ChromeVisualBrowser(chrome);try {
   const file=artifact('public',`<!doctype html><html><head>${style}</head><body><h1 id="answer">A public answer</h1><p>Readable content</p><a href="#answer">Answer</a><button>Choose</button></body></html>`);
   for(const width of [1280,1440])for(const theme of ['light','dark']){
@@ -24,7 +24,7 @@ test('common public HTML QA measures real keyboard, references, themes and horiz
 });
 function formalDocument(){return {schema_version:1,diagram_type:'explainer',meta:{id:'browser-case',title:'A test explanation',locale:'en'},answer:{summary:'Read the cache first.',reasons:['Fewer database queries'],scope:'Illustrative request path'},panels:[{id:'why',title:'Why does it work?',blocks:[{id:'claim',type:'prose',text:'A cached read takes [5ms](typical:Illustrative timing only, not measured).'}]}],sources:[{id:'example',title:'Example'}]};}
 test('formal renderer retains keyboard navigation, static reading and print modes',{skip:!chrome},async()=>{
- const {renderExplainer}=await import('../archify/explainer/render.mjs');
+ const {renderExplainer}=await import('../schematics/explainer/render.mjs');
  const document=formalDocument();
  const file=artifact('formal',renderExplainer(document,{preparedSources:{sources:{example:{id:'example',title:'Example'}}},sourceText:JSON.stringify(document)}));
  const browser=new ChromeVisualBrowser(chrome);try {const metrics=await inspectExplainerBrowser(browser,{artifactPath:file,width:1440,height:900,theme:'light'});const entry=explainerObservation({width:1440,height:900,theme:'light',metrics});assert.deepEqual(explainerObservationDiagnostics({artifact:file,allObservations:[entry]}),[]);}finally{await browser.close();}
@@ -35,7 +35,7 @@ test.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
 async function pageValue(browser,expression){const result=await browser.cdp.send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true},await browser.sessionPromise);if(result.exceptionDetails)throw new Error(result.exceptionDetails.exception?.description||result.exceptionDetails.text);return result.result.value;}
 async function keyboardActivate(browser,selector,key='Enter') {assert.equal(await pageValue(browser,`(function(){const e=document.querySelector(${JSON.stringify(selector)});if(!e)return false;e.scrollIntoView({block:'center'});e.focus();return document.activeElement===e;})()`),true,selector);for(const type of ['keyDown','keyUp'])await browser.cdp.send('Input.dispatchKeyEvent',{type,key,code:key,windowsVirtualKeyCode:key==='Escape'?27:13,...(key==='Enter'&&type==='keyDown'?{text:'\r',unmodifiedText:'\r'}:{})},await browser.sessionPromise);await pageValue(browser,'new Promise(resolve=>setTimeout(resolve,0))');}
 test('native step opens the complete Viewer and focuses exact nodes and edges with readable graph text',{skip:!chrome},async()=>{
- const {renderExplainer}=await import('../archify/explainer/render.mjs');const {compileExplainerDiagram,prepareExplainerDiagrams}=await import('../archify/explainer/diagrams.mjs');
+ const {renderExplainer}=await import('../schematics/explainer/render.mjs');const {compileExplainerDiagram,prepareExplainerDiagrams}=await import('../schematics/explainer/diagrams.mjs');
  const spec=compileExplainerDiagram('sequence',['actor api | API | backend','actor redis | Redis | database','api | redis | Read cache','redis | api | Return cache'],{title:'Cache lookup',id:'native',quality:'showcase'});
  const doc=formalDocument();doc.meta.id='native-browser';doc.meta.quality_profile='showcase';doc.panels.push({id:'how',title:'Where does the request go?',blocks:[{id:'native',type:'diagram',diagramType:'sequence',spec},{id:'step',type:'steps',items:[{id:'read-step',text:'Read cache',target:{diagram:'native',node:'api',edges:['api-to-redis-1']}},{id:'return-step',text:'Return cache',target:{diagram:'native',node:'redis',edges:['redis-to-api-1']}}]}]});
  const preparedDiagrams=await prepareExplainerDiagrams(doc,{baseDir:dir,sourcePath:path.join(dir,'source.json'),quality:'showcase'});
@@ -52,7 +52,7 @@ test('native step opens the complete Viewer and focuses exact nodes and edges wi
 });
 
 test('wide frozen native previews keep every node visible at 1280 and reclaim the 1440 text floor on live resize',{skip:!chrome},async()=>{
- const {renderExplainer}=await import('../archify/explainer/render.mjs'),{prepareExplainerDiagrams}=await import('../archify/explainer/diagrams.mjs'),hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+ const {renderExplainer}=await import('../schematics/explainer/render.mjs'),{prepareExplainerDiagrams}=await import('../schematics/explainer/diagrams.mjs'),hash=bytes=>createHash('sha256').update(bytes).digest('hex');
  const components=[{id:'browser',type:'external',label:'Browser',pos:[40,40],size:[120,64]},{id:'api',type:'backend',label:'API',pos:[300,40],size:[150,72]},{id:'postgres',type:'database',label:'PostgreSQL',pos:[690,40],size:[150,72]}];
  const connections=[{id:'browser-request',from:'browser',to:'api',label:'请求'},{id:'database-query',from:'api',to:'postgres',label:'查询业务数据'}];
  const makeSpec=(cache)=>({schema_version:1,diagram_type:'architecture',meta:{title:cache?'PostgreSQL + Redis':'PostgreSQL',locale:'zh-CN',quality_profile:'showcase'},components:cache?[...components,{id:'redis',type:'database',label:'Redis',sublabel:'缓存',pos:[300,240],size:[150,72]}]:components,connections:cache?[connections[0],{id:'cache-lookup',from:'api',to:'redis',label:'① 查询缓存'},{id:'database-on-miss',from:'api',to:'postgres',label:'② 缓存未命中时查询'},{id:'cache-fill',from:'api',to:'redis',label:'③ 查询后回写结果'}]:connections});
@@ -80,7 +80,7 @@ test('wide frozen native previews keep every node visible at 1280 and reclaim th
   await browser.resetPage();await inspectPublicHtml(browser,{artifactPath:hugeFile,width:1280,theme:'light',keyboard:false});
   assert.deepEqual(await pageValue(browser,"Array.from(document.querySelectorAll('.panel')).filter(p=>p.scrollHeight>p.offsetHeight+1).map(p=>p.id)"),[],'a fit notice shown after planning must not clip its panel');
   const corrupted=artifact('responsive-retained-floor',html.replace('</style>','\n.diagram-preview>svg{min-width:1321px!important}\n</style>'));await browser.resetPage();await inspectPublicHtml(browser,{artifactPath:corrupted,width:1280,theme:'light',keyboard:false});assert.ok((await inspectNativePreviewLayout(browser)).some(e=>e.outsidePreview.length>0),'A retained desktop floor must be detected through actual clipped node bounds');
-  const embedded=Object.fromEntries(Object.entries(unpackPageBundle(await pageValue(browser,"JSON.parse(document.querySelector('#archify-explainer-prepared').textContent)")).preparedDiagrams.diagrams).map(([id,c])=>[id,{html:c.html,sha256:c.sha256,bytes:c.bytes}]));
+  const embedded=Object.fromEntries(Object.entries(unpackPageBundle(await pageValue(browser,"JSON.parse(document.querySelector('#schematics-explainer-prepared').textContent)")).preparedDiagrams.diagrams).map(([id,c])=>[id,{html:c.html,sha256:c.sha256,bytes:c.bytes}]));
   for(const [id,c]of Object.entries(embedded)){assert.equal(hash(c.html),frozen[id].sha256);assert.equal(Buffer.byteLength(c.html),frozen[id].bytes);assert.equal(c.sha256,frozen[id].sha256);assert.equal(c.bytes,frozen[id].bytes);}
  }finally{await browser.close();}
 });
@@ -108,7 +108,7 @@ test('public system-theme mode starts with fresh storage and stable DOM identiti
  }finally{await browser.close();}
 });
 test('text names light their diagram nodes and walk-throughs step through steps and messages',{skip:!chrome},async()=>{
- const {renderExplainer}=await import('../archify/explainer/render.mjs');const {compileExplainerDiagram,prepareExplainerDiagrams}=await import('../archify/explainer/diagrams.mjs');
+ const {renderExplainer}=await import('../schematics/explainer/render.mjs');const {compileExplainerDiagram,prepareExplainerDiagrams}=await import('../schematics/explainer/diagrams.mjs');
  const spec=compileExplainerDiagram('sequence',['actor api | API | backend','actor redis | Redis | database','api | redis | Read cache','redis | api | Return cache'],{title:'Cache lookup',id:'native',quality:'showcase'});
  const flow=compileExplainerDiagram('workflow',['alert | Alert','check | Check signal','fix | Fix','alert > check','check > fix'],{title:'Triage',id:'flow',quality:'showcase'});
  const doc=formalDocument();doc.meta.id='walk-browser';doc.meta.quality_profile='showcase';doc.panels.push({id:'how',title:'Where does the request go?',blocks:[{id:'native',type:'diagram',diagramType:'sequence',spec},{id:'why',type:'prose',text:'The API asks Redis first, and Redis answers from memory.'},{id:'step',type:'steps',items:[{id:'read-step',text:'Read cache',target:{diagram:'native',node:'api',edges:['api-to-redis-1']}},{id:'return-step',text:'Return cache',target:{diagram:'native',node:'redis',edges:['redis-to-api-1']}}]}]});
@@ -156,9 +156,9 @@ test('text names light their diagram nodes and walk-throughs step through steps 
   let focused;for(let attempt=0;attempt<40;attempt++){focused=await inspectNativeViewer(browser);if(focused.available&&focused.nodes.includes('redis'))break;await new Promise(resolve=>setTimeout(resolve,50));}
   assert.deepEqual(focused.nodes,['redis'],'a node clicked in the preview opens the interactive view focused on it');
   await keyboardActivate(browser,'[data-close-diagram]');
-  const style=await pageValue(browser,`(function(){const toggle=document.querySelector('[data-style-toggle]');toggle.click();const open=!document.querySelector('.style-options').hidden&&toggle.getAttribute('aria-expanded')==='true';document.querySelector('[data-style-choice=swiss]').click();return {open,closed:document.querySelector('.style-options').hidden,style:document.documentElement.dataset.style,label:document.querySelector('[data-style-label]').textContent,checked:document.querySelector('[data-style-choice=swiss]').getAttribute('aria-checked'),saved:localStorage.getItem('archify-explainer-style')};})()`);
+  const style=await pageValue(browser,`(function(){const toggle=document.querySelector('[data-style-toggle]');toggle.click();const open=!document.querySelector('.style-options').hidden&&toggle.getAttribute('aria-expanded')==='true';document.querySelector('[data-style-choice=swiss]').click();return {open,closed:document.querySelector('.style-options').hidden,style:document.documentElement.dataset.style,label:document.querySelector('[data-style-label]').textContent,checked:document.querySelector('[data-style-choice=swiss]').getAttribute('aria-checked'),saved:localStorage.getItem('schematics-explainer-style')};})()`);
   assert.deepEqual(style,{open:true,closed:true,style:'swiss',label:'Swiss',checked:'true',saved:'swiss'});
-  const image=await pageValue(browser,`window.ArchifyExplainer.pageImage().then(blob=>({type:blob.type,size:blob.size}))`);
+  const image=await pageValue(browser,`window.SchematicsExplainer.pageImage().then(blob=>({type:blob.type,size:blob.size}))`);
   assert.equal(image.type,'image/png');assert.ok(image.size>20000,'the long image carries the rendered page');
  }finally{await browser.close();}
 });

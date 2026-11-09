@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { validateSchema } from '../archify/renderers/shared/validator.mjs';
+import { validateSchema } from '../schematics/renderers/shared/validator.mjs';
 import {
   skillRoot, ES_TRANSLATIONS, KO_TRANSLATIONS, FR_PARTIAL_TRANSLATIONS,
   MANIFEST, EXAMPLES, example, authoredExample, localeDocument, createLocaleFixture,
@@ -22,7 +22,7 @@ import {
   translateMessage,
   registerLocale,
   validateTranslations,
-} from '../archify/renderers/shared/i18n.ts';
+} from '../schematics/renderers/shared/i18n.ts';
 
 const templatePath = path.join(skillRoot, 'assets/template.html');
 const { tmp, run, deliverKoreanFixture, deliverJapaneseFixture, cliJson } = createLocaleFixture();
@@ -43,7 +43,7 @@ test('zh-CN localizes renderer-owned output across all five modes without transl
     assert.ok(result.html.includes(`<h1>${authoredTitle}</h1>`), `${type}: authored heading changed`);
     assert.match(result.html, /<text\b[^>]*>\u56fe\u4f8b<\/text>/);
     assert.match(result.html, /aria-label="\u805a\u7126/);
-    assert.match(result.html, new RegExp(`<desc id="archify-diagram-description">\u7531 Archify \u751f\u6210\u7684`));
+    assert.match(result.html, new RegExp(`<desc id="schematics-diagram-description">\u7531 Schematics \u751f\u6210\u7684`));
     assert.match(result.html, /"locale":"zh-CN"/);
     assert.match(result.html, />\u5bfc\u51fa\u56fe\u8868</);
     assert.doesNotMatch(result.html, /\{\{i18n:/);
@@ -163,7 +163,7 @@ test('malformed locale tags fail schema validation in every mode', () => {
       // The shared validator owns the complete tag matrix. Every type still
       // exercises the public CLI's structured rejection below.
       assert.throws(() => validateSchema(type, document), (error) => {
-        assert.ok(error.archifyDiagnostics.some((entry) => entry.subject?.path === '/meta/locale'), `${type}: ${locale}`);
+        assert.ok(error.schematicsDiagnostics.some((entry) => entry.subject?.path === '/meta/locale'), `${type}: ${locale}`);
         return true;
       });
     }
@@ -252,7 +252,7 @@ test('translations with unknown keys or mismatched interpolation placeholders ar
 });
 
 function embeddedMessages(html) {
-  const embedded = html.match(/<script id="archify-i18n-data" type="application\/json">([\s\S]*?)<\/script>/);
+  const embedded = html.match(/<script id="schematics-i18n-data" type="application\/json">([\s\S]*?)<\/script>/);
   assert.ok(embedded, 'missing embedded i18n data script');
   return JSON.parse(embedded[1]);
 }
@@ -261,16 +261,16 @@ test('bundled es, ko, and ar render from meta.locale alone in all five modes, id
   const cases = {
     es: {
       catalog: ES_TRANSLATIONS, legend: 'Leyenda', focus: 'Enfocar', exportLabel: 'Exportar diagrama',
-      titleSuffix: ' · Diagrama', description: /<desc id="archify-diagram-description">Un diagrama de /,
+      titleSuffix: ' · Diagrama', description: /<desc id="schematics-diagram-description">Un diagrama de /,
     },
     ko: {
       catalog: KO_TRANSLATIONS, legend: '범례', focus: '포커스', exportLabel: '다이어그램 내보내기',
-      titleSuffix: ' 다이어그램', description: /<desc id="archify-diagram-description">Archify로 생성한/,
+      titleSuffix: ' 다이어그램', description: /<desc id="schematics-diagram-description">Schematics로 생성한/,
     },
     ar: {
       catalog: JSON.parse(fs.readFileSync(path.join(skillRoot, 'locales/ar.json'), 'utf8')),
       legend: 'المفتاح', focus: 'إبراز', exportLabel: 'تصدير المخطّط',
-      titleSuffix: ' — مخطّط', description: /<desc id="archify-diagram-description">مخطّط/,
+      titleSuffix: ' — مخطّط', description: /<desc id="schematics-diagram-description">مخطّط/,
     },
   };
   for (const [locale, expected] of Object.entries(cases)) {
@@ -469,7 +469,7 @@ test('validate and deliver receipts carry locale warnings as structured diagnost
     locale: 'fr',
     translations: { ...FR_PARTIAL_TRANSLATIONS, 'viewer.common.closee': 'Fermer' },
   })));
-  const cli = path.join(skillRoot, 'bin/archify.mjs');
+  const cli = path.join(skillRoot, 'bin/schematics.mjs');
   for (const command of ['validate', 'deliver']) {
     const args = [cli, command, 'architecture', input, ...(command === 'deliver' ? [path.join(tmp, 'receipt-fr.html')] : [])];
     const machine = spawnSync(process.execPath, [...args, '--json'], { cwd: tmp, encoding: 'utf8' });
@@ -485,7 +485,7 @@ test('validate and deliver receipts carry locale warnings as structured diagnost
     assert.equal(coverage.missingKeys.length, 10);
     for (const key of coverage.missingKeys) assert.equal(coverage.englishSource[key], translateMessage('en', key));
     assert.deepEqual(receipt.diagnostics[0].evidence.unknownKeys, ['viewer.common.closee']);
-    const expectedWarnings = receipt.diagnostics.map(entry => `archify: ${entry.message}\n`).join('');
+    const expectedWarnings = receipt.diagnostics.map(entry => `schematics: ${entry.message}\n`).join('');
     assert.equal(machine.stderr, expectedWarnings, `${command}: JSON success discloses each warning once`);
     const human = spawnSync(process.execPath, args, { cwd: tmp, encoding: 'utf8' });
     assert.equal(human.status, 0, human.stderr || human.stdout);
@@ -514,7 +514,7 @@ test('the manifest enrolls exactly the bundled catalogs, and each is complete', 
 test('enrolling a catalog is a data-only change and works from an unrelated working directory', () => {
   // Copy the runtime (no tests, no node_modules) outside the checkout, enroll
   // one more catalog through data alone, and render from an unrelated cwd.
-  const packageRoot = path.join(tmp, 'package-copy', 'archify');
+  const packageRoot = path.join(tmp, 'package-copy', 'schematics');
   fs.cpSync(skillRoot, packageRoot, {
     recursive: true,
     filter: (source) => !['node_modules', 'test'].includes(path.basename(source)) || path.dirname(source) !== skillRoot,
@@ -526,7 +526,7 @@ test('enrolling a catalog is a data-only change and works from an unrelated work
   manifest.catalogs.push({ locale: 'fr', file: 'fr.json' });
   fs.writeFileSync(manifestPath, JSON.stringify(manifest));
 
-  const unrelated = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-i18n-cwd-'));
+  const unrelated = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-i18n-cwd-'));
   // A decoy catalog in the working directory must never be picked up.
   fs.mkdirSync(path.join(unrelated, 'locales'));
   fs.writeFileSync(path.join(unrelated, 'locales/manifest.json'), '{"catalogs":[]}');
@@ -534,7 +534,7 @@ test('enrolling a catalog is a data-only change and works from an unrelated work
     const input = path.join(unrelated, `${locale}.json`);
     const output = path.join(unrelated, `${locale}.html`);
     fs.writeFileSync(input, JSON.stringify(localeDocument('architecture', { locale })));
-    const result = spawnSync(process.execPath, [path.join(packageRoot, 'bin/archify.mjs'), 'render', 'architecture', input, output], {
+    const result = spawnSync(process.execPath, [path.join(packageRoot, 'bin/schematics.mjs'), 'render', 'architecture', input, output], {
       cwd: unrelated,
       encoding: 'utf8',
     });
@@ -622,7 +622,7 @@ for (const locale of ['fr', 'pt', 'ja', 'de', 'it', 'ru']) {
     // ALL-CAPS badges/short labels must be translated, not silently left
     // in English — see the fr/de/it/ja fix for the bug where several
     // catalogs kept them as English badges by mistake.
-    const embedded = result.html.match(/<script id="archify-i18n-data" type="application\/json">([\s\S]*?)<\/script>/);
+    const embedded = result.html.match(/<script id="schematics-i18n-data" type="application\/json">([\s\S]*?)<\/script>/);
     assert.ok(embedded, `${locale}: missing embedded i18n data script`);
     const messages = JSON.parse(embedded[1]).messages;
     const englishBadges = {

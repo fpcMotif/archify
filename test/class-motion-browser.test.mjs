@@ -5,16 +5,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { findChrome } from '../archify/bin/visual-check.mjs';
+import { findChrome } from '../schematics/bin/visual-check.mjs';
 import { desktopBrowser } from './helpers/desktop-browser.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chrome = process.env.ARCHIFY_CHROME ? findChrome() : null;
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
 
 test('class: hierarchy bus motion follows from-to while retaining aligned visual dashes', {
-  skip: chrome ? false : 'Set ARCHIFY_CHROME to run class motion browser checks.',
+  skip: chrome ? false : 'Set SCHEMATICS_CHROME to run class motion browser checks.',
 }, async (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-class-motion-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-class-motion-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const diagram = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples/payments.class.json'), 'utf8'));
   diagram.meta.animation = 'trace';
@@ -33,13 +33,13 @@ test('class: hierarchy bus motion follows from-to while retaining aligned visual
   };
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
-  await send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.removeItem('archify-motion'); } catch (_) {}` });
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.removeItem('schematics-motion'); } catch (_) {}` });
   const loaded = browser.cdp.waitFor('Page.loadEventFired', session);
   await send('Page.navigate', { url: pathToFileURL(output).href });
   await loaded;
   await run('document.fonts.ready');
-  await run('Archify.viewerChromeLayout.whenStable()');
-  await run('Archify.motionGovernor.resume()');
+  await run('Schematics.viewerChromeLayout.whenStable()');
+  await run('Schematics.motionGovernor.resume()');
   const result = await run(`(() => {
     const edge = document.querySelector('path[data-edge-id="card_implements"]');
     const visual = edge.getAttribute('d'), semantic = edge.getAttribute('data-motion-path');
@@ -48,20 +48,20 @@ test('class: hierarchy bus motion follows from-to while retaining aligned visual
       const first = path.getPointAtLength(0), last = path.getPointAtLength(path.getTotalLength());
       return [[first.x, first.y], [last.x, last.y]];
     };
-    const token = Archify.flowTokens.create(edge, edge);
-    Archify.focus.inspectRelationshipById('card_implements', { toggle: false });
+    const token = Schematics.flowTokens.create(edge, edge);
+    Schematics.focus.inspectRelationshipById('card_implements', { toggle: false });
     const pulse = document.querySelector('.relationship-flow-pulse').getAttribute('d');
     const animatedToken = document.querySelector('.relationship-flow-token animateMotion').getAttribute('path');
-    Archify.focus.clear();
-    Archify.intentTrace.show('card_gateway');
+    Schematics.focus.clear();
+    Schematics.intentTrace.show('card_gateway');
     const intent = document.querySelector('.intent-trace-flow').getAttribute('d');
-    Archify.intentTrace.clear();
-    Archify.semanticLens.select('class');
+    Schematics.intentTrace.clear();
+    Schematics.semanticLens.select('class');
     const lens = [...document.querySelectorAll('.semantic-lens-flow')].some(path => path.getAttribute('d') === semantic);
-    Archify.semanticLens.clear();
-    Archify.routeProbe.begin(); Archify.routeProbe.choose('card_gateway'); Archify.routeProbe.choose('payment_gateway');
+    Schematics.semanticLens.clear();
+    Schematics.routeProbe.begin(); Schematics.routeProbe.choose('card_gateway'); Schematics.routeProbe.choose('payment_gateway');
     const route = document.querySelector('.route-probe-flow').getAttribute('d');
-    Archify.routeProbe.selectJourneyIndex(1);
+    Schematics.routeProbe.selectJourneyIndex(1);
     const journey = document.querySelector('.route-journey-flow').getAttribute('d');
     return { visual, semantic, visualEnds: endpoints(visual), semanticEnds: endpoints(semantic),
       token: token.querySelector('animateMotion').getAttribute('path'), pulse, animatedToken, intent, lens, route, journey,
@@ -76,10 +76,10 @@ test('class: hierarchy bus motion follows from-to while retaining aligned visual
 });
 
 test('class: mixed hierarchy fallback keeps dependency notation in focus and SVG export', {
-  skip: chrome ? false : 'Set ARCHIFY_CHROME to run class motion browser checks.',
+  skip: chrome ? false : 'Set SCHEMATICS_CHROME to run class motion browser checks.',
   timeout: 60000,
 }, async (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-class-bus-browser-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-class-bus-browser-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const input = path.join(scratch, 'mixed.class.json');
   const output = path.join(scratch, 'mixed.html');
@@ -98,7 +98,7 @@ test('class: mixed hierarchy fallback keeps dependency notation in focus and SVG
       { id: 'client_uses', from: 'client', to: 'base', kind: 'dependency' },
     ],
   }));
-  execFileSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'render', 'class', input, output, '--quality', 'showcase'], { timeout: 20000 });
+  execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'render', 'class', input, output, '--quality', 'showcase'], { timeout: 20000 });
   const browser = desktopBrowser(chrome);
   t.after(() => browser.close());
   const session = await browser.sessionPromise;
@@ -126,8 +126,8 @@ test('class: mixed hierarchy fallback keeps dependency notation in focus and SVG
     await send('Page.navigate', { url: pathToFileURL(output).href + '?theme=' + theme });
     await loaded;
     await run('document.fonts.ready');
-    await run('Archify.layoutStability.whenStable()');
-    await run('Archify.motionGovernor.resume()');
+    await run('Schematics.layoutStability.whenStable()');
+    await run('Schematics.motionGovernor.resume()');
     const result = await run(`(async () => {
       const svg = document.querySelector('.diagram-container svg');
       const paths = root => [...root.querySelectorAll('path[data-edge-id]')].map(path => ({
@@ -138,10 +138,10 @@ test('class: mixed hierarchy fallback keeps dependency notation in focus and SVG
       }));
       const live = paths(svg);
       const dependency = svg.querySelector('path[data-edge-id="client_uses"]');
-      Archify.focus.inspectRelationshipById('client_uses', { toggle: false });
+      Schematics.focus.inspectRelationshipById('client_uses', { toggle: false });
       const pulse = document.querySelector('.relationship-flow-pulse')?.getAttribute('d');
-      Archify.focus.clear();
-      Archify.exportMenu.run('svg');
+      Schematics.focus.clear();
+      Schematics.exportMenu.run('svg');
       const deadline = performance.now() + 5000;
       while (!classExports.length && performance.now() < deadline) await new Promise(resolve => setTimeout(resolve, 20));
       if (!classExports.length) throw new Error('Class SVG export did not complete');

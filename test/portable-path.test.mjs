@@ -4,7 +4,7 @@ import {
   PortablePathError,
   validatePortablePath,
   validatePortablePathSet,
-} from '../archify/renderers/shared/portable-path.mjs';
+} from '../schematics/renderers/shared/portable-path.mjs';
 
 function assertPathError(run, { code, reason, profile, segment, index, conflictIndex } = {}) {
   assert.throws(run, (error) => {

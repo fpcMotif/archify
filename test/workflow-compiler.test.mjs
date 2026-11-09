@@ -7,12 +7,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { compileWorkflow } from '../archify/renderers/workflow/workflow-compiler.mjs';
+import { compileWorkflow } from '../schematics/renderers/workflow/workflow-compiler.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const cli = path.join(skillRoot, 'bin', 'archify.mjs');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-workflow-compiler-'));
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-workflow-compiler-'));
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -343,7 +343,7 @@ test('fixed-v1 compiler preserves the exact 700x400 compatibility geometry', () 
 });
 
 test('readable-v2 separates approval branches in the checked-in workflow example', () => {
-  const workflow = readJson(path.join(__dirname, '..', 'archify', 'examples', 'agent-tool-call.workflow.json'));
+  const workflow = readJson(path.join(__dirname, '..', 'schematics', 'examples', 'agent-tool-call.workflow.json'));
   const result = compileSuccessfully(workflow);
 
   assert.equal(result.receipt.contract, 'readable-v2');

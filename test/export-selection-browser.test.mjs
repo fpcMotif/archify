@@ -5,17 +5,17 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { findChrome } from '../archify/bin/visual-check.mjs';
+import { findChrome } from '../schematics/bin/visual-check.mjs';
 import { desktopBrowser } from './helpers/desktop-browser.mjs';
 import { createViewerClick } from './helpers/viewer-click.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chrome = process.env.ARCHIFY_CHROME ? findChrome() : null;
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
 
 test('Export menu preserves authored reach until genuine outside dismissal', {
-  skip: chrome ? false : 'Set ARCHIFY_CHROME to run real-browser Export selection checks.',
+  skip: chrome ? false : 'Set SCHEMATICS_CHROME to run real-browser Export selection checks.',
 }, async (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-export-selection-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-export-selection-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const downloads = path.join(root, 'downloads');
   fs.mkdirSync(downloads);
@@ -58,19 +58,19 @@ test('Export menu preserves authored reach until genuine outside dismissal', {
   async function checkArtifact(artifact) {
     await send('Page.navigate', { url: pathToFileURL(artifact).href });
     await run(`new Promise((resolve,reject)=>{const start=performance.now();function sample(){
-      if(window.Archify?.focus&&Archify.viewerChromeLayout?.whenStable)return resolve();
+      if(window.Schematics?.focus&&Schematics.viewerChromeLayout?.whenStable)return resolve();
       if(performance.now()-start>5000)return reject(new Error('Viewer did not initialize'));
       requestAnimationFrame(sample);
     }sample();})`);
-    await run('Archify.viewerChromeLayout.whenStable()');
+    await run('Schematics.viewerChromeLayout.whenStable()');
     const origin = await run(`document.querySelector('svg [data-edge-from]')?.getAttribute('data-edge-from')`);
     assert.ok(origin, `${artifact} provides an authored relationship`);
-    assert.equal(await run(`Archify.focus.set(${JSON.stringify(origin)}) && Archify.focus.reach('downstream')`), true);
-    const before = await run('Archify.focus.reachabilitySnapshot()');
+    assert.equal(await run(`Schematics.focus.set(${JSON.stringify(origin)}) && Schematics.focus.reach('downstream')`), true);
+    const before = await run('Schematics.focus.reachabilitySnapshot()');
     assert(before?.nodeIds.length > 1);
     await click('#btn-export');
-    const opened = await run(`({snapshot:Archify.focus.reachabilitySnapshot(),
-      open:Archify.exportMenu.isOpen(),
+    const opened = await run(`({snapshot:Schematics.focus.reachabilitySnapshot(),
+      open:Schematics.exportMenu.isOpen(),
       enabled:!document.querySelector('[data-action="reach-share-card"]').disabled,
       hidden:document.querySelector('[data-action="reach-share-card"]').hidden})`);
     assert.deepEqual(opened.snapshot, before, `${artifact} keeps Reach available to Export`);
@@ -78,11 +78,11 @@ test('Export menu preserves authored reach until genuine outside dismissal', {
     assert.equal(opened.enabled, true);
     assert.equal(opened.hidden, false);
     await click('#btn-export');
-    assert.deepEqual(await run('Archify.focus.reachabilitySnapshot()'), before);
+    assert.deepEqual(await run('Schematics.focus.reachabilitySnapshot()'), before);
     await click('#btn-export');
     await run(`document.getElementById('export-menu').addEventListener('click', event=>{
       if(event.target.closest('[data-action="reach-share-card"]')){
-        window.exportSelectionClick={trusted:event.isTrusted,snapshot:Archify.focus.reachabilitySnapshot()};
+        window.exportSelectionClick={trusted:event.isTrusted,snapshot:Schematics.focus.reachabilitySnapshot()};
       }
     }, {capture:true,once:true})`);
     const downloadStarted = browser.cdp.waitFor('Browser.downloadWillBegin', undefined, 5000);
@@ -101,7 +101,7 @@ test('Export menu preserves authored reach until genuine outside dismissal', {
     }sample();})`);
     assert.deepEqual(await run(`['width','height'].map(key=>Number(document.documentElement.getAttribute('data-last-export-'+key)))`), [1200, 630]);
     assert.deepEqual(await run('exportAlerts'), []);
-    assert.deepEqual(await run('Archify.focus.reachabilitySnapshot()'), before,
+    assert.deepEqual(await run('Schematics.focus.reachabilitySnapshot()'), before,
       `${artifact} preserves Reach for continued exploration after export`);
     const downloaded = path.join(downloads, path.basename(download.suggestedFilename));
     const png = await readCompletedDownload(downloaded, 'png');
@@ -116,7 +116,7 @@ test('Export menu preserves authored reach until genuine outside dismissal', {
       const output = path.join(downloads, path.basename(ordinaryDownload.suggestedFilename));
       const bytes = await readCompletedDownload(output, format);
       assert.equal(await run(`document.documentElement.getAttribute('data-last-export-canonical')`), 'true');
-      assert.deepEqual(await run('Archify.focus.reachabilitySnapshot()'), before,
+      assert.deepEqual(await run('Schematics.focus.reachabilitySnapshot()'), before,
         `${artifact} retains live Reach after the full-diagram ${format} download`);
       if (format === 'svg') {
         const canonical = await run(`(() => {
@@ -135,8 +135,8 @@ test('Export menu preserves authored reach until genuine outside dismissal', {
     }
     assert.equal(await run(`document.querySelectorAll('#export-menu a[download]').length`), 0);
     await click('.header-row');
-    assert.equal(await run('Archify.focus.reachabilitySnapshot()'), null);
-    assert.equal(await run('Archify.focus.active()'), null);
+    assert.equal(await run('Schematics.focus.reachabilitySnapshot()'), null);
+    assert.equal(await run('Schematics.focus.active()'), null);
   }
   await checkArtifact(file);
   await checkArtifact(path.join(skillRoot, 'examples', 'web-app-rendered.html'));

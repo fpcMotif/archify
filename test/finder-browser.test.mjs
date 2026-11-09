@@ -5,22 +5,22 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 import { createViewerClick } from './helpers/viewer-click.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'ARCHIFY_CHROME');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'SCHEMATICS_CHROME');
 const chrome = chromeConfigured ? findChrome() : null;
 if (chromeConfigured && !chrome) {
-  throw new Error(`ARCHIFY_CHROME does not resolve to an executable browser: ${process.env.ARCHIFY_CHROME}`);
+  throw new Error(`SCHEMATICS_CHROME does not resolve to an executable browser: ${process.env.SCHEMATICS_CHROME}`);
 }
 
 test('Finder preserves search, keyboard, contextual Route selection and cleanup', {
-  skip: chrome ? false : 'Set ARCHIFY_CHROME to run real-browser Finder checks.',
+  skip: chrome ? false : 'Set SCHEMATICS_CHROME to run real-browser Finder checks.',
 }, async (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-finder-browser-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-finder-browser-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
-  const evidence = process.env.ARCHIFY_FINDER_EVIDENCE;
+  const evidence = process.env.SCHEMATICS_FINDER_EVIDENCE;
   if (evidence) fs.mkdirSync(evidence, { recursive: true });
   const records = [];
   t.after(() => {
@@ -41,15 +41,15 @@ test('Finder preserves search, keyboard, contextual Route selection and cleanup'
   // repository verification and brand rendering have their own tests.
   files.metadata = path.join(scratch, 'metadata.html');
   const metadataSource = fs.readFileSync(files.architecture, 'utf8');
-  assert.ok(metadataSource.includes('    Archify.finder = (function () {'), 'Finder fixture anchor');
+  assert.ok(metadataSource.includes('    Schematics.finder = (function () {'), 'Finder fixture anchor');
   fs.writeFileSync(files.metadata, metadataSource.replace(
-    '    Archify.finder = (function () {', `
+    '    Schematics.finder = (function () {', `
     document.querySelector('[data-node-id="api"]').setAttribute('data-node-brand', 'finder-brand-token');
-    var finderOriginalSources = Archify.sourceEvidence.node;
-    Archify.sourceEvidence.node = function (id) {
+    var finderOriginalSources = Schematics.sourceEvidence.node;
+    Schematics.sourceEvidence.node = function (id) {
       return id === 'api' ? [{path:'src/finder-proof.js',label:'Finder proof',line:12,endLine:18}] : finderOriginalSources(id);
     };
-    Archify.finder = (function () {`));
+    Schematics.finder = (function () {`));
   const browser = new ChromeVisualBrowser(chrome);
   t.after(() => browser.close());
   const session = await browser.sessionPromise;
@@ -72,7 +72,7 @@ test('Finder preserves search, keyboard, contextual Route selection and cleanup'
       const start = performance.now();
       function sample() {
         if (predicate()) return resolve();
-        if (performance.now()-start > 10000) return reject(new Error(description + ' timed out; open=' + Archify.finder.isOpen() + ', active=' + document.activeElement.id));
+        if (performance.now()-start > 10000) return reject(new Error(description + ' timed out; open=' + Schematics.finder.isOpen() + ', active=' + document.activeElement.id));
         requestAnimationFrame(sample);
       }
       requestAnimationFrame(sample);
@@ -88,14 +88,14 @@ test('Finder preserves search, keyboard, contextual Route selection and cleanup'
     await send('Page.navigate', { url: pathToFileURL(files[mode]).href + `?theme=${theme}${query}` });
     await loaded;
     await run('document.fonts.ready');
-    await run('Archify.viewerChromeLayout.whenStable()');
+    await run('Schematics.viewerChromeLayout.whenStable()');
   }
   async function key(key, code, windowsVirtualKeyCode) {
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode });
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode });
   }
   async function opened() {
-    await run(`finderWait(() => Archify.finder.isOpen(), 'Finder panel opening')`);
+    await run(`finderWait(() => Schematics.finder.isOpen(), 'Finder panel opening')`);
     await run(`finderWait(() => document.activeElement.id === 'node-finder-input', 'Finder input focus')`);
   }
   async function search(text) {
@@ -105,14 +105,14 @@ test('Finder preserves search, keyboard, contextual Route selection and cleanup'
   async function snapshot(scenario) {
     const value = await run(`(() => {
       const panel=document.getElementById('node-finder'), input=document.getElementById('node-finder-input');
-      return {open:Archify.finder.isOpen(), context:Archify.finder.context(), count:Archify.finder.count,
+      return {open:Schematics.finder.isOpen(), context:Schematics.finder.context(), count:Schematics.finder.count,
         expanded:document.getElementById('btn-node-finder').getAttribute('aria-expanded'),
         panelContext:panel.getAttribute('data-context'), title:document.getElementById('node-finder-title').textContent,
         query:input.value, placeholder:input.placeholder, empty:document.getElementById('node-finder-empty').hidden,
         status:document.getElementById('node-finder-status').textContent,
         results:[...panel.querySelectorAll('.node-finder-result')].map(el=>({id:el.dataset.nodeId,badge:el.querySelector('em').textContent,aria:el.getAttribute('aria-label')})),
         activeId:document.activeElement.id, activeNode:document.activeElement.getAttribute('data-node-id'),
-        focus:Archify.focus.active(), route:Archify.routeProbe.active(),
+        focus:Schematics.focus.active(), route:Schematics.routeProbe.active(),
         routeFinder:document.getElementById('route-probe').getAttribute('data-finder-open'),
         errors:finderErrors,
         external:performance.getEntriesByType('resource').map(e=>e.name).filter(n=>/^https?:/.test(n))};
@@ -150,20 +150,20 @@ test('Finder preserves search, keyboard, contextual Route selection and cleanup'
     }
     await search('no-matching-node');
     const empty = await snapshot('query-empty'); assert.deepEqual(ids(empty), []); assert.equal(empty.empty, false);
-    await key('Enter', 'Enter', 13); assert.equal(await run('Archify.finder.isOpen()'), true);
-    await run(`Archify.finder.open({context:{kind:'fixture',allowedIds:['db','api'],badges:{api:'custom badge'}}})`); await opened();
+    await key('Enter', 'Enter', 13); assert.equal(await run('Schematics.finder.isOpen()'), true);
+    await run(`Schematics.finder.open({context:{kind:'fixture',allowedIds:['db','api'],badges:{api:'custom badge'}}})`); await opened();
     const restricted = await snapshot('restricted');
     assert.deepEqual(ids(restricted), ['api', 'db']); assert.equal(restricted.results[0].badge, 'custom badge');
-    await run(`Archify.finder.close()`);
+    await run(`Schematics.finder.close()`);
     const closed = await snapshot('retained-context');
     assert.equal(closed.context, 'fixture'); assert.deepEqual(closed.results, restricted.results);
-    await run(`Archify.finder.open({context:{allowedIds:[]}})`); await opened();
+    await run(`Schematics.finder.open({context:{allowedIds:[]}})`); await opened();
     assert.deepEqual(ids(await snapshot('no-allowed-items')), []);
-    assert.equal(await run(`Archify.finder.select('missing')`), false);
+    assert.equal(await run(`Schematics.finder.select('missing')`), false);
     // Filtering is a list contract; the public select method uses all items.
-    assert.equal(await run(`Archify.finder.select('api')`), true);
-    assert.equal(await run('Archify.focus.active()'), 'api');
-    await run('Archify.finder.open()'); await opened();
+    assert.equal(await run(`Schematics.finder.select('api')`), true);
+    assert.equal(await run('Schematics.focus.active()'), 'api');
+    await run('Schematics.finder.open()'); await opened();
     const reset = await snapshot('default-restored'); assert.equal(reset.context, 'focus'); assert.equal(reset.results.length, reset.count);
   });
 
@@ -188,7 +188,7 @@ test('Finder preserves search, keyboard, contextual Route selection and cleanup'
     const selected = await snapshot('normal-selection');
     assert.equal(selected.open, false); assert.equal(selected.focus, 'api'); assert.equal(selected.activeNode, 'api');
     assert.match(await run('location.hash'), /focus=api/);
-    assert.equal(await run(`(() => {const n=document.querySelector('.diagram-container svg [data-node-id="api"]').getBoundingClientRect(),s=Archify.viewerChromeLayout.stageRect();return n.right>s.left&&n.left<s.right&&n.bottom>s.top&&n.top<s.bottom;})()`), true);
+    assert.equal(await run(`(() => {const n=document.querySelector('.diagram-container svg [data-node-id="api"]').getBoundingClientRect(),s=Schematics.viewerChromeLayout.stageRect();return n.right>s.left&&n.left<s.right&&n.bottom>s.top&&n.top<s.bottom;})()`), true);
   });
 
   await t.test('real Route controls select source and target; cancellation restores Route focus', async () => {
@@ -205,57 +205,57 @@ test('Finder preserves search, keyboard, contextual Route selection and cleanup'
     state = await snapshot('route-target'); assert.equal(state.context, 'route-target');
     assert.ok(ids(state).includes('db')); assert.ok(!ids(state).includes('users')); assert.ok(!ids(state).includes('auth'));
     assert.match(state.results.find(item => item.id === 'db').badge, /4/);
-    assert.equal(await run(`Archify.finder.select('auth')`), false);
-    assert.equal(await run('Archify.finder.isOpen()'), true);
-    await run(`Archify.outline.select('auth')`);
-    assert.equal(await run('Archify.routeProbe.active()'), 'target');
+    assert.equal(await run(`Schematics.finder.select('auth')`), false);
+    assert.equal(await run('Schematics.finder.isOpen()'), true);
+    await run(`Schematics.outline.select('auth')`);
+    assert.equal(await run('Schematics.routeProbe.active()'), 'target');
     await key('Escape', 'Escape', 27);
     assert.equal((await snapshot('route-target-cancel')).activeId, 'route-probe-find');
     await click('#route-probe-find'); await opened(); await search('PostgreSQL');
     await key('Enter', 'Enter', 13);
     state = await snapshot('route-result'); assert.equal(state.route, 'result'); assert.equal(state.routeFinder, null); assert.equal(state.open, false);
-    const result = await run('Archify.routeProbe.result()');
+    const result = await run('Schematics.routeProbe.result()');
     assert.deepEqual(result.nodes, ['users', 'cdn', 'lb', 'api', 'db']); assert.equal(result.hops, 4);
-    assert.equal(await run('Archify.finder.context()'), 'route-target');
-    await run(`Archify.outline.select('auth')`);
-    assert.equal(await run('Archify.focus.active()'), 'auth', 'the index must focus nodes after a completed Route');
-    assert.equal(await run('Archify.routeProbe.active()'), null);
+    assert.equal(await run('Schematics.finder.context()'), 'route-target');
+    await run(`Schematics.outline.select('auth')`);
+    assert.equal(await run('Schematics.focus.active()'), 'auth', 'the index must focus nodes after a completed Route');
+    assert.equal(await run('Schematics.routeProbe.active()'), null);
     // A sink is allowed by Route's public API even though the source picker
     // filters it out. Its actual target context must render an empty list.
-    await run(`Archify.routeProbe.begin({source:'db'})`);
+    await run(`Schematics.routeProbe.begin({source:'db'})`);
     await click('#route-probe-find'); await opened();
     state = await snapshot('route-empty-target');
     assert.equal(state.context, 'route-target'); assert.deepEqual(ids(state), []); assert.equal(state.empty, false);
-    await key('Enter', 'Enter', 13); assert.equal(await run('Archify.routeProbe.active()'), 'target');
+    await key('Enter', 'Enter', 13); assert.equal(await run('Schematics.routeProbe.active()'), 'target');
     await key('Escape', 'Escape', 27);
     await click('#route-probe-clear');
-    assert.equal(await run('Archify.finder.context()'), 'route-target');
-    await run(`Archify.outline.select('api')`);
-    assert.equal(await run('Archify.focus.active()'), 'api', 'the index must focus nodes after clearing Route selection');
-    assert.equal(await run('Archify.routeProbe.active()'), null);
+    assert.equal(await run('Schematics.finder.context()'), 'route-target');
+    await run(`Schematics.outline.select('api')`);
+    assert.equal(await run('Schematics.focus.active()'), 'api', 'the index must focus nodes after clearing Route selection');
+    assert.equal(await run('Schematics.routeProbe.active()'), null);
     await key('/', 'Slash', 191); await opened();
     assert.equal((await snapshot('route-cleared-default')).context, 'focus');
   });
 
   await t.test('panel coordination, outside clicks, repeated close and embed retain baseline semantics', async () => {
     await load();
-    await run('Archify.exportMenu.open(); Archify.finder.open()'); await opened();
-    assert.equal(await run('Archify.exportMenu.isOpen()'), false);
-    await run('Archify.semanticLens.open(); Archify.finder.open()'); await opened();
-    assert.equal(await run('Archify.semanticLens.isOpen()'), false);
-    await run(`Archify.finder.close(); document.querySelector('[data-legend-kind][role="button"]').focus()`);
+    await run('Schematics.exportMenu.open(); Schematics.finder.open()'); await opened();
+    assert.equal(await run('Schematics.exportMenu.isOpen()'), false);
+    await run('Schematics.semanticLens.open(); Schematics.finder.open()'); await opened();
+    assert.equal(await run('Schematics.semanticLens.isOpen()'), false);
+    await run(`Schematics.finder.close(); document.querySelector('[data-legend-kind][role="button"]').focus()`);
     assert.equal(await run(`document.querySelector('.diagram-container > svg').hasAttribute('data-legend-preview-active')`), true);
-    await run('Archify.finder.open()'); await opened();
+    await run('Schematics.finder.open()'); await opened();
     assert.equal(await run(`document.querySelector('.diagram-container > svg').hasAttribute('data-legend-preview-active')`), false);
-    await click('#btn-node-finder'); assert.equal(await run('Archify.finder.isOpen()'), false);
+    await click('#btn-node-finder'); assert.equal(await run('Schematics.finder.isOpen()'), false);
     await click('#btn-node-finder'); await opened();
-    await click('h1'); assert.equal(await run('Archify.finder.isOpen()'), false);
-    const rapid = await run(`(() => {Archify.finder.open(); const a=Archify.finder.close({restoreFocus:false}); const b=Archify.finder.close({restoreFocus:false}); return {a:a===undefined,b:b===undefined,open:Archify.finder.isOpen()};})()`);
+    await click('h1'); assert.equal(await run('Schematics.finder.isOpen()'), false);
+    const rapid = await run(`(() => {Schematics.finder.open(); const a=Schematics.finder.close({restoreFocus:false}); const b=Schematics.finder.close({restoreFocus:false}); return {a:a===undefined,b:b===undefined,open:Schematics.finder.isOpen()};})()`);
     assert.deepEqual(rapid, { a: true, b: true, open: false });
     await run('new Promise(resolve => requestAnimationFrame(resolve))');
     await snapshot('rapid-close');
     await load('architecture', { query: '&embed=1' });
-    assert.equal(await run('Archify.finder.open()'), false); assert.equal((await snapshot('embed')).open, false);
+    assert.equal(await run('Schematics.finder.open()'), false); assert.equal((await snapshot('embed')).open, false);
   });
 
   await t.test('themes, constrained viewport, reduced motion and exported SVG', async () => {
@@ -273,11 +273,11 @@ test('Finder preserves search, keyboard, contextual Route selection and cleanup'
       }
       await search('API Server'); await key('Enter', 'Enter', 13);
       await run(`finderWait(() => !document.querySelector('.diagram-container').hasAttribute('data-camera-transaction'))`);
-      assert.equal(await run('Archify.focus.active()'), 'api');
+      assert.equal(await run('Schematics.focus.active()'), 'api');
       const exported = await run(`(async () => {
         const original=URL.createObjectURL; let blob;
         URL.createObjectURL=function(value){if(value.type.startsWith('image/svg+xml'))blob=value;return original.call(URL,value);};
-        try {await Archify.exportMenu.run('svg');} finally {URL.createObjectURL=original;}
+        try {await Schematics.exportMenu.run('svg');} finally {URL.createObjectURL=original;}
         const text=await blob.text(),root=new DOMParser().parseFromString(text,'image/svg+xml').documentElement;
         return {clean:!root.querySelector('[id^="node-finder"],.node-finder-result,[data-focus-selected]')&&!root.hasAttribute('data-focus-active'),geometry:root.getAttribute('viewBox')===document.querySelector('.diagram-container > svg').getAttribute('viewBox')};
       })()`);

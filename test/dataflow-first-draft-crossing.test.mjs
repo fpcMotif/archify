@@ -6,16 +6,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { collectAmbiguousCorridors, properSegmentIntersection } from '../archify/renderers/shared/geometry.ts';
+import { collectAmbiguousCorridors, properSegmentIntersection } from '../schematics/renderers/shared/geometry.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const renderer = path.join(skillRoot, 'renderers', 'dataflow', 'render-dataflow.mjs');
-const cli = path.join(skillRoot, 'bin', 'archify.mjs');
+const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
 const fixture = path.join(__dirname, 'fixtures', 'dataflow-first-draft', 'ml-features.dataflow.json');
 
 function render(diagram) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-dataflow-first-draft-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-dataflow-first-draft-'));
   const input = path.join(directory, 'candidate.json');
   const output = path.join(directory, 'candidate.html');
   fs.writeFileSync(input, JSON.stringify(diagram));

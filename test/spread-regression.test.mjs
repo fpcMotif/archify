@@ -19,9 +19,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const renderer = path.join(skillRoot, 'renderers/architecture/render-architecture.mjs');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-spread-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-spread-'));
 
 const component = (index) => ({
   id: `c${index}`,

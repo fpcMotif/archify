@@ -1,5 +1,5 @@
 ---
-name: Archify
+name: Schematics
 description: A precise, vivid technical instrument for trustworthy interactive architecture maps.
 colors:
   canvas: "#020617"
@@ -79,13 +79,13 @@ components:
     size: "30px × 12px"
 ---
 
-# Design System: Archify
+# Design System: Schematics
 
 ## Overview
 
 **Creative North Star: "The Evidence Console"**
 
-Archify is a composed technical instrument, not a drawing suite. The canvas carries one spatial narrative; restrained controls and progressive disclosure let a reader move from the primary path to exact authored relationships, metadata, and verified code evidence without losing orientation.
+Schematics is a composed technical instrument, not a drawing suite. The canvas carries one spatial narrative; restrained controls and progressive disclosure let a reader move from the primary path to exact authored relationships, metadata, and verified code evidence without losing orientation.
 
 The visual system is precise, dark-first, and vivid only where semantics earn it. Light mode and Blueprint preserve the same vocabulary rather than becoming separate products. Motion has one bounded owner, finishes, and never carries meaning that disappears in a still frame. Desktop is the primary surface; narrow screens receive containment, not a second interface.
 
@@ -149,7 +149,7 @@ The palette is a midnight console with seven semantic signals; color identifies 
 
 ## Elevation
 
-Archify is flat and tonal by default. Borders and surface contrast establish structure; shadows appear only on floating controls and temporary panels. Nothing glows. Blueprint squares materials to keep the review surface exact.
+Schematics is flat and tonal by default. Borders and surface contrast establish structure; shadows appear only on floating controls and temporary panels. Nothing glows. Blueprint squares materials to keep the review surface exact.
 
 ### Shadow Vocabulary
 
@@ -235,7 +235,7 @@ An active reach query may expose one contextual **Export → Reach Share Card** 
 ### Don't:
 
 - **Don't** build generic Mermaid beautifiers that change themes without improving information architecture.
-- **Don't** turn Archify into WYSIWYG drawing suites whose editing chrome becomes the product.
+- **Don't** turn Schematics into WYSIWYG drawing suites whose editing chrome becomes the product.
 - **Don't** ship motion-first graph demos that imply relationships or activity not present in the authored source.
 - **Don't** use dense dashboard shells, endless identical card grids, decorative glass, gradient text, and other AI-generated interface clichés.
 - **Don't** infer identity from arbitrary label text, add an unbounded icon marketplace, or let a brand badge replace the portable semantic vocabulary.

@@ -7,11 +7,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { textUnits } from '../archify/renderers/shared/utils.ts';
-import { bandedLayout, resolveEntityPos } from '../archify/renderers/erd/grid.mjs';
+import { textUnits } from '../schematics/renderers/shared/utils.ts';
+import { bandedLayout, resolveEntityPos } from '../schematics/renderers/erd/grid.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const renderer = path.join(skillRoot, 'renderers', 'class', 'render-class.mjs');
 const checker = path.join(skillRoot, 'scripts', 'check-render-output.mjs');
 const small = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'payments.class.json'), 'utf8'));
@@ -20,7 +20,7 @@ const large = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'payme
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
 function render(diagram) {
-  const directory = createScratchDirectory(path.join(os.tmpdir(), 'archify-class-'));
+  const directory = createScratchDirectory(path.join(os.tmpdir(), 'schematics-class-'));
   const input = path.join(directory, 'candidate.class.json');
   const output = path.join(directory, 'candidate.html');
   fs.writeFileSync(input, JSON.stringify(diagram));

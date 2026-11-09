@@ -4,7 +4,7 @@
        appearance while a small bottom stage rail becomes part of the reader
        budget whenever its zero-reserve position would enter the stage.
        ============================================================ */
-    Archify.viewerChromeLayout = (function () {
+    Schematics.viewerChromeLayout = (function () {
       var html = document.documentElement;
       var container = document.querySelector('.diagram-container');
       var svg = container && container.querySelector(':scope > svg');
@@ -103,16 +103,16 @@
         reserve = next;
         if (reserve) {
           if (options.remember !== false) restorableReserve = reserve;
-          container.style.setProperty('--archify-nav-reserve', reserve + 'px');
+          container.style.setProperty('--schematics-nav-reserve', reserve + 'px');
           container.setAttribute('data-nav-stage-rail', 'true');
           html.setAttribute('data-nav-stage-rail', 'true');
         } else {
-          container.style.removeProperty('--archify-nav-reserve');
+          container.style.removeProperty('--schematics-nav-reserve');
           container.removeAttribute('data-nav-stage-rail');
           html.removeAttribute('data-nav-stage-rail');
         }
-        if (Archify.readerLayout && typeof Archify.readerLayout.schedule === 'function') {
-          Archify.readerLayout.schedule();
+        if (Schematics.readerLayout && typeof Schematics.readerLayout.schedule === 'function') {
+          Schematics.readerLayout.schedule();
         }
         if (options.quiet !== true) {
           if (settleFrame) cancelAnimationFrame(settleFrame);
@@ -166,8 +166,8 @@
         }
         if (next === lift) return;
         lift = next;
-        if (lift) container.style.setProperty('--archify-dock-lift', lift + 'px');
-        else container.style.removeProperty('--archify-dock-lift');
+        if (lift) container.style.setProperty('--schematics-dock-lift', lift + 'px');
+        else container.style.removeProperty('--schematics-dock-lift');
       }
       function scheduleLift() {
         if (!liftFrame) liftFrame = requestAnimationFrame(updateLift);
@@ -265,8 +265,8 @@
         baselineStageGap = null;
         restorableReserve = 0;
         writeReserve(0, { quiet: true });
-        var readerReady = Archify.readerLayout && typeof Archify.readerLayout.whenStable === 'function'
-          ? Archify.readerLayout.whenStable().catch(function () {})
+        var readerReady = Schematics.readerLayout && typeof Schematics.readerLayout.whenStable === 'function'
+          ? Schematics.readerLayout.whenStable().catch(function () {})
           : Promise.resolve();
         probePromise = readerReady.then(function () {
           probingBaseline = false;
@@ -303,14 +303,14 @@
       }
       function layoutPending() { return Boolean(frame || settleFrame || liftFrame || probingBaseline); }
       function whenStable() {
-        return Archify.waitForStableLayout({
+        return Schematics.waitForStableLayout({
           schedule: schedule,
           pending: layoutPending,
           snapshot: stableSnapshot,
           timeoutMessage: 'Viewer chrome layout did not reach stable dimensions.'
         });
       }
-      archifyLayoutOwners.viewerChrome = { schedule: schedule, pending: layoutPending, snapshot: stableSnapshot };
+      schematicsLayoutOwners.viewerChrome = { schedule: schedule, pending: layoutPending, snapshot: stableSnapshot };
 
       window.addEventListener('resize', reprobe, { passive: true });
       window.addEventListener('scroll', scheduleLift, { passive: true });
@@ -415,7 +415,7 @@
         if (dockLegend && legendBox && stageBox && stageBox.width > 0 &&
             legendBox.y + legendBox.height >= stageBox.height - 72) {
           var band = (stageBox.height - legendBox.y + 4) / stageBox.width * 100;
-          svg.style.setProperty('--archify-legend-band', (Math.round(band * 100) / 100) + '%');
+          svg.style.setProperty('--schematics-legend-band', (Math.round(band * 100) / 100) + '%');
           container.appendChild(dockLegend);
         } else {
           dockLegend = null;

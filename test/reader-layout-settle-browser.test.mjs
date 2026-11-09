@@ -6,13 +6,13 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'ARCHIFY_CHROME');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'SCHEMATICS_CHROME');
 const chromePath = chromeConfigured ? findChrome() : null;
 if (chromeConfigured && !chromePath) {
-  throw new Error(`ARCHIFY_CHROME does not resolve to an executable browser: ${process.env.ARCHIFY_CHROME}`);
+  throw new Error(`SCHEMATICS_CHROME does not resolve to an executable browser: ${process.env.SCHEMATICS_CHROME}`);
 }
 
 // A portrait architecture whose conclusion cards rewrap as the Reader narrows.
@@ -21,9 +21,9 @@ if (chromeConfigured && !chromePath) {
 // met: whenStable() timed out and visual-check reported a runtime failure
 // instead of a layout verdict.
 test('Reader Layout settles when card height depends on the reader width', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-reader-settle-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-reader-settle-'));
   const output = path.join(scratch, 'portrait-cards.html');
   execFileSync(process.execPath, [
     path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'),
@@ -49,12 +49,12 @@ test('Reader Layout settles when card height depends on the reader width', {
           document.documentElement.setAttribute('data-motion', 'still');
           var panel = document.querySelector('.diagram-container');
           if (panel) panel.setAttribute('data-detail-level', 'read');
-          return Archify.layoutStability.whenStable();
+          return Schematics.layoutStability.whenStable();
         })().then(function (value) {
           var html = document.documentElement;
           return {
             sampledFrames: value.sampledFrames,
-            readerWidth: html.style.getPropertyValue('--archify-reader-width'),
+            readerWidth: html.style.getPropertyValue('--schematics-reader-width'),
             overflow: html.getAttribute('data-reader-overflow'),
             scrollHeight: Math.ceil(html.scrollHeight),
             innerHeight: window.innerHeight

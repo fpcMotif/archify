@@ -7,9 +7,9 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
-const skillRoot = fileURLToPath(new URL('../archify/', import.meta.url));
-const cli = path.join(skillRoot, 'bin/archify.mjs');
-const diagnosticModule = new URL('../archify/renderers/shared/diagnostics.ts', import.meta.url).href;
+const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
+const diagnosticModule = new URL('../schematics/renderers/shared/diagnostics.ts', import.meta.url).href;
 const installBoundary = `import { installRendererDiagnosticBoundary } from ${JSON.stringify(diagnosticModule)}; installRendererDiagnosticBoundary();`;
 const examples = {
   architecture: 'web-app.architecture.json',
@@ -20,7 +20,7 @@ const examples = {
 };
 
 function workspace(t) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-render-diagnostics-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-render-diagnostics-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   return directory;
 }
@@ -29,7 +29,7 @@ function run(args, cwd, json = false) {
   return spawnSync(process.execPath, args, {
     cwd,
     encoding: 'utf8',
-    env: { ...process.env, ARCHIFY_DIAGNOSTIC_FORMAT: json ? 'json' : '' },
+    env: { ...process.env, SCHEMATICS_DIAGNOSTIC_FORMAT: json ? 'json' : '' },
   });
 }
 
@@ -162,13 +162,13 @@ test('locale warnings cannot classify an unrelated native renderer error', t => 
   const document = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples/web-app.architecture.json'), 'utf8'));
   document.meta.locale = 'en-US';
   fs.writeFileSync(input, JSON.stringify(document));
-  const helper = new URL('../archify/renderers/shared/cli.mjs', import.meta.url).href;
+  const helper = new URL('../schematics/renderers/shared/cli.mjs', import.meta.url).href;
   const script = `import { loadDiagram } from ${JSON.stringify(helper)};
     loadDiagram({ rendererDir: ${JSON.stringify(path.join(skillRoot, 'renderers/architecture'))}, diagramType: 'architecture', argv: ['node', 'renderer', ${JSON.stringify(input)}, ${JSON.stringify(output)}] });
     throw new TypeError('unrelated implementation defect');`;
   const human = run(['--input-type=module', '-e', script], cwd);
   assert.equal(human.status, 1);
-  assert.match(human.stderr, /archify: meta\.locale "en-US"/);
+  assert.match(human.stderr, /schematics: meta\.locale "en-US"/);
   assert.match(human.stderr, /TypeError: unrelated implementation defect/);
   const machine = run(['--input-type=module', '-e', script], cwd, true);
   assert.equal(machine.status, 1);
@@ -189,7 +189,7 @@ test('direct renderer warning modes preserve the successful artifact contract', 
   assert.equal(human.status, 0, human.stderr);
   assert.equal(human.stdout, `${output}\n`);
   assert.equal(human.stderr.trim().split('\n').length, 1);
-  assert.match(human.stderr, /^archify: meta\.locale "en-US"/);
+  assert.match(human.stderr, /^schematics: meta\.locale "en-US"/);
   const artifact = fs.readFileSync(output);
   const machine = run([renderer, input, output], cwd, true);
   assert.equal(machine.status, 0, machine.stderr);
@@ -223,14 +223,14 @@ test('public post-render checker failures retain the locale warning once', t => 
     assert.equal(receipt.stage, 'check');
     assert.ok(receipt.diagnostics.some(entry => entry.message.includes('forced checker failure')), result.stdout);
     assert.equal(result.stderr.trim().split('\n').length, 1, result.stderr);
-    assert.match(result.stderr, /^archify: meta\.locale "en-US"/);
+    assert.match(result.stderr, /^schematics: meta\.locale "en-US"/);
     assert.equal(fs.readFileSync(output, 'utf8'), 'trusted artifact');
   }
 });
 
 test('unexpected renderer exceptions keep native debugging information and are not relabelled as input errors', t => {
   const cwd = workspace(t);
-  const helper = new URL('../archify/renderers/shared/cli.mjs', import.meta.url).href;
+  const helper = new URL('../schematics/renderers/shared/cli.mjs', import.meta.url).href;
   const script = `${installBoundary} import ${JSON.stringify(helper)}; throw Object.assign(new SyntaxError('implementation defect'), { code: 'EACCES' });`;
   const human = run(['--input-type=module', '-e', script], cwd);
   assert.equal(human.status, 1);
@@ -243,7 +243,7 @@ test('unexpected renderer exceptions keep native debugging information and are n
 
 test('a recorded layout diagnostic cannot hide a later unclassified exception', t => {
   const cwd = workspace(t);
-  const helper = new URL('../archify/renderers/shared/diagnostics.ts', import.meta.url).href;
+  const helper = new URL('../schematics/renderers/shared/diagnostics.ts', import.meta.url).href;
   const setup = `import { installRendererDiagnosticBoundary, recordDiagnostic, throwDiagnosticError } from ${JSON.stringify(helper)};
     installRendererDiagnosticBoundary();
     recordDiagnostic({ code: 'layout/constraint', message: 'earlier layout problem' });`;
@@ -279,10 +279,10 @@ test('isolated diagnostic work preserves typed lookup without polluting later fa
       return captured;
     });
     assert.equal(result, captured);
-    assert.deepEqual(result.archifyDiagnostics, [local]);
+    assert.deepEqual(result.schematicsDiagnostics, [local]);
     recordDiagnostic(outer);
     const terminal = recover();
-    assert.deepEqual(terminal.archifyDiagnostics, [outer]);
+    assert.deepEqual(terminal.schematicsDiagnostics, [outer]);
     // Exact local repeats must record after leaving the speculative scope.
     recordDiagnostic(local);
     assert.deepEqual(rendererFailure(terminal).diagnostics, [outer, local]);`;
@@ -298,7 +298,7 @@ test('nested isolated diagnostics restore each caller and retain earlier plus te
     const outer = detail('outer'), local = detail('local'), nested = detail('nested');
     function recover(expected) {
       try { throwDiagnosticProblems('rejected', [expected.message]); assert.fail('problem must throw'); }
-      catch (error) { assert.deepEqual(error.archifyDiagnostics, [expected]); }
+      catch (error) { assert.deepEqual(error.schematicsDiagnostics, [expected]); }
     }
     recordDiagnostic(outer);
     withIsolatedDiagnosticRecording(() => {
@@ -331,14 +331,14 @@ test('isolated diagnostic exceptions restore recording and preserve error identi
     }
     try { throwDiagnosticError('rejected', [terminal]); assert.fail('terminal must throw'); }
     catch (error) { assert.deepEqual(rendererFailure(error).diagnostics, [earlier, terminal]); }
-    const typed = Object.assign(new Error('typed escape'), { archifyDiagnostics: [detail('escape')] });
+    const typed = Object.assign(new Error('typed escape'), { schematicsDiagnostics: [detail('escape')] });
     try {
       withIsolatedDiagnosticRecording(() => { recordDiagnostic(abandoned); throw typed; });
       assert.fail('typed exception must escape');
     } catch (error) {
       assert.equal(error, typed);
       // The caller publishes only the escaped error after recording is restored.
-      for (const diagnostic of error.archifyDiagnostics) recordDiagnostic(diagnostic);
+      for (const diagnostic of error.schematicsDiagnostics) recordDiagnostic(diagnostic);
       assert.deepEqual(rendererFailure(error).diagnostics, [earlier, terminal, detail('escape')]);
     }`;
   const result = run(['--input-type=module', '-e', script], workspace(t), true);
@@ -391,7 +391,7 @@ test('repeated problem messages keep their own subject and evidence', t => {
 
 test('invalid output arguments keep their implementation error instead of a filesystem repair', t => {
   const cwd = workspace(t);
-  const helper = new URL('../archify/renderers/shared/cli.mjs', import.meta.url).href;
+  const helper = new URL('../schematics/renderers/shared/cli.mjs', import.meta.url).href;
   const templatePath = path.join(skillRoot, 'assets/template.html');
   const script = `${installBoundary} import fs from 'node:fs'; import { writeDiagram } from ${JSON.stringify(helper)};
     writeDiagram({ outPath: undefined, template: fs.readFileSync(${JSON.stringify(templatePath)}, 'utf8'), diagramType: 'architecture', meta: { title: 'Test' }, svg: '', cards: [] });`;

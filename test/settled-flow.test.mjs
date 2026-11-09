@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { animateAttr } from '../archify/renderers/shared/cli.mjs';
+import { animateAttr } from '../schematics/renderers/shared/cli.mjs';
 
 test('trace animation delay stays finite, ordered and within the existing waiting budget', () => {
   for (const kind of ['edge', 'node']) {

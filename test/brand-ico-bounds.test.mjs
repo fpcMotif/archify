@@ -8,8 +8,8 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 // BITMAPINFOHEADER, one opaque red BGRA pixel, and a DWORD-aligned AND mask.
@@ -63,7 +63,7 @@ function run(args) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cli, ...args], {
       cwd: skillRoot, stdio: ['ignore', 'pipe', 'pipe'], timeout: 15000,
-      env: { ...process.env, ARCHIFY_BRAND_ALLOW_PRIVATE: '1' },
+      env: { ...process.env, SCHEMATICS_BRAND_ALLOW_PRIVATE: '1' },
     });
     let stdout = '', stderr = '';
     child.stdout.setEncoding('utf8').on('data', (chunk) => { stdout += chunk; });
@@ -150,7 +150,7 @@ for (const healthy of [false, true]) {
   test(`digest-pinned validation and rendering ${healthy ? 'preserve valid ICO bytes' : 'reject malformed ICO even with a matching digest'}`, { timeout: 45000 }, async (t) => {
     const bytes = healthy ? valid : invalid[4][1];
     const data = await fixture(t, { '/icon.ico': resource(bytes) });
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-ico-pin-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-ico-pin-'));
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     const input = path.join(root, 'input.json'), output = path.join(root, 'output.html');
     const document = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples/web-app.architecture.json'), 'utf8'));

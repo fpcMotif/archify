@@ -7,8 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(here, '..', 'archify');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-share-card-'));
+const skillRoot = path.resolve(here, '..', 'schematics');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-share-card-'));
 
 const CASES = {
   architecture: 'web-app.architecture.json',
@@ -56,7 +56,7 @@ test('Share Card uses contain-only canonical geometry with fixed safe areas', ()
   assert.match(html, /img\.onload = function \(\) \{\s*try \{/);
   assert.match(html, /function renderShareCard\(options\)[\s\S]*?serializeSvg\(sourceScale, \{ routeSnapshot: routeSnapshot, reachSnapshot: reachSnapshot, figure: true \}\)/);
   assert.match(html, /fitCanvasText\(ctx, title, [^)]+\)/);
-  assert.doesNotMatch(svgBlock(html), /share-card|Share Card|ARCHIFY ·/);
+  assert.doesNotMatch(svgBlock(html), /share-card|Share Card|SCHEMATICS ·/);
 });
 
 test('ordinary Copy PNG keeps its existing full-diagram raster path', () => {

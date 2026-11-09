@@ -10,10 +10,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 
-import { startPreview } from '../archify/bin/preview.mjs';
+import { startPreview } from '../schematics/bin/preview.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(here, '..', 'archify');
+const skillRoot = path.resolve(here, '..', 'schematics');
 
 function sha256(file) {
   return createHash('sha256').update(fs.readFileSync(file)).digest('hex');
@@ -23,10 +23,10 @@ function windowsShortPath(targetPath) {
   if (process.platform !== 'win32') return null;
   const result = spawnSync(
     process.env.ComSpec || 'cmd.exe',
-    ['/d', '/s', '/c', '"for %I in ("%ARCHIFY_SHORT_PATH_TARGET%") do @echo %~sI"'],
+    ['/d', '/s', '/c', '"for %I in ("%SCHEMATICS_SHORT_PATH_TARGET%") do @echo %~sI"'],
     {
       encoding: 'utf8',
-      env: { ...process.env, ARCHIFY_SHORT_PATH_TARGET: targetPath },
+      env: { ...process.env, SCHEMATICS_SHORT_PATH_TARGET: targetPath },
       windowsHide: true,
       // cmd.exe does not understand the CRT-style backslash escaping that
       // Node otherwise applies to argv containing quotes.
@@ -72,11 +72,11 @@ function assignWindowsShortName(targetPath, shortName) {
 }
 
 function controlledWindowsShortRoot(required) {
-  const root = process.env.ARCHIFY_WINDOWS_8DOT3_ROOT;
-  const shortRoot = process.env.ARCHIFY_WINDOWS_8DOT3_SHORT_ROOT;
+  const root = process.env.SCHEMATICS_WINDOWS_8DOT3_ROOT;
+  const shortRoot = process.env.SCHEMATICS_WINDOWS_8DOT3_SHORT_ROOT;
   if (!root && !shortRoot) {
     if (required) {
-      assert.fail('ARCHIFY_REQUIRE_WINDOWS_8DOT3=1 requires the controlled long and short roots');
+      assert.fail('SCHEMATICS_REQUIRE_WINDOWS_8DOT3=1 requires the controlled long and short roots');
     }
     return null;
   }
@@ -182,7 +182,7 @@ console.log(JSON.stringify({
 }
 
 test('preview: rejects destructive or unsupported startup targets before watching', async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-startup-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-startup-'));
   const input = path.join(tmp, 'diagram.json');
   fs.writeFileSync(input, '{}');
   await assert.rejects(
@@ -211,11 +211,11 @@ test('preview: rejects destructive or unsupported startup targets before watchin
     }),
     /must not replace its JSON input/i,
   );
-  assert.deepEqual(fs.readdirSync(tmp).filter((name) => name.startsWith('.archify-preview-')), []);
+  assert.deepEqual(fs.readdirSync(tmp).filter((name) => name.startsWith('.schematics-preview-')), []);
 });
 
 test('preview: invalid candidates preserve the last verified artifact and repair automatically', { timeout: 30000 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-last-good-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-last-good-'));
   const input = path.join(tmp, 'diagram.architecture.json');
   const output = path.join(tmp, 'diagram.html');
   const source = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples/web-app.architecture.json'), 'utf8'));
@@ -277,7 +277,7 @@ test('preview: invalid candidates preserve the last verified artifact and repair
 
     const page = await rawRequest(preview.url);
     assert.equal(page.status, 200);
-    assert.match(page.body, /Archify Live Preview/);
+    assert.match(page.body, /Schematics Live Preview/);
     assert.match(page.body, /<summary role="button" aria-controls="diagnostic-panel">View diagnostic<\/summary>/);
     assert.match(page.headers['content-security-policy'], /default-src 'none'/);
     const script = page.body.match(/<script>\n([\s\S]*?)\n  <\/script>/)?.[1];
@@ -291,11 +291,11 @@ test('preview: invalid candidates preserve the last verified artifact and repair
   }
 
   await assert.rejects(fetch(preview.url));
-  assert.deepEqual(fs.readdirSync(tmp).filter((name) => name.startsWith('.archify-preview-')), []);
+  assert.deepEqual(fs.readdirSync(tmp).filter((name) => name.startsWith('.schematics-preview-')), []);
 });
 
 test('preview: content digests suppress identical writes and a burst publishes only its stable tail', { timeout: 30000 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-burst-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-burst-'));
   const input = path.join(tmp, 'diagram.workflow.json');
   const output = path.join(tmp, 'diagram.html');
   const source = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples/agent-tool-call.workflow.json'), 'utf8'));
@@ -341,7 +341,7 @@ test('preview: content digests suppress identical writes and a burst publishes o
 });
 
 test('preview: a superseded slow candidate can never become a published revision', { timeout: 30000 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-latest-wins-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-latest-wins-'));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
   const deliveryCli = path.join(tmp, 'fake-delivery.mjs');
@@ -386,7 +386,7 @@ console.log(JSON.stringify({
 });
 
 test('preview: each delivery reads the immutable bytes bound to its observed digest', { timeout: 30000 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-snapshot-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-snapshot-'));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
   const deliveryCli = path.join(tmp, 'snapshot-delivery.mjs');
@@ -440,7 +440,7 @@ console.log(JSON.stringify({
 });
 
 test('preview: commit rechecks the live digest when watcher and poll have not seen a newer save', { timeout: 10000 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-commit-race-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-commit-race-'));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
   const deliveryCli = path.join(tmp, 'commit-race-delivery.mjs');
@@ -492,7 +492,7 @@ console.log(JSON.stringify({
 });
 
 test('preview: an in-place content change to the staged commit candidate is not published', { timeout: 10000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-candidate-content-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-candidate-content-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
@@ -508,7 +508,7 @@ test('preview: an in-place content change to the staged commit candidate is not 
   let modified = false;
   t.mock.method(fs, 'openSync', (target, ...args) => {
     const descriptor = openSync(target, ...args);
-    if (path.basename(target).startsWith('.archify-preview-commit-')
+    if (path.basename(target).startsWith('.schematics-preview-commit-')
       && (args[0] & (fs.constants.O_WRONLY | fs.constants.O_RDWR)) === 0) {
       candidatePath = path.resolve(target);
     }
@@ -536,7 +536,7 @@ test('preview: an in-place content change to the staged commit candidate is not 
     assert.equal(state.failure.evidence.relation.code, 'candidate-content-changed');
     assert.equal(modified, true);
     assert.equal(fs.existsSync(output), false);
-    assert.deepEqual(fs.readdirSync(tmp).filter((name) => name.startsWith('.archify-preview-commit-')), []);
+    assert.deepEqual(fs.readdirSync(tmp).filter((name) => name.startsWith('.schematics-preview-commit-')), []);
   } finally {
     await preview.stop();
   }
@@ -547,7 +547,7 @@ test('preview: an in-place mode change to the staged commit candidate is not pub
     t.skip('POSIX candidate mode regression');
     return;
   }
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-candidate-mode-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-candidate-mode-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
@@ -562,7 +562,7 @@ test('preview: an in-place mode change to the staged commit candidate is not pub
   let modified = false;
   t.mock.method(fs, 'openSync', (target, ...args) => {
     const descriptor = openSync(target, ...args);
-    if (path.basename(target).startsWith('.archify-preview-commit-')
+    if (path.basename(target).startsWith('.schematics-preview-commit-')
       && (args[0] & (fs.constants.O_WRONLY | fs.constants.O_RDWR)) === 0) {
       candidatePath = path.resolve(target);
     }
@@ -591,14 +591,14 @@ test('preview: an in-place mode change to the staged commit candidate is not pub
     assert.equal(state.failure.evidence.relation.code, 'candidate-mode-changed');
     assert.equal(modified, true);
     assert.equal(fs.existsSync(output), false);
-    assert.deepEqual(fs.readdirSync(tmp).filter((name) => name.startsWith('.archify-preview-commit-')), []);
+    assert.deepEqual(fs.readdirSync(tmp).filter((name) => name.startsWith('.schematics-preview-commit-')), []);
   } finally {
     await preview.stop();
   }
 });
 
 test('preview: replacing the staged commit candidate preserves the claimant', { timeout: 10000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-candidate-replacement-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-candidate-replacement-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
@@ -616,7 +616,7 @@ test('preview: replacing the staged commit candidate preserves the claimant', { 
   let replaced = false;
   t.mock.method(fs, 'openSync', (target, ...args) => {
     const descriptor = openSync(target, ...args);
-    if (path.basename(target).startsWith('.archify-preview-commit-')
+    if (path.basename(target).startsWith('.schematics-preview-commit-')
       && (args[0] & (fs.constants.O_WRONLY | fs.constants.O_RDWR)) === 0) {
       candidatePath = path.resolve(target);
     }
@@ -649,7 +649,7 @@ test('preview: replacing the staged commit candidate preserves the claimant', { 
 });
 
 test('preview: a candidate swapped at publication cannot replace the last good artifact', { timeout: 10000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-publication-binding-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-publication-binding-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
@@ -677,7 +677,7 @@ test('preview: a candidate swapped at publication cannot replace the last good a
   t.mock.method(fs, 'openSync', (file, flags, ...args) => {
     const descriptor = openSync(file, flags, ...args);
     const resolved = path.resolve(String(file));
-    if (path.basename(resolved).startsWith('.archify-preview-commit-')
+    if (path.basename(resolved).startsWith('.schematics-preview-commit-')
       && (flags & (fs.constants.O_WRONLY | fs.constants.O_RDWR)) === 0) {
       candidatePath = resolved;
       candidateDescriptor = descriptor;
@@ -720,7 +720,7 @@ test('preview: a candidate swapped at publication cannot replace the last good a
 });
 
 test('preview: replacing the delivered source candidate preserves the claimant', { timeout: 10000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-source-replacement-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-source-replacement-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
@@ -767,7 +767,7 @@ test('preview: replacing the delivered source candidate preserves the claimant',
 });
 
 test('preview: a delivery candidate replaced by a symlink is rejected without following it', { timeout: 10000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-source-symlink-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-source-symlink-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
@@ -825,7 +825,7 @@ test('preview: a delivery candidate replaced by a FIFO is rejected without block
     t.skip('FIFO files are unavailable on Windows');
     return;
   }
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-source-fifo-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-source-fifo-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
@@ -867,7 +867,7 @@ test('preview: a delivery candidate replaced by a FIFO is rejected without block
 });
 
 test('preview: publishing through an existing output symlink preserves the link and updates its target', { timeout: 10000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-output-symlink-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-output-symlink-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.json');
   const target = path.join(tmp, 'target.html');
@@ -891,10 +891,10 @@ test('preview: publishing through an existing output symlink preserves the link 
   let commits = 0;
   t.mock.method(fs, 'linkSync', (source, destination) => {
     if (path.resolve(destination) === physicalTarget
-      && path.basename(String(source)).startsWith('.archify-preview-commit-')) {
+      && path.basename(String(source)).startsWith('.schematics-preview-commit-')) {
       commits += 1;
       assert.equal(path.dirname(source), path.dirname(physicalTarget));
-      assert.match(path.basename(source), /^\.archify-preview-commit-/);
+      assert.match(path.basename(source), /^\.schematics-preview-commit-/);
     }
     return linkSync(source, destination);
   });
@@ -913,7 +913,7 @@ test('preview: publishing through an existing output symlink preserves the link 
 });
 
 test('preview: cleanup stays bound to the physical output parent after a directory alias is redirected', { timeout: 10000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-cleanup-alias-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-cleanup-alias-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const first = path.join(tmp, 'first');
   const second = path.join(tmp, 'second');
@@ -935,7 +935,7 @@ test('preview: cleanup stays bound to the physical output parent after a directo
   const preview = await startPreview({
     type: 'architecture', input, output: path.join(alias, 'diagram.html'), open: false, watch: false, pollMs: 60_000,
   });
-  const stagingName = fs.readdirSync(first).find((name) => name.startsWith('.archify-preview-'));
+  const stagingName = fs.readdirSync(first).find((name) => name.startsWith('.schematics-preview-'));
   assert.ok(stagingName, 'preview did not create its private staging directory');
   const originalStaging = path.join(first, stagingName);
   const decoyStaging = path.join(second, stagingName);
@@ -954,7 +954,7 @@ test('preview: cleanup stays bound to the physical output parent after a directo
 });
 
 test('preview: cleanup retries transient remote ENOTEMPTY', { timeout: 10000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-cleanup-enotempty-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-cleanup-enotempty-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(skillRoot, 'examples', 'web-app.architecture.json');
   const output = path.join(tmp, 'diagram.html');
@@ -964,7 +964,7 @@ test('preview: cleanup retries transient remote ENOTEMPTY', { timeout: 10000 }, 
   const rmdirSync = fs.rmdirSync.bind(fs);
   let injected = false;
   t.mock.method(fs, 'rmdirSync', (directory, ...args) => {
-    if (!injected && path.basename(String(directory)).startsWith('.archify-preview-')) {
+    if (!injected && path.basename(String(directory)).startsWith('.schematics-preview-')) {
       injected = true;
       throw Object.assign(new Error('simulated remote deletion visibility delay'), { code: 'ENOTEMPTY' });
     }
@@ -975,13 +975,13 @@ test('preview: cleanup retries transient remote ENOTEMPTY', { timeout: 10000 }, 
 
   assert.equal(injected, true);
   assert.deepEqual(
-    fs.readdirSync(tmp).filter((entry) => entry.startsWith('.archify-preview-')),
+    fs.readdirSync(tmp).filter((entry) => entry.startsWith('.schematics-preview-')),
     [],
   );
 });
 
 test('preview: publishing through a dangling output symlink creates its target without replacing the link', { timeout: 10000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-output-dangling-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-output-dangling-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.json');
   const target = path.join(tmp, 'future-target.html');
@@ -1013,7 +1013,7 @@ test('preview: publishing through a dangling output symlink creates its target w
 });
 
 test('preview: recreating an output symlink to the same target fails the commit even when its inode is reused', { timeout: 10000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-output-recreated-symlink-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-output-recreated-symlink-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.json');
   const target = path.join(tmp, 'target.html');
@@ -1070,7 +1070,7 @@ test('preview: recreating an output symlink to the same target fails the commit 
 });
 
 test('preview: a concurrently claimed absent output is preserved and fails the commit', { timeout: 10000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-output-claim-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-output-claim-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
@@ -1097,7 +1097,7 @@ test('preview: a concurrently claimed absent output is preserved and fails the c
 });
 
 test('preview: a concurrent replacement of an existing output is preserved and fails the commit', { timeout: 10000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-output-replacement-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-output-replacement-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
@@ -1127,7 +1127,7 @@ test('preview: a concurrent replacement of an existing output is preserved and f
 });
 
 test('preview: a hardlinked existing output is unsupported before delivery starts', { timeout: 10000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-output-hardlink-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-output-hardlink-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
@@ -1166,7 +1166,7 @@ test('preview: a hardlinked existing output is unsupported before delivery start
 });
 
 test('preview: stopping drains an active delivery without publishing it', { timeout: 30000 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-stop-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-stop-'));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
   const deliveryCli = path.join(tmp, 'slow-delivery.mjs');
@@ -1202,11 +1202,11 @@ console.log(JSON.stringify({
   await preview.stop();
   assert.ok(Date.now() - stoppedAt >= 250, 'preview did not drain the active delivery');
   assert.equal(fs.readFileSync(output, 'utf8'), prior);
-  assert.deepEqual(fs.readdirSync(tmp).filter((name) => name.startsWith('.archify-preview-')), []);
+  assert.deepEqual(fs.readdirSync(tmp).filter((name) => name.startsWith('.schematics-preview-')), []);
 });
 
 test('preview: stopping has a bounded kill path for a delivery that never exits', { timeout: 5000 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-hung-stop-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-hung-stop-'));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
   const deliveryCli = path.join(tmp, 'hung-delivery.mjs');
@@ -1236,11 +1236,11 @@ setInterval(() => {}, 1000);
   assert.ok(Date.now() - stoppedAt < 1000, 'hung delivery kept preview shutdown open');
   assert.equal(fs.readFileSync(output, 'utf8'), prior);
   await assert.rejects(fetch(preview.url));
-  assert.deepEqual(fs.readdirSync(tmp).filter((name) => name.startsWith('.archify-preview-')), []);
+  assert.deepEqual(fs.readdirSync(tmp).filter((name) => name.startsWith('.schematics-preview-')), []);
 });
 
 test('preview: checker failures keep their actionable detail instead of a generic stage only', { timeout: 30000 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-checker-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-checker-'));
   const input = path.join(tmp, 'diagram.json');
   const output = path.join(tmp, 'diagram.html');
   const deliveryCli = path.join(tmp, 'checker-failure.mjs');
@@ -1283,7 +1283,7 @@ test('preview: all five typed renderers reach a verified first revision', { time
   };
 
   for (const [type, example] of Object.entries(cases)) {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `archify-preview-${type}-`));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `schematics-preview-${type}-`));
     const input = path.join(tmp, example);
     const output = path.join(tmp, `${type}.html`);
     fs.copyFileSync(path.join(skillRoot, 'examples', example), input);
@@ -1301,7 +1301,7 @@ test('preview: all five typed renderers reach a verified first revision', { time
 
 
 test('preview: polling continues after an asynchronous watcher error', { timeout: 30000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-watch-error-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-watch-error-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.architecture.json');
   const output = path.join(tmp, 'diagram.html');
@@ -1330,7 +1330,7 @@ test('preview: polling continues after an asynchronous watcher error', { timeout
 });
 
 test('preview: watcher accepts an existing file alias with a different basename', { timeout: 30000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-watch-file-alias-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-watch-file-alias-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.architecture.json');
   const alias = path.join(tmp, 'DIAGRAM~1.JSON');
@@ -1388,7 +1388,7 @@ test('preview: watcher accepts an existing file alias with a different basename'
 });
 
 test('preview: watcher accepts case-variant basenames on a case-insensitive filesystem', { timeout: 30000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-watch-case-alias-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-watch-case-alias-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const inputBasename = 'Diagram.Architecture.JSON';
   const eventBasename = inputBasename.toLowerCase();
@@ -1450,7 +1450,7 @@ test('preview: watcher accepts case-variant basenames on a case-insensitive file
 });
 
 test('preview: canonical watch target observes edits through a directory alias', { timeout: 30000 }, async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-watch-alias-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-watch-alias-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const realDirectory = path.join(tmp, 'real input directory');
   const aliasDirectory = path.join(tmp, 'input-alias');
@@ -1493,10 +1493,10 @@ test('preview: canonical watch target observes edits through a directory alias',
 });
 
 test('preview: Windows 8.3 short path observes edits through the canonical watcher', { timeout: 30000 }, async (t) => {
-  const requiresWindows8dot3 = process.env.ARCHIFY_REQUIRE_WINDOWS_8DOT3 === '1';
+  const requiresWindows8dot3 = process.env.SCHEMATICS_REQUIRE_WINDOWS_8DOT3 === '1';
   if (process.platform !== 'win32') {
     if (requiresWindows8dot3) {
-      assert.fail('ARCHIFY_REQUIRE_WINDOWS_8DOT3=1 requires a Windows test lane');
+      assert.fail('SCHEMATICS_REQUIRE_WINDOWS_8DOT3=1 requires a Windows test lane');
     }
     t.skip('Windows-only 8.3 path regression');
     return;
@@ -1505,7 +1505,7 @@ test('preview: Windows 8.3 short path observes edits through the canonical watch
   const controlledRoot = controlledWindowsShortRoot(requiresWindows8dot3);
   const tmp = controlledRoot
     ? fs.mkdtempSync(path.join(controlledRoot.root, 'preview-'))
-    : fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-eight-dot-three-'));
+    : fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-eight-dot-three-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const shortTmp = controlledRoot
     ? path.win32.join(controlledRoot.shortRoot, path.basename(tmp))
@@ -1567,7 +1567,7 @@ test('preview: Windows 8.3 short path observes edits through the canonical watch
 });
 
 test('preview: native watch-target resolution failure closes startup resources', async (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-preview-watch-cleanup-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-preview-watch-cleanup-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'diagram.architecture.json');
   const output = path.join(tmp, 'diagram.html');
@@ -1593,7 +1593,7 @@ test('preview: native watch-target resolution failure closes startup resources',
   );
   assert.equal(server?.listening, false, 'failed startup left the preview server listening');
   assert.deepEqual(
-    fs.readdirSync(tmp).filter((name) => name.startsWith('.archify-preview-')),
+    fs.readdirSync(tmp).filter((name) => name.startsWith('.schematics-preview-')),
     [],
     'failed startup left its staging directory behind',
   );

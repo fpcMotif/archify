@@ -8,9 +8,9 @@ import test from 'node:test';
 const helper = new URL('./helpers/repository-evidence-fixture.mjs', import.meta.url).href;
 
 test('repository evidence fixtures clean successful and partially initialized repositories', (t) => {
-  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-fixture-cleanup-'));
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-fixture-cleanup-'));
   t.after(() => fs.rmSync(temporaryRoot, { recursive: true, force: true }));
-  const suiteRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-fixture-suite-'));
+  const suiteRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-fixture-suite-'));
   t.after(() => fs.rmSync(suiteRoot, { recursive: true, force: true }));
   const suite = path.join(suiteRoot, 'fixture-cleanup.test.mjs');
   fs.writeFileSync(suite, `
@@ -39,7 +39,7 @@ test('repository evidence fixtures clean successful and partially initialized re
   });
   assert.equal(child.status, 0, child.stdout + child.stderr);
   assert.deepEqual(
-    fs.readdirSync(temporaryRoot).filter((name) => name.startsWith('archify-evidence-repo-')),
+    fs.readdirSync(temporaryRoot).filter((name) => name.startsWith('schematics-evidence-repo-')),
     [],
     'fixture-owned Git directories must not outlive their suite',
   );

@@ -6,20 +6,20 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ChromeVisualBrowser, findChrome, runVisualCheck } from '../archify/bin/visual-check.mjs';
-import { DESKTOP_READABILITY_VIEWPORT, MIN_PROJECTED_NODE_TEXT_PX } from '../archify/renderers/shared/desktop-readability.ts';
+import { ChromeVisualBrowser, findChrome, runVisualCheck } from '../schematics/bin/visual-check.mjs';
+import { DESKTOP_READABILITY_VIEWPORT, MIN_PROJECTED_NODE_TEXT_PX } from '../schematics/renderers/shared/desktop-readability.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const chromePath = process.env.ARCHIFY_CHROME ? findChrome() : null;
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const chromePath = process.env.SCHEMATICS_CHROME ? findChrome() : null;
 const packagedHtmlExamples = fs.readdirSync(path.join(skillRoot, 'examples'))
   .filter((name) => name.endsWith('.html') && !name.endsWith('.visual-check.html'))
   .sort();
 
 test('waterfall axis labels stay distinct and inside the SVG at nonzero origins', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async (t) => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-axis-labels-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-axis-labels-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const browser = new ChromeVisualBrowser(chromePath);
   try {
@@ -61,9 +61,9 @@ test('waterfall axis labels stay distinct and inside the SVG at nonzero origins'
 });
 
 test('all packaged HTML examples pass the real visual-check desktop gate', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-packaged-examples-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-packaged-examples-'));
   try {
     assert.ok(packagedHtmlExamples.length > 0, 'expected at least one packaged HTML example');
     for (const name of packagedHtmlExamples) {
@@ -80,9 +80,9 @@ test('all packaged HTML examples pass the real visual-check desktop gate', {
 });
 
 test('default sequence and dataflow canvases fit the real desktop reader without changing explicit geometry', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-default-reader-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-default-reader-'));
   const cases = [
     ['sequence', {
       schema_version: 1, diagram_type: 'sequence',
@@ -109,7 +109,7 @@ test('default sequence and dataflow canvases fit the real desktop reader without
         const candidate = structuredClone(doc);
         if (authored) candidate.meta.viewBox = viewBox;
         fs.writeFileSync(input, JSON.stringify(candidate));
-        execFileSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'render', type, input, artifact]);
+        execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'render', type, input, artifact]);
         const result = await runVisualCheck({ artifactPath: artifact, chromePath });
         if (authored) {
           assert.equal(result.exitCode, 1, `${type}: explicit narrow canvas still requires repair`);
@@ -130,9 +130,9 @@ test('default sequence and dataflow canvases fit the real desktop reader without
 });
 
 test('visual-check collects nested ID-less semantic edge text for every renderer family', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-visual-edge-collector-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-visual-edge-collector-'));
   const cases = [
     ['architecture', 'examples/web-app.architecture.json'],
     ['workflow', 'examples/agent-tool-call.workflow.json'],
@@ -144,7 +144,7 @@ test('visual-check collects nested ID-less semantic edge text for every renderer
     for (const [index, [type, input]] of cases.entries()) {
       const artifact = path.join(tmp, `${type}.html`);
       execFileSync(process.execPath, [
-        path.join(skillRoot, 'bin', 'archify.mjs'), 'render', type,
+        path.join(skillRoot, 'bin', 'schematics.mjs'), 'render', type,
         path.join(skillRoot, input), artifact, '--quality', 'showcase',
       ], { cwd: skillRoot, encoding: 'utf8' });
       const edge = index % 2
@@ -211,13 +211,13 @@ const issue250FiveStageGroup = {
 };
 
 test('production showcase is readable in the real 1440 by 900 adaptive reader', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-desktop-reader-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-desktop-reader-'));
   const artifact = path.join(tmp, 'production-deployment.html');
   try {
     execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin', 'archify.mjs'),
+      path.join(skillRoot, 'bin', 'schematics.mjs'),
       'render',
       'architecture',
       path.join(skillRoot, 'examples', 'production-deployment.architecture.json'),
@@ -280,9 +280,9 @@ test('production showcase is readable in the real 1440 by 900 adaptive reader', 
 });
 
 test('route-expanded intrinsic architecture preserves reading size with ordinary page scroll', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-route-expanded-reader-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-route-expanded-reader-'));
   const input = path.join(
     skillRoot, '..',
     'test/fixtures/architecture-viewport/route-expanded-worldscope.architecture.json',
@@ -290,7 +290,7 @@ test('route-expanded intrinsic architecture preserves reading size with ordinary
   const artifact = path.join(tmp, 'route-expanded-worldscope.html');
   try {
     execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin', 'archify.mjs'),
+      path.join(skillRoot, 'bin', 'schematics.mjs'),
       'deliver',
       'architecture',
       input,
@@ -338,9 +338,9 @@ test('route-expanded intrinsic architecture preserves reading size with ordinary
 });
 
 test('extreme intrinsic architecture keeps readable page scroll below first-screen fit', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-readable-scroll-reader-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-readable-scroll-reader-'));
   const input = path.join(
     skillRoot, '..',
     'test/fixtures/architecture-viewport/readable-scroll-worldscope.architecture.json',
@@ -348,7 +348,7 @@ test('extreme intrinsic architecture keeps readable page scroll below first-scre
   const artifact = path.join(tmp, 'readable-scroll-worldscope.html');
   try {
     execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin', 'archify.mjs'),
+      path.join(skillRoot, 'bin', 'schematics.mjs'),
       'deliver',
       'architecture',
       input,
@@ -404,7 +404,7 @@ test('extreme intrinsic architecture keeps readable page scroll below first-scre
 });
 
 test('offline intrinsic workflows fit while authored overflow still identifies lane frames', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const fixtureRoot = path.join(skillRoot, '..', 'test', 'fixtures/workflow-viewport');
   const failed = JSON.parse(fs.readFileSync(path.join(fixtureRoot, 'order-overflow.workflow.json'), 'utf8'));
@@ -416,7 +416,7 @@ test('offline intrinsic workflows fit while authored overflow still identifies l
   }
   // Each fixture publishes to its own file; all authored metadata stays the same.
   assert.deepEqual({ ...repaired.meta, output: failed.meta.output }, failed.meta);
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-workflow-viewport-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-workflow-viewport-'));
   try {
     for (const name of ['order-overflow', 'order-reflow', 'order-pinned-overflow']) {
       let input = path.join(fixtureRoot, `${name}.workflow.json`);
@@ -428,7 +428,7 @@ test('offline intrinsic workflows fit while authored overflow still identifies l
         fs.writeFileSync(input, JSON.stringify(pinned));
       }
       const artifact = path.join(tmp, `${name}.html`);
-      execFileSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'deliver', 'workflow',
+      execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'deliver', 'workflow',
         input, artifact, '--quality', 'showcase', '--json'], { cwd: skillRoot });
       const result = await runVisualCheck({
         artifactPath: artifact, chromePath,
@@ -468,12 +468,12 @@ test('offline intrinsic workflows fit while authored overflow still identifies l
 // visual-check rejects any rounded-up remainder, so browser-check failed
 // a first draft that every earlier gate had accepted.
 test('a 1px width-first remainder is declared instead of failing browser containment', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-reader-remainder-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-reader-remainder-'));
   try {
     const artifact = path.join(tmp, 'three-lane-remainder.html');
-    execFileSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'deliver', 'workflow',
+    execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'deliver', 'workflow',
       path.join(skillRoot, '..', 'test', 'fixtures/workflow-viewport/three-lane-remainder.workflow.json'),
       artifact, '--quality', 'showcase', '--json'], { cwd: skillRoot });
     assert.match(fs.readFileSync(artifact, 'utf8'), /viewBox="0 0 \d+ 528" data-reader-fit="width-first"/);
@@ -489,15 +489,15 @@ test('a 1px width-first remainder is declared instead of failing browser contain
 });
 
 test('issue #250 tall intrinsic workflow uses reading width and permits readable page scroll', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-issue-250-reader-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-issue-250-reader-'));
   const input = path.join(tmp, 'issue-250.workflow.json');
   const artifact = path.join(tmp, 'issue-250.html');
   try {
     fs.writeFileSync(input, `${JSON.stringify(issue250TallGroup, null, 2)}\n`);
     execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin', 'archify.mjs'),
+      path.join(skillRoot, 'bin', 'schematics.mjs'),
       'render',
       'workflow',
       input,
@@ -537,15 +537,15 @@ test('issue #250 tall intrinsic workflow uses reading width and permits readable
 });
 
 test('issue #250 five-stage stack retains reading scale within the automatic enlargement cap', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-issue-250-five-stage-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-issue-250-five-stage-'));
   const input = path.join(tmp, 'issue-250-five-stage.workflow.json');
   const artifact = path.join(tmp, 'issue-250-five-stage.html');
   try {
     fs.writeFileSync(input, `${JSON.stringify(issue250FiveStageGroup, null, 2)}\n`);
     execFileSync(process.execPath, [
-      path.join(skillRoot, 'bin', 'archify.mjs'),
+      path.join(skillRoot, 'bin', 'schematics.mjs'),
       'render',
       'workflow',
       input,
@@ -575,9 +575,9 @@ test('issue #250 five-stage stack retains reading scale within the automatic enl
 });
 
 test('authored Architecture canvas keeps its scale and accepts readable document scrolling', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async t => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-authored-reader-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-authored-reader-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'fixed.json');
   const artifact = path.join(tmp, 'fixed.html');
@@ -592,7 +592,7 @@ test('authored Architecture canvas keeps its scale and accepts readable document
     connections: [{ from: 'client', to: 'api', label: 'request' }, { from: 'api', to: 'store', label: 'persist' }],
   };
   fs.writeFileSync(input, JSON.stringify(doc));
-  execFileSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'render', 'architecture', input, artifact]);
+  execFileSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'render', 'architecture', input, artifact]);
   const html = fs.readFileSync(artifact, 'utf8');
   assert.match(html, /viewBox="0 0 1040 700"/);
   assert.match(html, /<rect x="300" y="470" width="140" height="64"/);

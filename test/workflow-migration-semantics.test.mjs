@@ -6,11 +6,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { intrinsicWorkflow, planningWorkflow } from '../archify/renderers/workflow/workflow-migration-geometry.mjs';
-import { compileWorkflow } from '../archify/renderers/workflow/workflow-compiler.mjs';
+import { intrinsicWorkflow, planningWorkflow } from '../schematics/renderers/workflow/workflow-migration-geometry.mjs';
+import { compileWorkflow } from '../schematics/renderers/workflow/workflow-compiler.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const contracts = {
   requiredEdges: [{ from: 'a', to: 'b' }],
@@ -46,7 +46,7 @@ function document(semanticChecks) {
 }
 
 function fixture(t, checks) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-migration-semantics-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-migration-semantics-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const source = path.join(root, 'source.workflow.json');
   const destination = path.join(root, 'destination.workflow.json');
@@ -123,7 +123,7 @@ for (const [field, value, code] of [
       assert.deepEqual(fs.readFileSync(data.source), data.bytes);
       assert.deepEqual(fs.readFileSync(data.destination), previous);
     }
-    assert.equal(fs.readdirSync(data.root).some((name) => name.startsWith('.archify-migration-')), false);
+    assert.equal(fs.readdirSync(data.root).some((name) => name.startsWith('.schematics-migration-')), false);
   });
 }
 

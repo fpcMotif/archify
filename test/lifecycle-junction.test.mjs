@@ -5,9 +5,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectAmbiguousCorridors, collectArrowheadCollisions } from '../archify/renderers/shared/geometry.ts';
+import { collectAmbiguousCorridors, collectArrowheadCollisions } from '../schematics/renderers/shared/geometry.ts';
 
-const skillRoot = fileURLToPath(new URL('../archify/', import.meta.url));
+const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
 const state = (id, type = 'active') => ({ id, type, label: id });
 const bus = {
   schema_version: 3, diagram_type: 'lifecycle',
@@ -21,7 +21,7 @@ const bus = {
 };
 
 test('multi-target lifecycle bus passes the public artifact checker and validation', (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-lifecycle-junction-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-lifecycle-junction-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const input = path.join(dir, 'bus.json');
   const output = path.join(dir, 'bus.html');
@@ -34,7 +34,7 @@ test('multi-target lifecycle bus passes the public artifact checker and validati
   assert.equal(check.status, 0, check.stdout);
   assert.equal(receipt.composition.metrics.ambiguousCorridors, 0);
   assert.equal(receipt.composition.metrics.arrowheadCollisions, 0);
-  const validate = spawnSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'validate', 'lifecycle', input, '--json'], { encoding: 'utf8' });
+  const validate = spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'validate', 'lifecycle', input, '--json'], { encoding: 'utf8' });
   assert.equal(validate.status, 0, validate.stdout + validate.stderr);
 });
 
@@ -64,7 +64,7 @@ test('interior vertical overlap remains ambiguous within the same junction', () 
 });
 
 test('public checker rejects interior vertical overlaps even when the junction and source match', (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-junction-overlap-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-junction-overlap-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   for (const junction of ['a+c', 'other']) {
     const first = route('a', 'x', [[20, 20], [20, 60], [100, 60], [100, 120], [160, 120]]);

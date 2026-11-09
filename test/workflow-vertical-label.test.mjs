@@ -6,10 +6,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { compileWorkflow } from '../archify/renderers/workflow/workflow-compiler.mjs';
+import { compileWorkflow } from '../schematics/renderers/workflow/workflow-compiler.mjs';
 
-const skillRoot = fileURLToPath(new URL('../archify/', import.meta.url));
-const cli = path.join(skillRoot, 'bin', 'archify.mjs');
+const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
+const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
 
 function verticalWorkflow({ direction = 'down', edge = {}, schemaVersion = 2 } = {}) {
   const down = direction === 'down';
@@ -76,7 +76,7 @@ for (const direction of ['down', 'up']) {
 }
 
 test('workflow CLI validates and renders the labeled vertical straight route', (t) => {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-vertical-label-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-vertical-label-'));
   t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
   const input = path.join(tmp, 'vertical.workflow.json');
   const output = path.join(tmp, 'vertical.html');

@@ -9,10 +9,10 @@ import {
   sameEntry,
   sameLocation,
   sameParent,
-} from '../archify/renderers/shared/path-semantics.mjs';
+} from '../schematics/renderers/shared/path-semantics.mjs';
 
 function scratchDirectory(t) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-path-semantics-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-path-semantics-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   return directory;
 }
@@ -406,8 +406,8 @@ test('physical resolution returns a real ancestor and unresolved future segments
 
 test('sameLocation asks the containing filesystem about case-only future names', (t) => {
   const root = scratchDirectory(t);
-  const authoredProbe = path.join(root, 'ArchifyCaseProbe');
-  const lookupProbe = path.join(root, 'archifycaseprobe');
+  const authoredProbe = path.join(root, 'SchematicsCaseProbe');
+  const lookupProbe = path.join(root, 'schematicscaseprobe');
   fs.writeFileSync(authoredProbe, 'probe');
   const aliasesCase = fs.existsSync(lookupProbe)
     && fs.statSync(authoredProbe, { bigint: true }).ino === fs.statSync(lookupProbe, { bigint: true }).ino;
@@ -425,7 +425,7 @@ test('sameLocation does not project ancestor semantics through a future director
   const openSync = fs.openSync.bind(fs);
   let probeCount = 0;
   t.mock.method(fs, 'openSync', (targetPath, ...args) => {
-    if (path.basename(targetPath).startsWith('.archify-path-semantics-')) probeCount += 1;
+    if (path.basename(targetPath).startsWith('.schematics-path-semantics-')) probeCount += 1;
     return openSync(targetPath, ...args);
   });
 
@@ -457,8 +457,8 @@ test('sameLocation probes an existing intermediate directory using its own seman
   const root = scratchDirectory(t);
   const intermediate = path.join(root, 'existing-parent');
   fs.mkdirSync(intermediate);
-  const authoredProbe = path.join(intermediate, 'ArchifyCaseProbe');
-  const lookupProbe = path.join(intermediate, 'archifycaseprobe');
+  const authoredProbe = path.join(intermediate, 'SchematicsCaseProbe');
+  const lookupProbe = path.join(intermediate, 'schematicscaseprobe');
   fs.writeFileSync(authoredProbe, 'probe');
   const aliasesCase = fs.existsSync(lookupProbe)
     && fs.statSync(authoredProbe, { bigint: true }).ino === fs.statSync(lookupProbe, { bigint: true }).ino;
@@ -495,7 +495,7 @@ test('sameLocation reports probe cleanup failures as unknown', (t) => {
   const root = scratchDirectory(t);
   const unlinkSync = fs.unlinkSync.bind(fs);
   t.mock.method(fs, 'unlinkSync', (targetPath, ...args) => {
-    if (path.basename(targetPath).startsWith('.archify-path-semantics-cleanup-')) {
+    if (path.basename(targetPath).startsWith('.schematics-path-semantics-cleanup-')) {
       unlinkSync(targetPath, ...args);
       const error = new Error('simulated probe cleanup failure');
       error.code = 'EIO';
@@ -521,7 +521,7 @@ test('sameLocation does not recursively probe its own watcher events', (t) => {
   const openSync = fs.openSync.bind(fs);
   let probeName;
   t.mock.method(fs, 'openSync', (targetPath, ...args) => {
-    if (path.basename(targetPath).startsWith('.archify-path-semantics-')) {
+    if (path.basename(targetPath).startsWith('.schematics-path-semantics-')) {
       probeName = path.basename(targetPath);
     }
     return openSync(targetPath, ...args);
@@ -562,7 +562,7 @@ test('sameLocation proves a long Unicode artifact distinct from a bounded hash s
   const root = scratchDirectory(t);
   // Valid on byte-limited filesystems, but too long to prepend a probe name.
   const longNfd = `${'e\u0301'.repeat(76)}-architecture.html`;
-  const hashSidecar = '.archify-delivery-a3f5712c9e19.json';
+  const hashSidecar = '.schematics-delivery-a3f5712c9e19.json';
   t.mock.method(fs, 'openSync', () => {
     throw new Error('a distinct-name proof must not write a probe');
   });
@@ -639,7 +639,7 @@ test('probe cleanup never deletes a replacement entry even when released inodes 
   let replaced = false;
   t.mock.method(fs, 'openSync', (targetPath, ...args) => {
     const descriptor = openSync(targetPath, ...args);
-    if (args[0] === 'wx' && path.basename(targetPath).startsWith('.archify-path-semantics-')) {
+    if (args[0] === 'wx' && path.basename(targetPath).startsWith('.schematics-path-semantics-')) {
       probePath = targetPath;
       probeDescriptor = descriptor;
       descriptorOpen = true;
@@ -685,7 +685,7 @@ test('probe cleanup never deletes a replacement entry even when released inodes 
 
   expectResult(comparison, 'unknown');
   assert.equal(comparison.reason.code, 'future-name-probe-cleanup-failed');
-  assert.equal(comparison.reason.systemCode, 'ARCHIFY_PROBE_IDENTITY_CHANGED');
+  assert.equal(comparison.reason.systemCode, 'SCHEMATICS_PROBE_IDENTITY_CHANGED');
   assert.equal(fs.readFileSync(probePath, 'utf8'), 'replacement sentinel');
 });
 
@@ -700,8 +700,8 @@ test('probe cleanup preserves a replacement introduced after its identity check'
     if (
       !replaced
       && (
-        path.basename(targetPath).startsWith('.archify-path-semantics-')
-        || path.basename(path.dirname(targetPath)).startsWith('.archify-path-semantics-')
+        path.basename(targetPath).startsWith('.schematics-path-semantics-')
+        || path.basename(path.dirname(targetPath)).startsWith('.schematics-path-semantics-')
       )
       && !stat.isDirectory()
     ) {
@@ -721,7 +721,7 @@ test('probe cleanup preserves a replacement introduced after its identity check'
 
   expectResult(comparison, 'unknown');
   assert.equal(comparison.reason.code, 'future-name-probe-cleanup-failed');
-  assert.equal(comparison.reason.systemCode, 'ARCHIFY_PROBE_IDENTITY_CHANGED');
+  assert.equal(comparison.reason.systemCode, 'SCHEMATICS_PROBE_IDENTITY_CHANGED');
   assert.equal(comparison.reason.restoredAtTarget, true);
   assert.equal(typeof comparison.reason.recoveryPath, 'string');
   assert.equal(fs.readFileSync(probePath, 'utf8'), 'replacement after identity check');
@@ -745,7 +745,7 @@ test('probe cleanup exposes the quarantine path when target restoration fails', 
     const stat = lstatSync(targetPath, ...args);
     if (
       !replaced
-      && path.basename(targetPath).startsWith('.archify-path-semantics-')
+      && path.basename(targetPath).startsWith('.schematics-path-semantics-')
       && !stat.isDirectory()
     ) {
       probePath = targetPath;
@@ -769,7 +769,7 @@ test('probe cleanup exposes the quarantine path when target restoration fails', 
 
   expectResult(comparison, 'unknown');
   assert.equal(comparison.reason.code, 'future-name-probe-cleanup-failed');
-  assert.equal(comparison.reason.systemCode, 'ARCHIFY_PROBE_IDENTITY_CHANGED');
+  assert.equal(comparison.reason.systemCode, 'SCHEMATICS_PROBE_IDENTITY_CHANGED');
   assert.equal(comparison.reason.restoredAtTarget, false);
   assert.equal(typeof comparison.reason.recoveryPath, 'string');
   assert.equal(fs.existsSync(probePath), false);
@@ -783,7 +783,7 @@ test('successful probe cleanup leaves no quarantine entry', (t) => {
   const root = scratchDirectory(t);
   sameLocation(path.join(root, 'Future.HTML'), path.join(root, 'future.html'));
   assert.deepEqual(
-    fs.readdirSync(root).filter((entry) => entry.startsWith('.archify-path-semantics-')),
+    fs.readdirSync(root).filter((entry) => entry.startsWith('.schematics-path-semantics-')),
     [],
   );
 });
@@ -794,8 +794,8 @@ test('future name probes run in the directory whose semantics are being queried'
   let probeParent;
   t.mock.method(fs, 'openSync', (targetPath, ...args) => {
     if (
-      path.basename(targetPath).startsWith('.archify-path-semantics-')
-      || path.basename(path.dirname(targetPath)).startsWith('.archify-path-semantics-')
+      path.basename(targetPath).startsWith('.schematics-path-semantics-')
+      || path.basename(path.dirname(targetPath)).startsWith('.schematics-path-semantics-')
     ) {
       probeParent = path.dirname(targetPath);
     }

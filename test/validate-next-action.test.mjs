@@ -7,11 +7,11 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const cli = path.join(skillRoot, 'bin', 'archify.mjs');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
 
 test('passing validate emits a frozen candidate and one hash-bound finalize action', t => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-next-action-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-next-action-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'diagram.json');
   const source = fs.readFileSync(path.join(skillRoot, 'examples', 'web-app.architecture.json'));
@@ -40,7 +40,7 @@ test('passing validate emits a frozen candidate and one hash-bound finalize acti
 });
 
 test('finalize fails closed before gates when the validated candidate hash changed', t => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-next-action-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-next-action-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'diagram.json');
   const output = path.join(directory, 'diagram.html');

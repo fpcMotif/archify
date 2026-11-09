@@ -5,15 +5,15 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { checkArtifact } from '../archify/scripts/check-render-output.mjs';
-import { checkExplainerHtml } from '../archify/explainer/check.mjs';
+import { checkArtifact } from '../schematics/scripts/check-render-output.mjs';
+import { checkExplainerHtml } from '../schematics/explainer/check.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const checker = path.join(repoRoot, 'archify/scripts/check-render-output.mjs');
-const passing = path.join(repoRoot, 'archify/examples/web-app-rendered.html');
+const checker = path.join(repoRoot, 'schematics/scripts/check-render-output.mjs');
+const passing = path.join(repoRoot, 'schematics/examples/web-app-rendered.html');
 
 function artifactFile(t, body) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-artifact-check-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-artifact-check-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const file = path.join(directory, 'diagram.html');
   fs.writeFileSync(file, body);
@@ -47,7 +47,7 @@ test('artifact check: each call starts from empty state', (t) => {
 });
 
 test('artifact check: explainer artifacts get the explainer receipt', () => {
-  const html = '<!doctype html><html data-archify-artifact="explainer"><body><main></main></body></html>';
+  const html = '<!doctype html><html data-schematics-artifact="explainer"><body><main></main></body></html>';
   assert.deepEqual(
     checkArtifact(Buffer.from(html), { file: 'answer.html' }),
     checkExplainerHtml(html, { file: 'answer.html' }),

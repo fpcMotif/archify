@@ -5,10 +5,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020.js';
-import * as generatedValidators from '../archify/renderers/shared/generated-validators.mjs';
+import * as generatedValidators from '../schematics/renderers/shared/generated-validators.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const validateWorkflow = generatedValidators.workflow;
 const commonSchema = JSON.parse(
   fs.readFileSync(path.join(skillRoot, 'schemas', 'common.schema.json'), 'utf8'),

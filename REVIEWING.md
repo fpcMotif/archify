@@ -1,4 +1,4 @@
-# Reviewing Archify changes
+# Reviewing Schematics changes
 
 Use this guide for initial and revised PR reviews. Judge the user value, implementation and ongoing maintenance cost, and impact on existing behavior. [Contributing](CONTRIBUTING.md#choose-evidence-by-impact) describes contribution and evidence requirements.
 

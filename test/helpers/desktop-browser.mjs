@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { ChromeVisualBrowser } from '../../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser } from '../../schematics/bin/visual-check.mjs';
 
 // Test-only Blink settings: headless hosts may have no physical mouse.
 // Disabling touch emulation would restore those host defaults and undo this.
@@ -26,12 +26,12 @@ export async function desktopPointerCheck(browser, session) {
         anyFine: query('(any-pointer: fine)').matches,
         maxTouchPoints: navigator.maxTouchPoints,
       });
-      window.__archifyTestPointer = { initial: sample(), sample };
+      window.__schematicsTestPointer = { initial: sample(), sample };
     })();
   ` }, session);
   return async function checkDesktopPointer() {
     const result = await browser.cdp.send('Runtime.evaluate', {
-      expression: '({initial:__archifyTestPointer.initial,current:__archifyTestPointer.sample()})',
+      expression: '({initial:__schematicsTestPointer.initial,current:__schematicsTestPointer.sample()})',
       returnByValue: true,
     }, session);
     assert.equal(result.exceptionDetails, undefined, 'Desktop pointer diagnostics did not initialize');

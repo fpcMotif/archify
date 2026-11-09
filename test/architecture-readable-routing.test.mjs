@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRouter } from '../archify/renderers/architecture/routing.mjs';
-import { properSegmentIntersection, routeBudgetMetrics } from '../archify/renderers/shared/geometry.ts';
+import { createRouter } from '../schematics/renderers/architecture/routing.mjs';
+import { properSegmentIntersection, routeBudgetMetrics } from '../schematics/renderers/shared/geometry.ts';
 
 function fixture() {
   const boxes = new Map(Array.from({ length: 6 }, (_, index) => {

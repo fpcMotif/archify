@@ -5,13 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'ARCHIFY_CHROME');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'SCHEMATICS_CHROME');
 const chromePath = chromeConfigured ? findChrome() : null;
 if (chromeConfigured && !chromePath) {
-  throw new Error(`ARCHIFY_CHROME does not resolve to an executable browser: ${process.env.ARCHIFY_CHROME}`);
+  throw new Error(`SCHEMATICS_CHROME does not resolve to an executable browser: ${process.env.SCHEMATICS_CHROME}`);
 }
 // Full edge labels have real room: caller/listener gap 90px and
 // queue/worker gap 105px. Readability must not rely on detached label masks.
@@ -19,13 +19,13 @@ const fixtureJson = path.join(root, '..', 'test/fixtures/reader-readability/synt
 
 test('declared wide synthetic reader preserves geometry and reaches edge/node readability', {
   skip: chromePath ? false :
-    'Set ARCHIFY_CHROME to run the maintained real browser regression.',
+    'Set SCHEMATICS_CHROME to run the maintained real browser regression.',
 }, async () => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-reader-readability-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-reader-readability-'));
   const artifact = path.join(scratch, 'synthetic-wide.html');
   try {
     execFileSync(process.execPath, [
-      path.join(root, 'bin', 'archify.mjs'), 'deliver', 'architecture', fixtureJson, artifact,
+      path.join(root, 'bin', 'schematics.mjs'), 'deliver', 'architecture', fixtureJson, artifact,
       '--quality', 'showcase',
     ], { cwd: root, stdio: 'pipe' });
     const artifactSource = fs.readFileSync(artifact, 'utf8');
@@ -53,8 +53,8 @@ test('declared wide synthetic reader preserves geometry and reaches edge/node re
       async function stable() {
         await evaluate(`(async function () {
           for (var i = 0; i < 2; i += 1) {
-            await Archify.readerLayout.whenStable();
-            await Archify.viewerChromeLayout.whenStable();
+            await Schematics.readerLayout.whenStable();
+            await Schematics.viewerChromeLayout.whenStable();
           }
         })()`, true);
       }
@@ -68,9 +68,9 @@ test('declared wide synthetic reader preserves geometry and reaches edge/node re
         assert.equal(result.errorText, undefined, result.errorText);
         await loaded;
         await evaluate(`(function () {
-          if (Archify.view && Archify.view.reset) Archify.view.reset();
-          if (Archify.motionGovernor && Archify.motionGovernor.setMode) {
-            Archify.motionGovernor.setMode('still');
+          if (Schematics.view && Schematics.view.reset) Schematics.view.reset();
+          if (Schematics.motionGovernor && Schematics.motionGovernor.setMode) {
+            Schematics.motionGovernor.setMode('still');
           }
         })()`);
         await stable();
@@ -92,10 +92,10 @@ test('declared wide synthetic reader preserves geometry and reaches edge/node re
           )).filter(function (text) {
             return text.getAttribute('data-detail') !== 'context' || text.closest('[data-node-id]');
           }).map(projected);
-          var chrome = Archify.viewerChromeLayout.receipt();
-          var camera = Archify.view.state();
+          var chrome = Schematics.viewerChromeLayout.receipt();
+          var camera = Schematics.view.state();
           return {
-            active: Archify.readerLayout.active(), receipt: Archify.readerLayout.receipt(),
+            active: Schematics.readerLayout.active(), receipt: Schematics.readerLayout.receipt(),
             layout: html.getAttribute('data-reader-layout'), overflow: html.getAttribute('data-reader-overflow'),
             readerFit: svg.getAttribute('data-reader-fit'), minText: svg.getAttribute('data-reader-min-text'),
             geometry: ['viewBox', 'width', 'height'].map(function (name) { return svg.getAttribute(name); }),
@@ -110,7 +110,7 @@ test('declared wide synthetic reader preserves geometry and reaches edge/node re
               ? document.getElementById('reader-rail').getBoundingClientRect().height + parseFloat(getComputedStyle(document.getElementById('reader-rail')).marginTop)
               : 0) > innerHeight + 1,
             theme: html.getAttribute('data-theme'), motion: html.getAttribute('data-motion'),
-            motionMode: Archify.motionGovernor.mode(), detailLevel: container.getAttribute('data-detail-level'),
+            motionMode: Schematics.motionGovernor.mode(), detailLevel: container.getAttribute('data-detail-level'),
             cameraScale: camera.scale, cameraMode: camera.mode,
             viewPercent: document.querySelector('[data-view-percent]')?.textContent || null,
             chromeStageIntersectionArea: chrome.stageIntersectionArea,

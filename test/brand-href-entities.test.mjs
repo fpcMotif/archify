@@ -8,8 +8,8 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 const icon = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 const digest = createHash('sha256').update(icon).digest('hex');
 const cases = [
@@ -33,7 +33,7 @@ function run(args) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cli, ...args], {
       cwd: skillRoot,
-      env: { ...process.env, ARCHIFY_BRAND_ALLOW_PRIVATE: '1' },
+      env: { ...process.env, SCHEMATICS_BRAND_ALLOW_PRIVATE: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 15000,
     });
@@ -112,7 +112,7 @@ const diagramTypes = [
 ];
 for (const [type, example, collection] of diagramTypes) {
   test(`captured entity URL is fetched identically for pinned ${type} validation and rendering`, { timeout: 45000 }, async (t) => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-brand-href-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-brand-href-'));
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     const data = await fixture(t, null, '/mark.png?v=1&size=32', [
       '<head><!-- </head> --><script>const tag = "</head>";</script>',

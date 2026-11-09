@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {lintExplainerWriting} from '../archify/explainer/writing.mjs';
+import {lintExplainerWriting} from '../schematics/explainer/writing.mjs';
 const entry = (text, extra = {}) => ({text, line: 1, component: 'prose', ...extra});
 
 test('writing: independently authored bilingual hints give concrete repairs without failing by default', () => {

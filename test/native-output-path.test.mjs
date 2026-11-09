@@ -7,12 +7,12 @@ import {
   resolveNativeOutputDirectory,
   resolveOutputPath,
   validateNativeOutputPath,
-} from '../archify/renderers/shared/output-path.mjs';
+} from '../schematics/renderers/shared/output-path.mjs';
 
 function nativeFailure(value, options) {
   assert.throws(
     () => validateNativeOutputPath(value, options),
-    (error) => error?.archifyDiagnostics?.[0]?.code === 'output/native-path-syntax',
+    (error) => error?.schematicsDiagnostics?.[0]?.code === 'output/native-path-syntax',
   );
 }
 
@@ -83,7 +83,7 @@ test('Windows UNC share names use SMB share syntax rather than DOS file-device r
   ]) {
     assert.throws(
       () => validateNativeOutputPath(value, { platform: 'win32' }),
-      (error) => error?.archifyDiagnostics?.[0]?.evidence?.reason === 'windows-unc-share-name',
+      (error) => error?.schematicsDiagnostics?.[0]?.evidence?.reason === 'windows-unc-share-name',
       value,
     );
   }
@@ -115,7 +115,7 @@ test('Windows IPC shares fail before output resolution touches the filesystem', 
         defaultOutput: 'diagram.html',
         platform: 'win32',
       }),
-      (error) => error?.archifyDiagnostics?.[0]?.evidence?.reason === 'windows-ipc-namespace',
+      (error) => error?.schematicsDiagnostics?.[0]?.evidence?.reason === 'windows-ipc-namespace',
       requestedOutput,
     );
   }
@@ -138,7 +138,7 @@ test('Windows native output directories validate raw spelling before resolution'
     assert.throws(
       () => resolveNativeOutputDirectory(value, { platform: 'win32', cwd }),
       (error) => {
-        const diagnostic = error?.archifyDiagnostics?.[0];
+        const diagnostic = error?.schematicsDiagnostics?.[0];
         return diagnostic?.code === 'output/native-path-syntax'
           && diagnostic?.subject?.output === value
           && diagnostic?.evidence?.reason === reason;
@@ -173,7 +173,7 @@ test('native file outputs reject a trailing separator before normalization', (t)
   ]) {
     assert.throws(
       () => validateNativeOutputPath(value, { platform: 'win32' }),
-      (error) => error?.archifyDiagnostics?.[0]?.evidence?.reason === 'trailing-separator',
+      (error) => error?.schematicsDiagnostics?.[0]?.evidence?.reason === 'trailing-separator',
       value,
     );
   }
@@ -211,7 +211,7 @@ test('Windows CLI outputs reject malformed raw UNC roots before normalization', 
   ]) {
     assert.throws(
       () => validateNativeOutputPath(value, { platform: 'win32' }),
-      (error) => error?.archifyDiagnostics?.[0]?.evidence?.reason === 'windows-unc-root',
+      (error) => error?.schematicsDiagnostics?.[0]?.evidence?.reason === 'windows-unc-root',
     );
   }
 });
@@ -240,7 +240,7 @@ test('native outputs reject unpaired UTF-16 surrogates without rejecting valid p
     for (const surrogate of ['\ud800', '\udfff']) {
       assert.throws(
         () => validateNativeOutputPath(`reports/${surrogate}.html`, { platform }),
-        (error) => error?.archifyDiagnostics?.[0]?.evidence?.reason === 'unpaired-surrogate',
+        (error) => error?.schematicsDiagnostics?.[0]?.evidence?.reason === 'unpaired-surrogate',
       );
     }
     const emojiOutput = 'reports/\ud83d\ude00.html';
@@ -261,7 +261,7 @@ test('resolveOutputPath applies Windows native validation to explicit outputs be
       defaultOutput: 'diagram.html',
       platform: 'win32',
     }),
-    (error) => error?.archifyDiagnostics?.[0]?.evidence?.reason === 'windows-reserved-name',
+    (error) => error?.schematicsDiagnostics?.[0]?.evidence?.reason === 'windows-reserved-name',
   );
 });
 

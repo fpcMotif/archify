@@ -6,15 +6,15 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('../archify/', import.meta.url));
-const cli = path.join(root, 'bin/archify.mjs');
+const root = fileURLToPath(new URL('../schematics/', import.meta.url));
+const cli = path.join(root, 'bin/schematics.mjs');
 
 function component(id, pos, size = [120, 60]) {
   return { id, type: 'backend', label: id, pos, size };
 }
 
 function validate(t, diagram, extra = []) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-route-detour-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-route-detour-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const input = path.join(directory, 'diagram.json');
   fs.writeFileSync(input, JSON.stringify(diagram));

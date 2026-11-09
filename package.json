@@ -1,5 +1,5 @@
 {
-  "name": "archify-repository",
+  "name": "schematics-repository",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,7 +8,7 @@
   "scripts": {
     "test": "bun test test/core-smoke.test.mjs",
     "test:browser": "bun scripts/run-browser-tests.ts",
-    "test:generated": "bun run --cwd archify check:viewer && bun run --cwd archify check:brand-marks && bun run --cwd archify check:validators && bun test/golden.mjs",
+    "test:generated": "bun run --cwd schematics check:viewer && bun run --cwd schematics check:brand-marks && bun run --cwd schematics check:validators && bun test/golden.mjs",
     "test:all": "bun test --timeout 120000",
     "test:full": "bun run test:generated && bun run test:all",
     "lint:boundaries": "depcruise packages"

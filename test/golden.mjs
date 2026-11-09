@@ -1,4 +1,4 @@
-// Golden-file harness for the archify renderers. No test framework needed:
+// Golden-file harness for the schematics renderers. No test framework needed:
 // renderers are deterministic, so fresh renders must match both checked-in
 // development and packaged example HTML aside from platform checkout line endings. Also covers schema enforcement (negative cases),
 // template freshness of the architecture-mode example, and version sync.
@@ -12,8 +12,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-test-'));
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-test-'));
 
 let failures = 0;
 
@@ -50,11 +50,11 @@ const GOLDEN = [
   ['erd', 'orders.erd.json', 'erd-orders-rendered.html'],
   ['erd', 'subscription-billing.erd.json', 'subscription-billing-rendered.html'],
   ['tree', 'payment-platform.tree.json', 'tree-payment-platform-rendered.html'],
-  ['tree', 'archify-repository.tree.json', 'tree-archify-repository-rendered.html'],
+  ['tree', 'schematics-repository.tree.json', 'tree-schematics-repository-rendered.html'],
   ['class', 'payments.class.json', 'class-payments-rendered.html'],
   ['class', 'payment-processors.class.json', 'class-payment-processors-rendered.html'],
   ['timeline', 'payment-incident.timeline.json', 'timeline-payment-incident-rendered.html'],
-  ['timeline', 'archify-dev-activity.timeline.json', 'timeline-archify-dev-activity-rendered.html'],
+  ['timeline', 'schematics-dev-activity.timeline.json', 'timeline-schematics-dev-activity-rendered.html'],
   ['waterfall', 'checkout-request.waterfall.json', 'waterfall-checkout-request-rendered.html'],
   ['waterfall', 'example-rebuild.waterfall.json', 'waterfall-example-rebuild-rendered.html'],
 ];
@@ -66,7 +66,7 @@ for (const [mode, input, golden] of GOLDEN) {
     const fresh = fs.readFileSync(out, 'utf8');
     const checked = fs.readFileSync(path.join(skillRoot, 'examples', golden), 'utf8');
     check(`${mode}: ${golden}`, normalizeNewlines(fresh) === normalizeNewlines(checked),
-      `fresh render differs from archify/examples/${golden}; if the change is intentional, run render:examples and commit the result`);
+      `fresh render differs from schematics/examples/${golden}; if the change is intentional, run render:examples and commit the result`);
   } catch (err) {
     check(`${mode}: ${golden}`, false, String(err.stderr || err.message).slice(0, 300));
   }
@@ -189,7 +189,7 @@ for (const tag of ['style', 'script']) {
   const w = blocks(viewerHtml, tag).filter((b) => !b.includes('Sample Web App') && isTemplateOwned(b));
   check(`web-app-rendered.html ${tag} blocks match template`,
     JSON.stringify(t) === JSON.stringify(w),
-    'archify/examples/web-app-rendered.html was generated from a stale template — re-derive it');
+    'schematics/examples/web-app-rendered.html was generated from a stale template — re-derive it');
 }
 
 // ---------------------------------------------------------------------------
@@ -197,7 +197,7 @@ console.log('version sync');
 
 const pkg = JSON.parse(fs.readFileSync(path.join(skillRoot, 'package.json'), 'utf8'));
 check('template generator meta matches package.json version',
-  template.includes(`<meta name="generator" content="archify ${pkg.version}">`),
+  template.includes(`<meta name="generator" content="schematics ${pkg.version}">`),
   `package.json says ${pkg.version}`);
 
 const skillMd = fs.readFileSync(path.join(skillRoot, 'SKILL.md'), 'utf8');

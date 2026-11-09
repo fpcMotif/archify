@@ -19,7 +19,7 @@ jobs:
         with:
           bun-version: 1.4.4
       - name: Install dependencies
-        run: bun install --frozen-lockfile && bun install --cwd archify --frozen-lockfile
+        run: bun install --frozen-lockfile && bun install --cwd schematics --frozen-lockfile
       - name: Block new .mjs files
         run: bun scripts/check-mjs-ratchet.ts
       - name: Type-check TypeScript sources
@@ -43,9 +43,9 @@ jobs:
           chrome-version: stable
           install-dependencies: true
       - name: Install dependencies
-        run: bun install --frozen-lockfile && bun install --cwd archify --frozen-lockfile
+        run: bun install --frozen-lockfile && bun install --cwd schematics --frozen-lockfile
       - name: Browser tests
         run: bun run test:browser
         env:
-          ARCHIFY_CHROME: ${{ steps.setup-chrome.outputs.chrome-path }}
-          ARCHIFY_CHROME_NO_SANDBOX: '1'
+          SCHEMATICS_CHROME: ${{ steps.setup-chrome.outputs.chrome-path }}
+          SCHEMATICS_CHROME_NO_SANDBOX: '1'

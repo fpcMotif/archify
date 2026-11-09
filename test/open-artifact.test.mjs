@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 
-import { openArtifact, openLoopbackUrl } from '../archify/bin/open-artifact.mjs';
+import { openArtifact, openLoopbackUrl } from '../schematics/bin/open-artifact.mjs';
 
 const target = path.resolve("/tmp/-复杂 path 'quoted'/diagram.html");
 
@@ -27,7 +27,7 @@ test('open artifact: uses argument arrays without shell interpolation on every s
         '-NoProfile',
         '-NonInteractive',
         '-Command',
-        'Start-Process -FilePath $env:ARCHIFY_OPEN_TARGET',
+        'Start-Process -FilePath $env:SCHEMATICS_OPEN_TARGET',
       ],
       method: 'powershell',
     },
@@ -54,7 +54,7 @@ test('open artifact: uses argument arrays without shell interpolation on every s
     assert.equal(invocation.options.shell, false);
     assert.equal(invocation.options.timeout, expected.platform === 'win32' ? 15000 : 5000);
     if (expected.platform === 'win32') {
-      assert.equal(invocation.options.env.ARCHIFY_OPEN_TARGET, target);
+      assert.equal(invocation.options.env.SCHEMATICS_OPEN_TARGET, target);
     } else {
       assert.equal(invocation.options.env, undefined);
     }
@@ -223,9 +223,9 @@ test('open artifact: live preview opens only an exact loopback HTTP root', () =>
     '-NoProfile',
     '-NonInteractive',
     '-Command',
-    'Start-Process -FilePath $env:ARCHIFY_OPEN_TARGET',
+    'Start-Process -FilePath $env:SCHEMATICS_OPEN_TARGET',
   ]);
-  assert.equal(windowsInvocation.options.env.ARCHIFY_OPEN_TARGET, url);
+  assert.equal(windowsInvocation.options.env.SCHEMATICS_OPEN_TARGET, url);
 
   for (const rejected of [
     'https://127.0.0.1:43127/',

@@ -1,6 +1,6 @@
-# Archify
+# Schematics
 
-Archify turns an authored diagram description into a checked, standalone HTML diagram. These terms name what authors, agents and the checks exchange while a diagram is repaired.
+Schematics turns an authored diagram description into a checked, standalone HTML diagram. These terms name what authors, agents and the checks exchange while a diagram is repaired.
 
 ## Language
 

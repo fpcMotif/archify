@@ -6,12 +6,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-semantic-radar-'));
-const chromePath = process.env.ARCHIFY_CHROME ? findChrome() : null;
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-semantic-radar-'));
+const chromePath = process.env.SCHEMATICS_CHROME ? findChrome() : null;
 
 const CASES = {
   architecture: 'web-app.architecture.json',
@@ -157,7 +157,7 @@ test('all typed renderers inherit one viewer-only Semantic Radar', () => {
     assert.match(html, /id="overview-map-expand"[^>]+aria-label="Open full minimap"/, mode);
     assert.match(html, /id="overview-map-feedback" role="status" aria-live="polite" hidden/, mode);
     assert.match(html, /id="btn-overview-map"[^>]+aria-label="Open minimap"[^>]+aria-expanded="false"[^>]+aria-controls="overview-map"/, mode);
-    assert.match(html, /Archify\.radar = \(function \(\)/, mode);
+    assert.match(html, /Schematics\.radar = \(function \(\)/, mode);
     assert.match(html, /document\.createElementNS\(namespace, 'svg'\)/, mode);
     assert.match(html, /mapSvg\.setAttribute\('aria-label', viewerText\('viewer\.radar\.nodes'\)\)/, mode);
     assert.match(html, /diagram\.querySelectorAll\('\[data-node-id\]'\)/, mode);
@@ -172,8 +172,8 @@ test('Semantic Radar derives semantic node bounds and focuses stable IDs', () =>
   assert.match(html, /rect\.setAttribute\('data-radar-node-id', id\)/);
   assert.match(html, /rect\.setAttribute\('data-kind', node\.getAttribute\('data-node-kind'\) \|\| 'neutral'\)/);
   assert.match(html, /rect\.setAttribute\('aria-label', viewerText\('viewer\.radar\.focus'/);
-  assert.match(html, /Archify\.focus\.set\(id, \{ toggle: false \}\)/);
-  assert.match(html, /Archify\.view\.reveal\(\[id\], \{ includeNeighbors: true, reason: 'radar' \}\)/);
+  assert.match(html, /Schematics\.focus\.set\(id, \{ toggle: false \}\)/);
+  assert.match(html, /Schematics\.view\.reveal\(\[id\], \{ includeNeighbors: true, reason: 'radar' \}\)/);
   assert.match(html, /function bringNodeIntoWindow\(node\)/);
   assert.match(html, /window\.scrollY \+ rect\.top \+ rect\.height \/ 2 - window\.innerHeight \/ 2/);
   assert.match(html, /data-radar-active/);
@@ -183,7 +183,7 @@ test('Semantic Radar tracks desktop camera and mobile contained scroll', () => {
   const html = render('sequence', CASES.sequence);
   assert.match(html, /function logicalViewport\(\)/);
   assert.match(html, /x = viewBox\.x \+ container\.scrollLeft \/ metrics\.scale/);
-  assert.match(html, /var visible = Archify\.view\.logicalViewport\(\)/);
+  assert.match(html, /var visible = Schematics\.view\.logicalViewport\(\)/);
   assert.match(html, /viewport\.setAttribute\('width', String\(visible\.width\)\)/);
   assert.match(html, /viewerText\('viewer\.radar\.viewport\.width'/);
   assert.match(html, /function centerAt\(logicalX, logicalY, options\)/);
@@ -191,7 +191,7 @@ test('Semantic Radar tracks desktop camera and mobile contained scroll', () => {
   assert.match(html, /container\.scrollTo\(\{ left: mobileTarget, behavior: options\.instant \? 'auto' : 'smooth' \}\)/);
   assert.match(html, /data-wide-diagram="true"\] \.overview-map/);
   assert.match(html, /function updateDocking\(\)/);
-  assert.match(html, /chip\.style\.top = Math\.round\(top\) \+ 'px';[\s\S]+Archify\.radar\.sync\(\)/);
+  assert.match(html, /chip\.style\.top = Math\.round\(top\) \+ 'px';[\s\S]+Schematics\.radar\.sync\(\)/);
   assert.match(html, /var navigation = container\.querySelector\('\.diagram-nav'\)/);
   assert.match(html, /if \(controlRect\) bottom = Math\.min\(bottom, controlRect\.top - placementGap\)/);
   assert.match(html, /hardBlockers: \[lensRect, controlRect, legendRect\]\.filter\(Boolean\)/);
@@ -202,7 +202,7 @@ test('Semantic Radar tracks desktop camera and mobile contained scroll', () => {
   assert.match(html, /manualPosition && positionIsValid\(manualPosition, context\)/);
   assert.match(html, /panelHead\.addEventListener\('pointerdown', beginPanelDrag\)/);
   assert.match(html, /surface\.addEventListener\('pointerdown',[\s\S]+viewportDrag = \{ pointerId: event\.pointerId \}/);
-  assert.match(html, /--archify-radar-top/);
+  assert.match(html, /--schematics-radar-top/);
   assert.match(html, /\.overview-map\[data-docked="true"\]/);
 });
 
@@ -210,7 +210,7 @@ test('Semantic Radar keeps redundant accessible navigation and clean exports', (
   const html = render('architecture', CASES.architecture);
   assert.match(html, /Minimap \(M\)/);
   assert.match(html, /e\.key === 'm' \|\| e\.key === 'M'/);
-  assert.match(html, /e\.key === 'Escape' && Archify\.radar\.isOpen\(\)/);
+  assert.match(html, /e\.key === 'Escape' && Schematics\.radar\.isOpen\(\)/);
   assert.match(html, /event\.key === 'ArrowLeft'[\s\S]+event\.key === 'ArrowRight'[\s\S]+event\.key === 'ArrowUp'[\s\S]+event\.key === 'ArrowDown'/);
   assert.match(html, /node && \(event\.key === 'Enter' \|\| event\.key === ' '\)/);
   assert.match(html, /\.overview-map-viewport \{[\s\S]*?pointer-events: none;/);
@@ -221,7 +221,7 @@ test('Semantic Radar keeps redundant accessible navigation and clean exports', (
 });
 
 test('Semantic Radar stays above the measured MAP control strip', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const artifact = path.join(tmp, 'radar-control-clearance.html');
   execFileSync(process.execPath, [
@@ -235,7 +235,7 @@ test('Semantic Radar stays above the measured MAP control strip', {
     const rects = await radarRects(browser, sessionId, `
       var container = document.querySelector('.diagram-container');
       window.scrollTo(0, Math.max(0, container.offsetTop + container.offsetHeight - window.innerHeight + 8));
-      Archify.radar.open();
+      Schematics.radar.open();
     `);
     const controlGap = rects.controls.top - rects.radar.bottom;
     assert.ok(controlGap >= 15, JSON.stringify({ ...rects, controlGap }, null, 2));
@@ -249,7 +249,7 @@ test('Semantic Radar stays above the measured MAP control strip', {
 });
 
 test('Semantic Radar avoids an expanded mobile Passport without hiding a collision', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const artifact = path.join(tmp, 'radar-mobile-passport.html');
   execFileSync(process.execPath, [
@@ -263,9 +263,9 @@ test('Semantic Radar avoids an expanded mobile Passport without hiding a collisi
     const state = await evaluate(browser, sessionId, `(function () {
       var container = document.querySelector('.diagram-container');
       window.scrollTo(0, Math.max(0, container.offsetTop));
-      Archify.focus.set('lb', { toggle: false });
+      Schematics.focus.set('lb', { toggle: false });
       document.getElementById('btn-focus-relations').click();
-      Archify.radar.open();
+      Schematics.radar.open();
       return new Promise(function (resolve) {
         setTimeout(function () {
             var radar = document.getElementById('overview-map');
@@ -334,10 +334,10 @@ test('Semantic Radar avoids an expanded mobile Passport without hiding a collisi
         var original = ${JSON.stringify(original)};
         if (original === null) passport.removeAttribute('aria-hidden');
         else passport.setAttribute('aria-hidden', original);
-        Archify.radar.open();
+        Schematics.radar.open();
         document.getElementById('overview-map-expand').click();
         var during = { yielded: passport.getAttribute('data-radar-yielded'), aria: passport.getAttribute('aria-hidden') };
-        Archify.radar.close();
+        Schematics.radar.close();
         return { during: during, yielded: passport.getAttribute('data-radar-yielded'), aria: passport.getAttribute('aria-hidden') };
       })()`);
       assert.deepEqual(restored, { during: { yielded: 'true', aria: 'true' }, yielded: null, aria: original });
@@ -348,7 +348,7 @@ test('Semantic Radar avoids an expanded mobile Passport without hiding a collisi
 });
 
 test('Semantic Radar reports a consistent unavailable state and recovers when space returns', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const artifact = path.join(tmp, 'radar-unavailable.html');
   execFileSync(process.execPath, [
@@ -362,16 +362,16 @@ test('Semantic Radar reports a consistent unavailable state and recovers when sp
     const unavailable = await evaluate(browser, sessionId, `(function () {
       var container = document.querySelector('.diagram-container');
       window.scrollTo(0, Math.max(0, container.offsetTop));
-      Archify.focus.set('lb', { toggle: false });
+      Schematics.focus.set('lb', { toggle: false });
       document.getElementById('btn-focus-relations').click();
-      Archify.radar.open();
+      Schematics.radar.open();
       return new Promise(function (resolve) {
         setTimeout(function () {
           var panel = document.getElementById('overview-map');
           var trigger = document.getElementById('btn-overview-map');
           var feedback = document.getElementById('overview-map-feedback');
           resolve({
-            requested: Archify.radar.isOpen(),
+            requested: Schematics.radar.isOpen(),
             panelHidden: panel.hidden,
             expanded: trigger.getAttribute('aria-expanded'),
             limited: trigger.getAttribute('data-radar-space-limited'),
@@ -400,7 +400,7 @@ test('Semantic Radar reports a consistent unavailable state and recovers when sp
         var trigger = document.getElementById('btn-overview-map');
         var feedback = document.getElementById('overview-map-feedback');
         resolve({
-          requested: Archify.radar.isOpen(),
+          requested: Schematics.radar.isOpen(),
           panelHidden: panel.hidden,
           expanded: trigger.getAttribute('aria-expanded'),
           feedbackHidden: feedback.hidden
@@ -417,7 +417,7 @@ test('Semantic Radar reports a consistent unavailable state and recovers when sp
 });
 
 test('Semantic Radar automatically avoids a tall Semantic Passport', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const input = path.join(tmp, 'tall-passport.architecture.json');
   const artifact = path.join(tmp, 'tall-passport.html');
@@ -459,8 +459,8 @@ test('Semantic Radar automatically avoids a tall Semantic Passport', {
     const rects = await radarRects(browser, sessionId, `
       var container = document.querySelector('.diagram-container');
       window.scrollTo(0, Math.max(0, container.offsetTop));
-      Archify.focus.set('hub', { toggle: false });
-      Archify.radar.open();
+      Schematics.focus.set('hub', { toggle: false });
+      Schematics.radar.open();
     `);
     assert.ok(rects.passport, JSON.stringify(rects, null, 2));
     assert.equal(overlaps(rects.radar, rects.passport, 10), false, JSON.stringify(rects, null, 2));
@@ -507,7 +507,7 @@ test('Semantic Radar automatically avoids a tall Semantic Passport', {
 });
 
 test('Semantic Radar titlebar drag persists while surface drag still pans the diagram', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   const artifact = path.join(tmp, 'radar-dragging.html');
   execFileSync(process.execPath, [
@@ -521,18 +521,18 @@ test('Semantic Radar titlebar drag persists while surface drag still pans the di
     const geometry = await evaluate(browser, sessionId, `(async function () {
       var container = document.querySelector('.diagram-container');
       window.scrollTo(0, Math.max(0, container.offsetTop + container.offsetHeight - window.innerHeight + 8));
-      Archify.radar.open();
+      Schematics.radar.open();
       // Opening the panel can still schedule Reader/Chrome layout. Measure the
       // titlebar only after those pending updates settle, before sending input.
-      await Archify.readerLayout.whenStable();
-      await Archify.viewerChromeLayout.whenStable();
+      await Schematics.readerLayout.whenStable();
+      await Schematics.viewerChromeLayout.whenStable();
       var radar = document.getElementById('overview-map').getBoundingClientRect();
       var head = document.querySelector('.overview-map-head').getBoundingClientRect();
       var containerRect = container.getBoundingClientRect();
       return {
         radar: { left: radar.left, top: radar.top, width: radar.width, height: radar.height },
         head: { left: head.left, top: head.top, width: head.width, height: head.height },
-        state: Archify.view.state(),
+        state: Schematics.view.state(),
         target: {
           left: Math.max(24, containerRect.left + 360),
           top: Math.max(24, containerRect.top + 20)
@@ -551,7 +551,7 @@ test('Semantic Radar titlebar drag persists while surface drag still pans the di
 
     const manuallyPlaced = await evaluate(browser, sessionId, `(function () {
       var radar = document.getElementById('overview-map').getBoundingClientRect();
-      return { left: radar.left, top: radar.top, state: Archify.view.state() };
+      return { left: radar.left, top: radar.top, state: Schematics.view.state() };
     })()`);
     assert.ok(Math.abs(manuallyPlaced.left - geometry.target.left) <= 2, JSON.stringify({ geometry, manuallyPlaced }, null, 2));
     assert.ok(Math.abs(manuallyPlaced.top - geometry.target.top) <= 2, JSON.stringify({ geometry, manuallyPlaced }, null, 2));
@@ -577,7 +577,7 @@ test('Semantic Radar titlebar drag persists while surface drag still pans the di
         else pointer('pointercancel', 80);
         var end = panel.getBoundingClientRect();
         return { start: start, end: { left: end.left, top: end.top }, moved: moved, dragging: dragging,
-          afterDragging: panel.getAttribute('data-panel-dragging'), open: Archify.radar.isOpen(), state: Archify.view.state() };
+          afterDragging: panel.getAttribute('data-panel-dragging'), open: Schematics.radar.isOpen(), state: Schematics.view.state() };
       })()`);
       assert.equal(cancelled.moved, true, cancel);
       assert.equal(cancelled.dragging, 'true', cancel);
@@ -587,12 +587,12 @@ test('Semantic Radar titlebar drag persists while surface drag still pans the di
       assert.deepEqual(cancelled.state, manuallyPlaced.state, cancel);
     }
     const reopened = await evaluate(browser, sessionId, `(function () {
-      Archify.radar.close();
-      Archify.radar.open();
-      Archify.radar.open();
+      Schematics.radar.close();
+      Schematics.radar.open();
+      Schematics.radar.open();
       var rect = document.getElementById('overview-map').getBoundingClientRect();
       return { left: rect.left, top: rect.top, roots: document.querySelectorAll('#overview-map-surface > svg').length,
-        count: Archify.radar.count(), nodes: document.querySelectorAll('[data-radar-node-id]').length };
+        count: Schematics.radar.count(), nodes: document.querySelectorAll('[data-radar-node-id]').length };
     })()`);
     assert.equal(reopened.left, manuallyPlaced.left);
     assert.equal(reopened.top, manuallyPlaced.top);
@@ -605,7 +605,7 @@ test('Semantic Radar titlebar drag persists while surface drag still pans the di
       var surface = document.getElementById('overview-map-surface').getBoundingClientRect();
       return {
         radar: { left: radar.left, top: radar.top },
-        state: Archify.view.state(),
+        state: Schematics.view.state(),
         start: { x: surface.left + 8, y: surface.top + 8 },
         end: { x: surface.right - 8, y: surface.bottom - 8 }
       };
@@ -615,7 +615,7 @@ test('Semantic Radar titlebar drag persists while surface drag still pans the di
       var radar = document.getElementById('overview-map').getBoundingClientRect();
       return {
         radar: { left: radar.left, top: radar.top },
-        state: Archify.view.state()
+        state: Schematics.view.state()
       };
     })()`);
     assert.deepEqual(afterSurfaceDrag.radar, surfaceState.radar);
@@ -649,7 +649,7 @@ test('Semantic Radar titlebar drag persists while surface drag still pans the di
 });
 
 test('closing a pending Radar request prevents retry and reflow from reopening it', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   render('architecture', CASES.architecture);
   const browser = new ChromeVisualBrowser(chromePath);
@@ -658,13 +658,13 @@ test('closing a pending Radar request prevents retry and reflow from reopening i
     const transition = await evaluate(browser, sessionId, `(function () {
       var container = document.querySelector('.diagram-container');
       window.scrollTo(0, container.offsetTop);
-      Archify.focus.set('lb', { toggle: false });
+      Schematics.focus.set('lb', { toggle: false });
       document.getElementById('btn-focus-relations').click();
-      var opened = Archify.radar.open();
+      var opened = Schematics.radar.open();
       var panel = document.getElementById('overview-map');
-      var waiting = { result: opened, requested: Archify.radar.isOpen(), hidden: panel.hidden };
-      var closed = Archify.radar.close({ restoreFocus: true });
-      return { waiting: waiting, closed: closed, requested: Archify.radar.isOpen(),
+      var waiting = { result: opened, requested: Schematics.radar.isOpen(), hidden: panel.hidden };
+      var closed = Schematics.radar.close({ restoreFocus: true });
+      return { waiting: waiting, closed: closed, requested: Schematics.radar.isOpen(),
         focused: document.activeElement.id, feedbackHidden: document.getElementById('overview-map-feedback').hidden };
     })()`);
     assert.deepEqual(transition, { waiting: { result: true, requested: true, hidden: true },
@@ -678,7 +678,7 @@ test('closing a pending Radar request prevents retry and reflow from reopening i
       var start = performance.now();
       function sample() {
         var panel = document.getElementById('overview-map');
-        reopened = reopened || Archify.radar.isOpen() || !panel.hidden;
+        reopened = reopened || Schematics.radar.isOpen() || !panel.hidden;
         if (performance.now() - start < 500) return requestAnimationFrame(sample);
         resolve({ reopened: reopened, expanded: document.getElementById('btn-overview-map').getAttribute('aria-expanded'),
           feedbackHidden: document.getElementById('overview-map-feedback').hidden });
@@ -692,7 +692,7 @@ test('closing a pending Radar request prevents retry and reflow from reopening i
 });
 
 test('Radar reflects camera viewport, status and Focus activity through normal callers', {
-  skip: chromePath ? false : 'Set ARCHIFY_CHROME to run the real browser regression.',
+  skip: chromePath ? false : 'Set SCHEMATICS_CHROME to run the real browser regression.',
 }, async () => {
   render('architecture', CASES.architecture);
   const browser = new ChromeVisualBrowser(chromePath);
@@ -703,21 +703,21 @@ test('Radar reflects camera viewport, status and Focus activity through normal c
     ] }, sessionId);
     async function observe(action) {
       return evaluate(browser, sessionId, `(async () => {
-        await Archify.readerLayout.whenStable();
-        await Archify.viewerChromeLayout.whenStable();
+        await Schematics.readerLayout.whenStable();
+        await Schematics.viewerChromeLayout.whenStable();
         ${action}
-        await Archify.readerLayout.whenStable();
-        await Archify.viewerChromeLayout.whenStable();
+        await Schematics.readerLayout.whenStable();
+        await Schematics.viewerChromeLayout.whenStable();
         let previous = '', equal = 0;
         for (let frame = 0; frame < 240; frame += 1) {
           await new Promise(resolve => requestAnimationFrame(resolve));
           const viewport = document.querySelector('.overview-map-viewport');
           const actual = ['x','y','width','height'].map(name => Number(viewport.getAttribute(name)));
-          const logical = Archify.view.logicalViewport();
+          const logical = Schematics.view.logicalViewport();
           const expected = [logical.x,logical.y,logical.width,logical.height];
           const active = Array.from(document.querySelectorAll('[data-radar-active]'), node => node.getAttribute('data-radar-node-id')).sort();
           const status = document.getElementById('overview-map-status').textContent;
-          const state = { actual, expected, active, status, count: Archify.radar.count(), scale: logical.scale };
+          const state = { actual, expected, active, status, count: Schematics.radar.count(), scale: logical.scale };
           const value = JSON.stringify(state);
           equal = value === previous ? equal + 1 : 0; previous = value;
           if (equal >= 8) return state;
@@ -725,7 +725,7 @@ test('Radar reflects camera viewport, status and Focus activity through normal c
         throw new Error('Radar observations did not settle');
       })()`, true);
     }
-    const initial = await observe(`window.scrollTo(0, document.querySelector('.diagram-container').offsetTop); Archify.radar.open();`);
+    const initial = await observe(`window.scrollTo(0, document.querySelector('.diagram-container').offsetTop); Schematics.radar.open();`);
     assert.deepEqual(initial.actual, initial.expected);
     assert.equal(initial.status, initial.count + ' nodes · full map');
     const zoomed = await observe(`document.querySelector('[data-view="in"]').click();`);
@@ -733,9 +733,9 @@ test('Radar reflects camera viewport, status and Focus activity through normal c
     assert.notDeepEqual(zoomed.actual, initial.actual);
     assert.equal(zoomed.status, zoomed.count + ' nodes · ' + Math.round(zoomed.scale * 100) + '% viewport');
     assert.notEqual(zoomed.status, initial.status);
-    assert.deepEqual((await observe(`Archify.focus.set('lb', { toggle:false });`)).active, ['lb']);
-    assert.deepEqual((await observe(`Archify.focus.set('db', { toggle:false });`)).active, ['db']);
-    assert.deepEqual((await observe(`Archify.focus.clear();`)).active, []);
+    assert.deepEqual((await observe(`Schematics.focus.set('lb', { toggle:false });`)).active, ['lb']);
+    assert.deepEqual((await observe(`Schematics.focus.set('db', { toggle:false });`)).active, ['db']);
+    assert.deepEqual((await observe(`Schematics.focus.clear();`)).active, []);
   } finally {
     await browser.close();
   }

@@ -8,8 +8,8 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 // Valid blue and red PNGs: a wrong candidate must not fall through after a 404.
 const icon = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYPj/HwADAgH/5ncLrgAAAABJRU5ErkJggg==', 'base64');
 const inactiveIcon = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==', 'base64');
@@ -23,7 +23,7 @@ function run(args) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cli, ...args], {
       cwd: skillRoot,
-      env: { ...process.env, ARCHIFY_BRAND_ALLOW_PRIVATE: '1' },
+      env: { ...process.env, SCHEMATICS_BRAND_ALLOW_PRIVATE: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 15000,
     });
@@ -172,7 +172,7 @@ for (const [name, markup] of [
 }
 
 test('old noscript pins fail closed until explicitly recaptured', { timeout: 45000 }, async (t) => {
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-brand-recapture-'));
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-brand-recapture-'));
   t.after(() => fs.rmSync(temporary, { recursive: true, force: true }));
   const data = await fixture(t, noscriptLink + activeLink);
   const diagram = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples/web-app.architecture.json'), 'utf8'));
@@ -243,7 +243,7 @@ for (const [type, example, collection] of [
   ['lifecycle', 'agent-run.lifecycle.json', 'states'],
 ]) {
   test(`inactive HTML changes preserve pinned ${type} validation and rendered bytes`, { timeout: 45000 }, async (t) => {
-    const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-brand-context-'));
+    const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-brand-context-'));
     t.after(() => fs.rmSync(temporary, { recursive: true, force: true }));
     const data = await fixture(t, activeLink);
     const brand = await capture(data);

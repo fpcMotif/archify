@@ -8,7 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const renderer = path.join(skillRoot, 'renderers', 'waterfall', 'render-waterfall.mjs');
 const checker = path.join(skillRoot, 'scripts', 'check-render-output.mjs');
 const small = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'checkout-request.waterfall.json'), 'utf8'));
@@ -16,7 +16,7 @@ const large = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'examp
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
 function run(diagram, extra = []) {
-  const directory = createScratchDirectory(path.join(os.tmpdir(), 'archify-waterfall-'));
+  const directory = createScratchDirectory(path.join(os.tmpdir(), 'schematics-waterfall-'));
   const input = path.join(directory, 'candidate.waterfall.json');
   const output = path.join(directory, 'candidate.html');
   fs.writeFileSync(input, JSON.stringify(diagram));
@@ -97,7 +97,7 @@ test('waterfall: unrepresentable derived timing is rejected without writing inva
     assert.equal(result.status, 1, result.stderr || result.error?.message);
     assert.match(result.stderr, /finite/);
     assert.equal(fs.existsSync(result.output), false);
-    const cli = spawnSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'validate', 'waterfall', result.input, '--json'], { encoding: 'utf8', timeout: 10000 });
+    const cli = spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'validate', 'waterfall', result.input, '--json'], { encoding: 'utf8', timeout: 10000 });
     assert.equal(cli.status, 1, cli.stderr || cli.stdout);
     const receipt = JSON.parse(cli.stdout);
     const diagnostic = receipt.diagnostics.find(({ code }) => code === 'waterfall/invalid-timing');

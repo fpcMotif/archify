@@ -7,8 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'parse5';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-label-clearance-'));
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-label-clearance-'));
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 let counter = 0;
 const load = file => JSON.parse(fs.readFileSync(path.join(root, file), 'utf8'));
@@ -22,7 +22,7 @@ function deliver(type, doc, quality = 'standard') {
   doc.meta = { ...doc.meta, output: `case-${id}.html`, quality_profile: quality };
   const input = path.join(tmp, `case-${id}.json`), output = path.join(tmp, `case-${id}.html`);
   fs.writeFileSync(input, JSON.stringify(doc));
-  const receipt = JSON.parse(execFileSync(process.execPath, [path.join(root, 'bin/archify.mjs'), 'deliver', type, input, output, '--quality', quality, '--json'], { encoding: 'utf8' }));
+  const receipt = JSON.parse(execFileSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'deliver', type, input, output, '--quality', quality, '--json'], { encoding: 'utf8' }));
   assert.equal(receipt.ok, true);
   return parse(fs.readFileSync(output, 'utf8'));
 }

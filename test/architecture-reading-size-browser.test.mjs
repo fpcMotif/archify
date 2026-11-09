@@ -5,21 +5,21 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 test('automatic architectures preserve primary reading size when fitting the full page would shrink text', async (t) => {
-  if (!Object.hasOwn(process.env, 'ARCHIFY_CHROME')) return t.skip('Set ARCHIFY_CHROME for real browser checks');
+  if (!Object.hasOwn(process.env, 'SCHEMATICS_CHROME')) return t.skip('Set SCHEMATICS_CHROME for real browser checks');
   const chrome = findChrome();
   assert.ok(chrome);
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-primary-reading-size-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-primary-reading-size-'));
   const spec = JSON.parse(fs.readFileSync(path.join(root, 'examples/web-app.architecture.json'), 'utf8'));
   spec.meta.title = 'Service map';
   delete spec.meta.subtitle;
   const input = path.join(dir, 'input.json');
   const output = path.join(dir, 'output.html');
   fs.writeFileSync(input, JSON.stringify(spec));
-  execFileSync(process.execPath, [path.join(root, 'bin/archify.mjs'), 'render', 'architecture', input, output]);
+  execFileSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'render', 'architecture', input, output]);
   const browser = new ChromeVisualBrowser(chrome);
   try {
     const session = await browser.sessionPromise;
@@ -40,7 +40,7 @@ test('automatic architectures preserve primary reading size when fitting the ful
         const observed = await evaluate(`(async () => {
           await document.fonts.ready;
           if (document.documentElement.dataset.theme !== '${theme}') document.getElementById('btn-theme').click();
-          await Archify.layoutStability.whenStable();
+          await Schematics.layoutStability.whenStable();
           const toolbar = document.querySelector('.toolbar').getBoundingClientRect();
           const guide = document.querySelector('.diagram-container').getBoundingClientRect();
           const svg = document.querySelector('.diagram-container > svg');
@@ -87,8 +87,8 @@ test('automatic architectures preserve primary reading size when fitting the ful
 });
 
 test('a narrow tall architecture fits the first screen without enlarging the other titles', async (t) => {
-  if (!Object.hasOwn(process.env, 'ARCHIFY_CHROME')) return t.skip('Set ARCHIFY_CHROME for real browser checks');
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-reading-size-stress-'));
+  if (!Object.hasOwn(process.env, 'SCHEMATICS_CHROME')) return t.skip('Set SCHEMATICS_CHROME for real browser checks');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-reading-size-stress-'));
   const input = path.join(dir, 'input.json');
   const output = path.join(dir, 'output.html');
   fs.writeFileSync(input, JSON.stringify({
@@ -101,7 +101,7 @@ test('a narrow tall architecture fits the first screen without enlarging the oth
     ],
     connections: [{ from: 'client', to: 'api' }, { from: 'api', to: 'db' }],
   }));
-  execFileSync(process.execPath, [path.join(root, 'bin/archify.mjs'), 'render', 'architecture', input, output]);
+  execFileSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'render', 'architecture', input, output]);
   const browser = new ChromeVisualBrowser(findChrome());
   try {
     const metrics = await browser.inspect({ artifactPath: output, width: 1440, height: 900, theme: 'light' });
@@ -138,8 +138,8 @@ test('a narrow tall architecture fits the first screen without enlarging the oth
 });
 
 test('a first-screen fit never pushes relationship labels below the 6px floor', async (t) => {
-  if (!Object.hasOwn(process.env, 'ARCHIFY_CHROME')) return t.skip('Set ARCHIFY_CHROME for real browser checks');
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-edge-floor-'));
+  if (!Object.hasOwn(process.env, 'SCHEMATICS_CHROME')) return t.skip('Set SCHEMATICS_CHROME for real browser checks');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-edge-floor-'));
   const input = path.join(dir, 'input.json');
   const output = path.join(dir, 'output.html');
   // Titles only, 8px relationship labels: without the edge floor the titles'
@@ -154,7 +154,7 @@ test('a first-screen fit never pushes relationship labels below the 6px floor', 
     ],
     connections: [{ from: 'client', to: 'api', label: 'request' }, { from: 'api', to: 'db', label: 'persist' }],
   }));
-  execFileSync(process.execPath, [path.join(root, 'bin/archify.mjs'), 'render', 'architecture', input, output]);
+  execFileSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'render', 'architecture', input, output]);
   const browser = new ChromeVisualBrowser(findChrome());
   try {
     await browser.inspect({ artifactPath: output, width: 1440, height: 900, theme: 'light' });
@@ -179,7 +179,7 @@ test('a first-screen fit never pushes relationship labels below the 6px floor', 
     // labels return to the docked comfort size instead of doubling.
     const docked = await browser.cdp.send('Runtime.evaluate', { returnByValue: true, awaitPromise: true, expression: `(async () => {
       document.getElementById('rail-placement').click();
-      await Archify.layoutStability.whenStable();
+      await Schematics.layoutStability.whenStable();
       const svg = document.querySelector('.diagram-container > svg');
       const svgRect = svg.getBoundingClientRect();
       const railRect = document.querySelector('.reader-rail').getBoundingClientRect();
@@ -190,7 +190,7 @@ test('a first-screen fit never pushes relationship labels below the 6px floor', 
         primary: Math.max(...[...svg.querySelectorAll('text[data-node-label]')].map(text => Number(text.getAttribute('font-size')) * scale)),
         svgRight: svgRect.right, railLeft: railRect.left,
       };
-      localStorage.removeItem('archify-rail-placement');
+      localStorage.removeItem('schematics-rail-placement');
       return result;
     })()` }, session);
     assert.equal(docked.exceptionDetails, undefined);

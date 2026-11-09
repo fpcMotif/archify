@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { compileWorkflow } from '../archify/renderers/workflow/workflow-compiler.mjs';
+import { compileWorkflow } from '../schematics/renderers/workflow/workflow-compiler.mjs';
 
 function workflowFixture() {
   return JSON.parse(fs.readFileSync(
@@ -353,7 +353,7 @@ test('readable-v2 keeps emphasis and wide-arrow fan-in marker bounds disjoint', 
 });
 
 test('public validate and rendered HTML agree on automatic workflow routing', (t) => {
-  const cli = fileURLToPath(new URL('../archify/bin/archify.mjs', import.meta.url));
+  const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
   const input = fileURLToPath(new URL('./fixtures/workflow-routing-clarity.workflow.json', import.meta.url));
   const validation = spawnSync(process.execPath, [cli, 'validate', 'workflow', input, '--quality', 'showcase', '--json'], { encoding: 'utf8' });
   assert.equal(validation.status, 0, validation.stderr || validation.stdout);
@@ -362,7 +362,7 @@ test('public validate and rendered HTML agree on automatic workflow routing', (t
   assert.ok(receipt.checks.length > 0);
   assert.ok(receipt.checks.every(({ ok }) => ok));
 
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-routing-clarity-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-routing-clarity-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const output = path.join(directory, 'workflow.html');
   const rendered = spawnSync(process.execPath, [cli, 'render', 'workflow', input, output, '--quality', 'showcase'], { encoding: 'utf8' });

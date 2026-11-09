@@ -12,11 +12,11 @@ import {
   quarantineRemoveRegularFileBinding,
   releaseRegularFileBinding,
   removeOwnedRegularFile,
-} from '../archify/renderers/shared/atomic-output.mjs';
-import { loadDiagram, writeDiagram } from '../archify/renderers/shared/cli.mjs';
+} from '../schematics/renderers/shared/atomic-output.mjs';
+import { loadDiagram, writeDiagram } from '../schematics/renderers/shared/cli.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(here, '..', 'archify');
+const skillRoot = path.resolve(here, '..', 'schematics');
 const workflowFixture = path.join(skillRoot, 'examples/agent-tool-call.workflow.json');
 
 function workspace(t, prefix) {
@@ -46,7 +46,7 @@ function writeWorkflow(loaded) {
 }
 
 function renderCandidates(directory) {
-  return fs.readdirSync(directory).filter((entry) => entry.startsWith('.archify-render-'));
+  return fs.readdirSync(directory).filter((entry) => entry.startsWith('.schematics-render-'));
 }
 
 function createFifo(target) {
@@ -57,7 +57,7 @@ function createFifo(target) {
 }
 
 test('a first candidate handle identity failure removes the exclusive render candidate', (t) => {
-  const root = workspace(t, 'archify-render-atomic-first-fstat-');
+  const root = workspace(t, 'schematics-render-atomic-first-fstat-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   fs.copyFileSync(workflowFixture, input);
@@ -68,7 +68,7 @@ test('a first candidate handle identity failure removes the exclusive render can
   let injected = false;
   t.mock.method(fs, 'openSync', (target, ...args) => {
     const descriptor = openSync(target, ...args);
-    if (path.basename(String(target)).startsWith('.archify-render-')) {
+    if (path.basename(String(target)).startsWith('.schematics-render-')) {
       candidateDescriptor = descriptor;
     }
     return descriptor;
@@ -103,7 +103,7 @@ function fileSymlinksAvailable(t, root) {
 }
 
 test('a partial candidate write preserves the previous artifact and removes the candidate', (t) => {
-  const root = workspace(t, 'archify-render-atomic-partial-');
+  const root = workspace(t, 'schematics-render-atomic-partial-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   const previous = '<!doctype html><title>trusted previous artifact</title>\n';
@@ -132,7 +132,7 @@ test('a partial candidate write preserves the previous artifact and removes the 
 });
 
 test('an existing output directory is rejected before a render candidate is written', (t) => {
-  const root = workspace(t, 'archify-render-atomic-directory-');
+  const root = workspace(t, 'schematics-render-atomic-directory-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   fs.copyFileSync(workflowFixture, input);
@@ -147,8 +147,8 @@ test('an existing output directory is rejected before a render candidate is writ
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-not-regular-file'
-      && error.archifyDiagnostics[0].evidence.relation.entryType === 'directory',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-not-regular-file'
+      && error.schematicsDiagnostics[0].evidence.relation.entryType === 'directory',
   );
   assert.equal(writes, 0);
   assert.equal(fs.statSync(output).isDirectory(), true);
@@ -160,7 +160,7 @@ test('an existing output FIFO is rejected before a render candidate is written',
     t.skip('FIFO files are unavailable on Windows');
     return;
   }
-  const root = workspace(t, 'archify-render-atomic-fifo-');
+  const root = workspace(t, 'schematics-render-atomic-fifo-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   fs.copyFileSync(workflowFixture, input);
@@ -178,8 +178,8 @@ test('an existing output FIFO is rejected before a render candidate is written',
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-not-regular-file'
-      && error.archifyDiagnostics[0].evidence.relation.entryType === 'fifo',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-not-regular-file'
+      && error.schematicsDiagnostics[0].evidence.relation.entryType === 'fifo',
   );
   assert.equal(writes, 0);
   assert.equal(fs.statSync(output).isFIFO(), true);
@@ -187,7 +187,7 @@ test('an existing output FIFO is rejected before a render candidate is written',
 });
 
 test('a no-follow atomic output policy rejects symlinks, including dangling aliases', (t) => {
-  const root = workspace(t, 'archify-render-atomic-no-follow-alias-');
+  const root = workspace(t, 'schematics-render-atomic-no-follow-alias-');
   if (!fileSymlinksAvailable(t, root)) return;
   const target = path.join(root, 'target.html');
   const existingAlias = path.join(root, 'existing.delivery.json');
@@ -211,7 +211,7 @@ test('a no-follow atomic output policy rejects symlinks, including dangling alia
 });
 
 test('a no-follow atomic output policy rejects special and hardlinked requested entries', (t) => {
-  const root = workspace(t, 'archify-render-atomic-no-follow-entry-');
+  const root = workspace(t, 'schematics-render-atomic-no-follow-entry-');
   const output = path.join(root, 'receipt.delivery.json');
   const alias = path.join(root, 'receipt-alias.delivery.json');
 
@@ -241,7 +241,7 @@ test('a no-follow atomic output policy rejects special and hardlinked requested 
 });
 
 test('an existing output with no stable file identity fails closed before staging', (t) => {
-  const root = workspace(t, 'archify-render-atomic-zero-inode-');
+  const root = workspace(t, 'schematics-render-atomic-zero-inode-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   fs.copyFileSync(workflowFixture, input);
@@ -266,11 +266,11 @@ test('an existing output with no stable file identity fails closed before stagin
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-indeterminate'
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-indeterminate'
       // Without a directory alias, the requested-entry inspection encounters
       // the unavailable identity before the resolved-target inspection does.
       && ['requested-entry-identity-unavailable', 'target-identity-unavailable']
-        .includes(error.archifyDiagnostics[0].evidence.relation.code),
+        .includes(error.schematicsDiagnostics[0].evidence.relation.code),
   );
   assert.match(fs.readFileSync(output, 'utf8'), /original/);
   assert.deepEqual(renderCandidates(root), []);
@@ -278,7 +278,7 @@ test('an existing output with no stable file identity fails closed before stagin
 
 for (const linkCount of [0n, 2n]) {
   test(`an existing output with handle link count ${linkCount} fails closed before staging`, (t) => {
-    const root = workspace(t, `archify-render-atomic-handle-links-${linkCount}-`);
+    const root = workspace(t, `schematics-render-atomic-handle-links-${linkCount}-`);
     const input = path.join(root, 'diagram.workflow.json');
     const output = path.join(root, 'diagram.html');
     fs.copyFileSync(workflowFixture, input);
@@ -309,10 +309,10 @@ for (const linkCount of [0n, 2n]) {
 
     assert.throws(
       () => writeWorkflow(loaded),
-      (error) => error.archifyDiagnostics?.[0]?.code === (linkCount === 0n
+      (error) => error.schematicsDiagnostics?.[0]?.code === (linkCount === 0n
         ? 'output/target-indeterminate'
         : 'output/target-hardlinked')
-        && error.archifyDiagnostics[0].evidence.relation.code === (linkCount === 0n
+        && error.schematicsDiagnostics[0].evidence.relation.code === (linkCount === 0n
           ? 'target-link-count-unavailable'
           : 'target-hardlinked'),
     );
@@ -323,7 +323,7 @@ for (const linkCount of [0n, 2n]) {
 }
 
 test('a path link count of one cannot hide a hardlinked handle identity', (t) => {
-  const root = workspace(t, 'archify-render-atomic-windows-link-fallback-');
+  const root = workspace(t, 'schematics-render-atomic-windows-link-fallback-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   fs.copyFileSync(workflowFixture, input);
@@ -362,15 +362,15 @@ test('a path link count of one cannot hide a hardlinked handle identity', (t) =>
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-hardlinked'
-      && error.archifyDiagnostics[0].evidence.relation.code === 'target-hardlinked',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-hardlinked'
+      && error.schematicsDiagnostics[0].evidence.relation.code === 'target-hardlinked',
   );
   assert.match(fs.readFileSync(output, 'utf8'), /original/);
   assert.deepEqual(renderCandidates(root), []);
 });
 
 test('an existing output whose handle cannot be inspected fails closed before staging', (t) => {
-  const root = workspace(t, 'archify-render-atomic-handle-open-');
+  const root = workspace(t, 'schematics-render-atomic-handle-open-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   fs.copyFileSync(workflowFixture, input);
@@ -394,9 +394,9 @@ test('an existing output whose handle cannot be inspected fails closed before st
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-indeterminate'
-      && error.archifyDiagnostics[0].evidence.relation.code === 'target-handle-inspection-failed'
-      && error.archifyDiagnostics[0].evidence.relation.systemCode === 'EBUSY',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-indeterminate'
+      && error.schematicsDiagnostics[0].evidence.relation.code === 'target-handle-inspection-failed'
+      && error.schematicsDiagnostics[0].evidence.relation.systemCode === 'EBUSY',
   );
   assert.equal(writes, 0);
   // Node 18 readFileSync calls the public openSync; stop injecting the fault
@@ -407,7 +407,7 @@ test('an existing output whose handle cannot be inspected fails closed before st
 });
 
 test('a staged candidate whose handle has multiple links is not published', (t) => {
-  const root = workspace(t, 'archify-render-atomic-candidate-links-');
+  const root = workspace(t, 'schematics-render-atomic-candidate-links-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   fs.copyFileSync(workflowFixture, input);
@@ -425,7 +425,7 @@ test('a staged candidate whose handle has multiple links is not published', (t) 
   t.mock.method(fs, 'fstatSync', (descriptor, options) => {
     const metadata = fstatSync(descriptor, options);
     if (options?.bigint
-      && path.basename(openPaths.get(descriptor) || '').startsWith('.archify-render-')) {
+      && path.basename(openPaths.get(descriptor) || '').startsWith('.schematics-render-')) {
       return new Proxy(metadata, {
         get(value, property) {
           if (property === 'nlink') return 2n;
@@ -443,15 +443,15 @@ test('a staged candidate whose handle has multiple links is not published', (t) 
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-hardlinked'
-      && error.archifyDiagnostics[0].evidence.relation.code === 'candidate-hardlinked',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-hardlinked'
+      && error.schematicsDiagnostics[0].evidence.relation.code === 'candidate-hardlinked',
   );
   assert.equal(fs.existsSync(output), false);
   assert.deepEqual(renderCandidates(root), []);
 });
 
 test('a staged candidate modified in place after capture is not published', (t) => {
-  const root = workspace(t, 'archify-render-atomic-candidate-content-');
+  const root = workspace(t, 'schematics-render-atomic-candidate-content-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   fs.copyFileSync(workflowFixture, input);
@@ -464,7 +464,7 @@ test('a staged candidate modified in place after capture is not published', (t) 
   let modified = false;
   t.mock.method(fs, 'openSync', (target, ...args) => {
     const descriptor = openSync(target, ...args);
-    if (path.basename(target).startsWith('.archify-render-')
+    if (path.basename(target).startsWith('.schematics-render-')
       && (args[0] & (fs.constants.O_WRONLY | fs.constants.O_RDWR)) === 0) {
       candidatePath = path.resolve(target);
     }
@@ -484,8 +484,8 @@ test('a staged candidate modified in place after capture is not published', (t) 
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-changed'
-      && error.archifyDiagnostics[0].evidence.relation.code === 'candidate-content-changed',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-changed'
+      && error.schematicsDiagnostics[0].evidence.relation.code === 'candidate-content-changed',
   );
   assert.equal(modified, true);
   assert.equal(fs.existsSync(output), false);
@@ -497,7 +497,7 @@ test('a staged candidate chmod after capture is not published', (t) => {
     t.skip('POSIX candidate mode regression');
     return;
   }
-  const root = workspace(t, 'archify-render-atomic-candidate-mode-');
+  const root = workspace(t, 'schematics-render-atomic-candidate-mode-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   fs.copyFileSync(workflowFixture, input);
@@ -509,7 +509,7 @@ test('a staged candidate chmod after capture is not published', (t) => {
   let modified = false;
   t.mock.method(fs, 'openSync', (target, ...args) => {
     const descriptor = openSync(target, ...args);
-    if (path.basename(target).startsWith('.archify-render-')
+    if (path.basename(target).startsWith('.schematics-render-')
       && (args[0] & (fs.constants.O_WRONLY | fs.constants.O_RDWR)) === 0) {
       candidatePath = path.resolve(target);
     }
@@ -530,8 +530,8 @@ test('a staged candidate chmod after capture is not published', (t) => {
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-changed'
-      && error.archifyDiagnostics[0].evidence.relation.code === 'candidate-mode-changed',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-changed'
+      && error.schematicsDiagnostics[0].evidence.relation.code === 'candidate-mode-changed',
   );
   assert.equal(modified, true);
   assert.equal(fs.existsSync(output), false);
@@ -539,7 +539,7 @@ test('a staged candidate chmod after capture is not published', (t) => {
 });
 
 test('a staged candidate replaced after capture preserves the claimant', (t) => {
-  const root = workspace(t, 'archify-render-atomic-candidate-replacement-');
+  const root = workspace(t, 'schematics-render-atomic-candidate-replacement-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   const detachedCandidate = path.join(root, 'detached-render-candidate.html');
@@ -554,7 +554,7 @@ test('a staged candidate replaced after capture preserves the claimant', (t) => 
   let replaced = false;
   t.mock.method(fs, 'openSync', (target, ...args) => {
     const descriptor = openSync(target, ...args);
-    if (path.basename(target).startsWith('.archify-render-')
+    if (path.basename(target).startsWith('.schematics-render-')
       && (args[0] & (fs.constants.O_WRONLY | fs.constants.O_RDWR)) === 0) {
       candidatePath = path.resolve(target);
     }
@@ -571,8 +571,8 @@ test('a staged candidate replaced after capture preserves the claimant', (t) => 
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-changed'
-      && error.archifyDiagnostics[0].evidence.relation.code === 'candidate-identity-changed',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-changed'
+      && error.schematicsDiagnostics[0].evidence.relation.code === 'candidate-identity-changed',
   );
   assert.equal(replaced, true);
   assert.equal(fs.existsSync(output), false);
@@ -581,7 +581,7 @@ test('a staged candidate replaced after capture preserves the claimant', (t) => 
 });
 
 test('a candidate swapped at the publication boundary cannot replace the prior artifact', (t) => {
-  const root = workspace(t, 'archify-render-atomic-publication-binding-');
+  const root = workspace(t, 'schematics-render-atomic-publication-binding-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   const detachedCandidate = path.join(root, 'detached-bound-candidate.html');
@@ -605,7 +605,7 @@ test('a candidate swapped at the publication boundary cannot replace the prior a
   t.mock.method(fs, 'openSync', (file, flags, ...args) => {
     const descriptor = openSync(file, flags, ...args);
     const resolved = path.resolve(String(file));
-    if (path.basename(resolved).startsWith('.archify-render-')
+    if (path.basename(resolved).startsWith('.schematics-render-')
       && (flags & (fs.constants.O_WRONLY | fs.constants.O_RDWR)) === 0) {
       candidatePath = resolved;
       candidateDescriptor = descriptor;
@@ -632,14 +632,14 @@ test('a candidate swapped at the publication boundary cannot replace the prior a
     thrown = error;
   }
   assert.ok(thrown, 'the publication race must fail closed');
-  assert.equal(injected, true, JSON.stringify(thrown.archifyDiagnostics || thrown.message));
+  assert.equal(injected, true, JSON.stringify(thrown.schematicsDiagnostics || thrown.message));
   assert.equal(fs.readFileSync(output, 'utf8'), previous);
   assert.equal(fs.readFileSync(candidatePath, 'utf8'), claimant);
   assert.equal(fs.existsSync(detachedCandidate), true);
 });
 
 test('a byte-identical replacement before candidate capture is not published', (t) => {
-  const root = workspace(t, 'archify-render-atomic-candidate-pre-capture-');
+  const root = workspace(t, 'schematics-render-atomic-candidate-pre-capture-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   const detachedCandidate = path.join(root, 'detached-owned-candidate.html');
@@ -653,7 +653,7 @@ test('a byte-identical replacement before candidate capture is not published', (
   let replaced = false;
   t.mock.method(fs, 'openSync', (target, ...args) => {
     const descriptor = openSync(target, ...args);
-    if (path.basename(target).startsWith('.archify-render-')
+    if (path.basename(target).startsWith('.schematics-render-')
       && (args[0] & (fs.constants.O_WRONLY | fs.constants.O_RDWR)) !== 0) {
       candidatePath = path.resolve(target);
     }
@@ -674,8 +674,8 @@ test('a byte-identical replacement before candidate capture is not published', (
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-changed'
-      && error.archifyDiagnostics[0].evidence.relation.code === 'candidate-identity-changed',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-changed'
+      && error.schematicsDiagnostics[0].evidence.relation.code === 'candidate-identity-changed',
   );
   assert.equal(replaced, true);
   assert.equal(fs.existsSync(output), false);
@@ -684,7 +684,7 @@ test('a byte-identical replacement before candidate capture is not published', (
 });
 
 test('a concurrent replacement of an existing output is not overwritten', (t) => {
-  const root = workspace(t, 'archify-render-atomic-replaced-');
+  const root = workspace(t, 'schematics-render-atomic-replaced-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   const detached = path.join(root, 'detached-original.html');
@@ -698,7 +698,7 @@ test('a concurrent replacement of an existing output is not overwritten', (t) =>
   t.mock.method(fs, 'writeFileSync', (file, ...args) => {
     const result = writeFileSync(file, ...args);
     if (!replaced && (typeof file === 'number'
-      || path.basename(file).startsWith('.archify-render-'))) {
+      || path.basename(file).startsWith('.schematics-render-'))) {
       replaced = true;
       fs.renameSync(output, detached);
       writeFileSync(output, replacement);
@@ -708,14 +708,14 @@ test('a concurrent replacement of an existing output is not overwritten', (t) =>
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-changed',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-changed',
   );
   assert.equal(fs.readFileSync(output, 'utf8'), replacement);
   assert.deepEqual(renderCandidates(root), []);
 });
 
 test('a concurrent symlink claim cannot disguise an existing-output replacement', (t) => {
-  const root = workspace(t, 'archify-render-atomic-replaced-by-symlink-');
+  const root = workspace(t, 'schematics-render-atomic-replaced-by-symlink-');
   if (!fileSymlinksAvailable(t, root)) return;
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
@@ -730,7 +730,7 @@ test('a concurrent symlink claim cannot disguise an existing-output replacement'
   t.mock.method(fs, 'writeFileSync', (file, ...args) => {
     const result = writeFileSync(file, ...args);
     if (!replaced && (typeof file === 'number'
-      || path.basename(file).startsWith('.archify-render-'))) {
+      || path.basename(file).startsWith('.schematics-render-'))) {
       replaced = true;
       fs.renameSync(output, detached);
       fs.symlinkSync(detached, output, process.platform === 'win32' ? 'file' : undefined);
@@ -740,7 +740,7 @@ test('a concurrent symlink claim cannot disguise an existing-output replacement'
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-changed',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-changed',
   );
   assert.equal(fs.lstatSync(output).isSymbolicLink(), true);
   assert.equal(fs.readFileSync(output, 'utf8'), previous);
@@ -748,7 +748,7 @@ test('a concurrent symlink claim cannot disguise an existing-output replacement'
 });
 
 test('a concurrently claimed new output is not overwritten', (t) => {
-  const root = workspace(t, 'archify-render-atomic-claimed-');
+  const root = workspace(t, 'schematics-render-atomic-claimed-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   const replacement = '<!doctype html><title>concurrent owner</title>\n';
@@ -760,7 +760,7 @@ test('a concurrently claimed new output is not overwritten', (t) => {
   t.mock.method(fs, 'writeFileSync', (file, ...args) => {
     const result = writeFileSync(file, ...args);
     if (!claimed && (typeof file === 'number'
-      || path.basename(file).startsWith('.archify-render-'))) {
+      || path.basename(file).startsWith('.schematics-render-'))) {
       claimed = true;
       writeFileSync(output, replacement);
     }
@@ -769,14 +769,14 @@ test('a concurrently claimed new output is not overwritten', (t) => {
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-changed',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-changed',
   );
   assert.equal(fs.readFileSync(output, 'utf8'), replacement);
   assert.deepEqual(renderCandidates(root), []);
 });
 
 test('a concurrently claimed new output symlink is not overwritten', (t) => {
-  const root = workspace(t, 'archify-render-atomic-symlink-claim-');
+  const root = workspace(t, 'schematics-render-atomic-symlink-claim-');
   if (!fileSymlinksAvailable(t, root)) return;
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
@@ -789,7 +789,7 @@ test('a concurrently claimed new output symlink is not overwritten', (t) => {
   t.mock.method(fs, 'writeFileSync', (file, ...args) => {
     const result = writeFileSync(file, ...args);
     if (!claimed && (typeof file === 'number'
-      || path.basename(file).startsWith('.archify-render-'))) {
+      || path.basename(file).startsWith('.schematics-render-'))) {
       claimed = true;
       fs.symlinkSync(claimTarget, output, process.platform === 'win32' ? 'file' : undefined);
     }
@@ -798,7 +798,7 @@ test('a concurrently claimed new output symlink is not overwritten', (t) => {
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-changed',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-changed',
   );
   assert.equal(fs.lstatSync(output).isSymbolicLink(), true);
   assert.equal(fs.existsSync(claimTarget), false);
@@ -806,7 +806,7 @@ test('a concurrently claimed new output symlink is not overwritten', (t) => {
 });
 
 test('the output alias is revalidated after staging and before the atomic commit', (t) => {
-  const root = workspace(t, 'archify-render-atomic-alias-');
+  const root = workspace(t, 'schematics-render-atomic-alias-');
   const inputDirectory = path.join(root, 'input');
   const safeDirectory = path.join(root, 'safe-output');
   const linkedDirectory = path.join(root, 'linked-output');
@@ -846,7 +846,7 @@ test('the output alias is revalidated after staging and before the atomic commit
 });
 
 test('a non-alias output redirect cannot commit to a stale physical target', (t) => {
-  const root = workspace(t, 'archify-render-atomic-redirect-');
+  const root = workspace(t, 'schematics-render-atomic-redirect-');
   const firstDirectory = path.join(root, 'first-output');
   const secondDirectory = path.join(root, 'second-output');
   const linkedDirectory = path.join(root, 'linked-output');
@@ -880,14 +880,14 @@ test('a non-alias output redirect cannot commit to a stale physical target', (t)
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-changed',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-changed',
   );
   assert.deepEqual(fs.readdirSync(firstDirectory), []);
   assert.deepEqual(fs.readdirSync(secondDirectory), []);
 });
 
 test('a nested directory-alias redirect cannot commit to either physical target', (t) => {
-  const root = workspace(t, 'archify-render-atomic-nested-redirect-');
+  const root = workspace(t, 'schematics-render-atomic-nested-redirect-');
   const firstDirectory = path.join(root, 'first-output');
   const secondDirectory = path.join(root, 'second-output');
   const innerAlias = path.join(root, 'inner-output');
@@ -914,7 +914,7 @@ test('a nested directory-alias redirect cannot commit to either physical target'
   t.mock.method(fs, 'writeFileSync', (file, ...args) => {
     const result = writeFileSync(file, ...args);
     if (!redirected && (typeof file === 'number'
-      || path.basename(file).startsWith('.archify-render-'))) {
+      || path.basename(file).startsWith('.schematics-render-'))) {
       redirected = true;
       fs.unlinkSync(innerAlias);
       fs.symlinkSync(secondDirectory, innerAlias, process.platform === 'win32' ? 'junction' : 'dir');
@@ -924,8 +924,8 @@ test('a nested directory-alias redirect cannot commit to either physical target'
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-changed'
-      && error.archifyDiagnostics[0].evidence.relation.code === 'write-slot-changed',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-changed'
+      && error.schematicsDiagnostics[0].evidence.relation.code === 'write-slot-changed',
   );
   assert.equal(redirected, true);
   assert.deepEqual(fs.readdirSync(firstDirectory), []);
@@ -933,7 +933,7 @@ test('a nested directory-alias redirect cannot commit to either physical target'
 });
 
 test('a hardlinked existing output is rejected before staging', (t) => {
-  const root = workspace(t, 'archify-render-atomic-hardlink-');
+  const root = workspace(t, 'schematics-render-atomic-hardlink-');
   const output = path.join(root, 'diagram.html');
   const alias = path.join(root, 'diagram-alias.html');
   const previous = '<!doctype html><title>shared old inode</title>\n';
@@ -960,8 +960,8 @@ test('a hardlinked existing output is rejected before staging', (t) => {
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-hardlinked'
-      && error.archifyDiagnostics[0].evidence.relation.code === 'target-hardlinked',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-hardlinked'
+      && error.schematicsDiagnostics[0].evidence.relation.code === 'target-hardlinked',
   );
   assert.equal(writes, 0);
   assert.equal(fs.readFileSync(output, 'utf8'), previous);
@@ -970,7 +970,7 @@ test('a hardlinked existing output is rejected before staging', (t) => {
 });
 
 test('no-clobber publication retains recovery bytes while the public name is absent', (t) => {
-  const root = workspace(t, 'archify-render-atomic-rename-');
+  const root = workspace(t, 'schematics-render-atomic-rename-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   const previous = '<!doctype html><title>trusted previous artifact</title>\n';
@@ -984,12 +984,12 @@ test('no-clobber publication retains recovery bytes while the public name is abs
   const linkSync = fs.linkSync.bind(fs);
   let publications = 0;
   t.mock.method(fs, 'linkSync', (source, target) => {
-    if (path.basename(String(source)).startsWith('.archify-render-')) {
+    if (path.basename(String(source)).startsWith('.schematics-render-')) {
       publications += 1;
       assert.equal(target, physicalOutput);
       assert.equal(fs.existsSync(output), false);
       const recoveryDirectories = fs.readdirSync(root, { withFileTypes: true })
-        .filter((entry) => entry.isDirectory() && entry.name.startsWith('.archify-remove-'));
+        .filter((entry) => entry.isDirectory() && entry.name.startsWith('.schematics-remove-'));
       assert.equal(recoveryDirectories.length, 1);
       assert.equal(
         fs.readFileSync(path.join(root, recoveryDirectories[0].name, 'previous'), 'utf8'),
@@ -1013,7 +1013,7 @@ test('no-clobber replacement preserves permissive existing modes despite a restr
     t.skip('POSIX mode and umask regression');
     return;
   }
-  const root = workspace(t, 'archify-render-atomic-umask-');
+  const root = workspace(t, 'schematics-render-atomic-umask-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   fs.copyFileSync(workflowFixture, input);
@@ -1037,7 +1037,7 @@ test('a concurrent mode change is preserved and fails the commit', (t) => {
     t.skip('POSIX mode identity regression');
     return;
   }
-  const root = workspace(t, 'archify-render-atomic-mode-race-');
+  const root = workspace(t, 'schematics-render-atomic-mode-race-');
   const input = path.join(root, 'diagram.workflow.json');
   const output = path.join(root, 'diagram.html');
   const previous = '<!doctype html><title>previous mode owner</title>\n';
@@ -1051,7 +1051,7 @@ test('a concurrent mode change is preserved and fails the commit', (t) => {
   t.mock.method(fs, 'writeFileSync', (file, ...args) => {
     const result = writeFileSync(file, ...args);
     if (!changed && (typeof file === 'number'
-      || path.basename(file).startsWith('.archify-render-'))) {
+      || path.basename(file).startsWith('.schematics-render-'))) {
       changed = true;
       fs.chmodSync(output, 0o600);
     }
@@ -1060,8 +1060,8 @@ test('a concurrent mode change is preserved and fails the commit', (t) => {
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-changed'
-      && error.archifyDiagnostics[0].evidence.relation.code === 'target-mode-changed',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-changed'
+      && error.schematicsDiagnostics[0].evidence.relation.code === 'target-mode-changed',
   );
   assert.equal(fs.readFileSync(output, 'utf8'), previous);
   assert.equal(fs.statSync(output).mode & 0o777, 0o600);
@@ -1069,7 +1069,7 @@ test('a concurrent mode change is preserved and fails the commit', (t) => {
 });
 
 test('replacing the requested output symlink with a hardlink fails instead of reporting stale success', (t) => {
-  const root = workspace(t, 'archify-render-atomic-request-alias-');
+  const root = workspace(t, 'schematics-render-atomic-request-alias-');
   if (!fileSymlinksAvailable(t, root)) return;
   const input = path.join(root, 'diagram.workflow.json');
   const target = path.join(root, 'target.html');
@@ -1096,7 +1096,7 @@ test('replacing the requested output symlink with a hardlink fails instead of re
   t.mock.method(fs, 'writeFileSync', (file, ...args) => {
     const result = writeFileSync(file, ...args);
     if (!replaced && (typeof file === 'number'
-      || path.basename(file).startsWith('.archify-render-'))) {
+      || path.basename(file).startsWith('.schematics-render-'))) {
       replaced = true;
       fs.unlinkSync(output);
       fs.linkSync(target, output);
@@ -1106,7 +1106,7 @@ test('replacing the requested output symlink with a hardlink fails instead of re
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-changed',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-changed',
   );
   assert.equal(fs.lstatSync(output).isSymbolicLink(), false);
   assert.equal(fs.readFileSync(output, 'utf8'), previous);
@@ -1115,7 +1115,7 @@ test('replacing the requested output symlink with a hardlink fails instead of re
 });
 
 test('recreating the requested output symlink to the same target fails closed', (t) => {
-  const root = workspace(t, 'archify-render-atomic-recreated-alias-');
+  const root = workspace(t, 'schematics-render-atomic-recreated-alias-');
   if (!fileSymlinksAvailable(t, root)) return;
   const input = path.join(root, 'diagram.workflow.json');
   const target = path.join(root, 'target.html');
@@ -1131,7 +1131,7 @@ test('recreating the requested output symlink to the same target fails closed', 
   t.mock.method(fs, 'writeFileSync', (file, ...args) => {
     const result = writeFileSync(file, ...args);
     if (!replaced && (typeof file === 'number'
-      || path.basename(file).startsWith('.archify-render-'))) {
+      || path.basename(file).startsWith('.schematics-render-'))) {
       replaced = true;
       fs.unlinkSync(output);
       fs.symlinkSync(target, output, process.platform === 'win32' ? 'file' : undefined);
@@ -1141,8 +1141,8 @@ test('recreating the requested output symlink to the same target fails closed', 
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-changed'
-      && error.archifyDiagnostics[0].evidence.relation.code === 'requested-entry-changed',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-changed'
+      && error.schematicsDiagnostics[0].evidence.relation.code === 'requested-entry-changed',
   );
   assert.equal(fs.lstatSync(output).isSymbolicLink(), true);
   assert.equal(fs.readFileSync(target, 'utf8'), previous);
@@ -1150,7 +1150,7 @@ test('recreating the requested output symlink to the same target fails closed', 
 });
 
 test('recreating a requested symlink during handle inspection fails before staging', (t) => {
-  const root = workspace(t, 'archify-render-atomic-capture-alias-');
+  const root = workspace(t, 'schematics-render-atomic-capture-alias-');
   if (!fileSymlinksAvailable(t, root)) return;
   const input = path.join(root, 'diagram.workflow.json');
   const target = path.join(root, 'target.html');
@@ -1181,8 +1181,8 @@ test('recreating a requested symlink during handle inspection fails before stagi
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-indeterminate'
-      && error.archifyDiagnostics[0].evidence.relation.code === 'requested-entry-changed-during-inspection',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-indeterminate'
+      && error.schematicsDiagnostics[0].evidence.relation.code === 'requested-entry-changed-during-inspection',
   );
   assert.equal(replaced, true);
   assert.equal(writes, 0);
@@ -1192,7 +1192,7 @@ test('recreating a requested symlink during handle inspection fails before stagi
 });
 
 test('a requested symlink replaced during canonical resolution fails before staging', (t) => {
-  const root = workspace(t, 'archify-render-atomic-resolution-race-');
+  const root = workspace(t, 'schematics-render-atomic-resolution-race-');
   if (!fileSymlinksAvailable(t, root)) return;
   const input = path.join(root, 'diagram.workflow.json');
   const target = path.join(root, 'target.html');
@@ -1235,7 +1235,7 @@ test('a requested symlink replaced during canonical resolution fails before stag
 
   assert.throws(
     () => writeWorkflow(loaded),
-    (error) => error.archifyDiagnostics?.[0]?.code === 'output/target-hardlinked',
+    (error) => error.schematicsDiagnostics?.[0]?.code === 'output/target-hardlinked',
   );
   assert.equal(replaced, true);
   assert.equal(writes, 0);
@@ -1246,7 +1246,7 @@ test('a requested symlink replaced during canonical resolution fails before stag
 });
 
 test('an existing output symlink remains intact while its resolved target is replaced', (t) => {
-  const root = workspace(t, 'archify-render-atomic-symlink-');
+  const root = workspace(t, 'schematics-render-atomic-symlink-');
   const input = path.join(root, 'diagram.workflow.json');
   const target = path.join(root, 'target.html');
   const output = path.join(root, 'linked.html');
@@ -1271,7 +1271,7 @@ test('an existing output symlink remains intact while its resolved target is rep
 });
 
 test('quarantine removal deletes only the public entry still owned by its binding', (t) => {
-  const root = workspace(t, 'archify-quarantine-remove-owned-');
+  const root = workspace(t, 'schematics-quarantine-remove-owned-');
   const target = path.join(root, 'public.lock');
   fs.writeFileSync(target, 'owned\n');
   const captured = captureRegularFileBinding(target, { subject: 'test-owned-entry' });
@@ -1283,7 +1283,7 @@ test('quarantine removal deletes only the public entry still owned by its bindin
     assert.equal(removed.status, 'removed');
     assert.equal(fs.existsSync(target), false);
     assert.deepEqual(
-      fs.readdirSync(root).filter((entry) => entry.startsWith('.archify-remove-')),
+      fs.readdirSync(root).filter((entry) => entry.startsWith('.schematics-remove-')),
       [],
     );
   } finally {
@@ -1292,7 +1292,7 @@ test('quarantine removal deletes only the public entry still owned by its bindin
 });
 
 test('quarantine removal defers remote ENOTEMPTY until its binding handle closes', (t) => {
-  const root = workspace(t, 'archify-quarantine-remove-remote-delay-');
+  const root = workspace(t, 'schematics-quarantine-remove-remote-delay-');
   const target = path.join(root, 'public.lock');
   fs.writeFileSync(target, 'owned\n');
   const captured = captureRegularFileBinding(target, { subject: 'test-owned-entry' });
@@ -1307,7 +1307,7 @@ test('quarantine removal defers remote ENOTEMPTY until its binding handle closes
     return closeSync(descriptor);
   });
   t.mock.method(fs, 'rmdirSync', (directory) => {
-    if (path.basename(String(directory)).startsWith('.archify-remove-')) {
+    if (path.basename(String(directory)).startsWith('.schematics-remove-')) {
       if (!bindingClosed) delayedAttempts += 1;
       else if (postCloseDelays < 1) postCloseDelays += 1;
       else return rmdirSync(directory);
@@ -1324,7 +1324,7 @@ test('quarantine removal defers remote ENOTEMPTY until its binding handle closes
     assert.equal(delayedAttempts, 1);
     assert.equal(fs.existsSync(target), false);
     assert.equal(
-      fs.readdirSync(root).some((entry) => entry.startsWith('.archify-remove-')),
+      fs.readdirSync(root).some((entry) => entry.startsWith('.schematics-remove-')),
       true,
     );
     const release = releaseRegularFileBinding(captured.binding);
@@ -1332,7 +1332,7 @@ test('quarantine removal defers remote ENOTEMPTY until its binding handle closes
     assert.equal(release.status, 'released');
     assert.equal(postCloseDelays, 1);
     assert.deepEqual(
-      fs.readdirSync(root).filter((entry) => entry.startsWith('.archify-remove-')),
+      fs.readdirSync(root).filter((entry) => entry.startsWith('.schematics-remove-')),
       [],
     );
   } finally {
@@ -1341,7 +1341,7 @@ test('quarantine removal defers remote ENOTEMPTY until its binding handle closes
 });
 
 test('remote quarantine cleanup waits for every binding of the published inode to close', (t) => {
-  const root = workspace(t, 'archify-quarantine-remove-duplicate-handles-');
+  const root = workspace(t, 'schematics-quarantine-remove-duplicate-handles-');
   const candidate = path.join(root, 'candidate.html');
   const published = path.join(root, 'published.html');
   fs.writeFileSync(candidate, 'owned artifact\n');
@@ -1359,7 +1359,7 @@ test('remote quarantine cleanup waits for every binding of the published inode t
     return result;
   });
   t.mock.method(fs, 'rmdirSync', (directory) => {
-    if (path.basename(String(directory)).startsWith('.archify-remove-')
+    if (path.basename(String(directory)).startsWith('.schematics-remove-')
       && closedBindings < 2) {
       throw Object.assign(new Error('remote deletion is pending on another binding handle'), { code: 'ENOTEMPTY' });
     }
@@ -1391,7 +1391,7 @@ test('remote quarantine cleanup waits for every binding of the published inode t
 });
 
 test('deferred quarantine cleanup preserves a real claimant and fails closed', (t) => {
-  const root = workspace(t, 'archify-quarantine-remove-deferred-claimant-');
+  const root = workspace(t, 'schematics-quarantine-remove-deferred-claimant-');
   const target = path.join(root, 'public.lock');
   fs.writeFileSync(target, 'owned\n');
   const captured = captureRegularFileBinding(target, { subject: 'test-owned-entry' });
@@ -1399,7 +1399,7 @@ test('deferred quarantine cleanup preserves a real claimant and fails closed', (
   const rmdirSync = fs.rmdirSync.bind(fs);
   let claimant;
   t.mock.method(fs, 'rmdirSync', (directory) => {
-    if (!claimant && path.basename(String(directory)).startsWith('.archify-remove-')) {
+    if (!claimant && path.basename(String(directory)).startsWith('.schematics-remove-')) {
       claimant = path.join(String(directory), 'claimant');
       fs.writeFileSync(claimant, 'external claimant\n', { flag: 'wx' });
     }
@@ -1419,7 +1419,7 @@ test('deferred quarantine cleanup preserves a real claimant and fails closed', (
 });
 
 test('owned-file cleanup preserves a successor swapped at the unlink boundary', (t) => {
-  const root = workspace(t, 'archify-owned-cleanup-successor-');
+  const root = workspace(t, 'schematics-owned-cleanup-successor-');
   const target = path.join(root, 'candidate.html');
   const detached = path.join(root, 'detached-owned-candidate.html');
   fs.writeFileSync(target, 'owned candidate\n');
@@ -1453,7 +1453,7 @@ test('owned-file cleanup preserves a successor swapped at the unlink boundary', 
 });
 
 test('quarantine removal restores a successor swapped at the final move boundary', (t) => {
-  const root = workspace(t, 'archify-quarantine-remove-successor-');
+  const root = workspace(t, 'schematics-quarantine-remove-successor-');
   const target = path.join(root, 'public.lock');
   const displacedOwner = path.join(root, 'displaced-owner');
   fs.writeFileSync(target, 'owned\n');
@@ -1463,7 +1463,7 @@ test('quarantine removal restores a successor swapped at the final move boundary
   let injected = false;
   t.mock.method(fs, 'renameSync', (source, destination) => {
     if (!injected && source === target
-      && path.basename(path.dirname(destination)).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(destination)).startsWith('.schematics-remove-')) {
       injected = true;
       renameSync(target, displacedOwner);
       fs.writeFileSync(target, 'successor\n', { flag: 'wx' });
@@ -1479,7 +1479,7 @@ test('quarantine removal restores a successor swapped at the final move boundary
     assert.equal(fs.readFileSync(target, 'utf8'), 'successor\n');
     assert.equal(fs.readFileSync(displacedOwner, 'utf8'), 'owned\n');
     assert.deepEqual(
-      fs.readdirSync(root).filter((entry) => entry.startsWith('.archify-remove-')),
+      fs.readdirSync(root).filter((entry) => entry.startsWith('.schematics-remove-')),
       [],
     );
   } finally {
@@ -1488,7 +1488,7 @@ test('quarantine removal restores a successor swapped at the final move boundary
 });
 
 test('quarantine removal retains a moved successor when its public name is reclaimed', (t) => {
-  const root = workspace(t, 'archify-quarantine-remove-recovery-');
+  const root = workspace(t, 'schematics-quarantine-remove-recovery-');
   const target = path.join(root, 'public.lock');
   const displacedOwner = path.join(root, 'displaced-owner');
   fs.writeFileSync(target, 'owned\n');
@@ -1498,7 +1498,7 @@ test('quarantine removal retains a moved successor when its public name is recla
   let injected = false;
   t.mock.method(fs, 'renameSync', (source, destination) => {
     if (!injected && source === target
-      && path.basename(path.dirname(destination)).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(destination)).startsWith('.schematics-remove-')) {
       injected = true;
       renameSync(target, displacedOwner);
       fs.writeFileSync(target, 'moved successor\n', { flag: 'wx' });
@@ -1524,7 +1524,7 @@ test('quarantine removal retains a moved successor when its public name is recla
 });
 
 test('public backup keeps the bound file under a private no-clobber name', (t) => {
-  const root = workspace(t, 'archify-public-backup-owned-');
+  const root = workspace(t, 'schematics-public-backup-owned-');
   const target = path.join(root, 'artifact.html');
   const backup = path.join(root, '.previous-artifact');
   fs.writeFileSync(target, 'previous\n');
@@ -1544,7 +1544,7 @@ test('public backup keeps the bound file under a private no-clobber name', (t) =
 });
 
 test('public backup restores a successor swapped at its final public move boundary', (t) => {
-  const root = workspace(t, 'archify-public-backup-successor-');
+  const root = workspace(t, 'schematics-public-backup-successor-');
   const target = path.join(root, 'artifact.html');
   const backup = path.join(root, '.previous-artifact');
   const displacedOwner = path.join(root, 'displaced-owner');
@@ -1555,7 +1555,7 @@ test('public backup restores a successor swapped at its final public move bounda
   let injected = false;
   t.mock.method(fs, 'renameSync', (source, destination) => {
     if (!injected && source === target
-      && path.basename(path.dirname(destination)).startsWith('.archify-remove-')) {
+      && path.basename(path.dirname(destination)).startsWith('.schematics-remove-')) {
       injected = true;
       renameSync(target, displacedOwner);
       fs.writeFileSync(target, 'successor\n', { flag: 'wx' });

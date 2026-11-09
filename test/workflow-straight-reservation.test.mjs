@@ -5,12 +5,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { compileWorkflow } from '../archify/renderers/workflow/workflow-compiler.mjs';
-import { labelPoint } from '../archify/renderers/shared/geometry.ts';
+import { compileWorkflow } from '../schematics/renderers/workflow/workflow-compiler.mjs';
+import { labelPoint } from '../schematics/renderers/shared/geometry.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = path.join(root, 'test/fixtures/workflow-first-draft/automatic-fanout.workflow.json');
-const cli = path.join(root, 'archify/bin/archify.mjs');
+const cli = path.join(root, 'schematics/bin/schematics.mjs');
 const load = () => JSON.parse(fs.readFileSync(fixture, 'utf8'));
 const length = points => points.slice(1).reduce((sum, point, index) => (
   sum + Math.hypot(point[0] - points[index][0], point[1] - points[index][1])
@@ -38,7 +38,7 @@ test('a facing but non-straight automatic branch keeps short collision-free rout
 });
 
 test('public validation and rendered SVG preserve the mixed fan-out without a large detour', t => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-straight-reservation-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-straight-reservation-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const run = args => spawnSync(process.execPath, [cli, ...args], {
     encoding: 'utf8', env: process.env,

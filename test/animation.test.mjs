@@ -7,8 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-animation-'));
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-animation-'));
 
 const CASES = {
   architecture: 'web-app.architecture.json',
@@ -70,10 +70,10 @@ test('a retired signal-flow source renders as Classic with the full viewer and e
   assert.match(html, /<html lang="en" data-theme="dark" data-preset="classic">/);
   assert.match(svgBlock(html), /data-preset="classic"/);
   assert.doesNotMatch(html, /data-preset-badge|signal-flow/);
-  assert.doesNotMatch(html, /data-last-motion-bytes|Archify\.motion = /);
+  assert.doesNotMatch(html, /data-last-motion-bytes|Schematics\.motion = /);
   assert.match(html, /aria-label="Diagram view controls"/);
-  assert.match(html, /Archify\.focus = \(function \(\)/);
-  assert.match(html, /Archify\.view = \(function \(\)/);
+  assert.match(html, /Schematics\.focus = \(function \(\)/);
+  assert.match(html, /Schematics\.view = \(function \(\)/);
   assert.match(html, /clone\.style\.removeProperty\('transform'\)/);
   assert.match(html, /clone\.removeAttribute\('data-view-scale'\)/);
   assert.match(html, /data-last-export-canonical/);
@@ -146,9 +146,9 @@ for (const [mode, example] of Object.entries(CASES)) {
     assert.match(svg, /<svg[^>]+data-animation="trace"/);
     assert.match(svg, /data-animate="edge" style="--step:0"/);
     assert.match(svg, /data-animate="node" style="--step:0"/);
-    assert.match(svg, /aria-labelledby="archify-diagram-title archify-diagram-description"/);
-    assert.match(svg, /<title id="archify-diagram-title">[^<]+<\/title>/);
-    assert.match(svg, /<desc id="archify-diagram-description">[^<]+<\/desc>/);
+    assert.match(svg, /aria-labelledby="schematics-diagram-title schematics-diagram-description"/);
+    assert.match(svg, /<title id="schematics-diagram-title">[^<]+<\/title>/);
+    assert.match(svg, /<desc id="schematics-diagram-description">[^<]+<\/desc>/);
     assert.match(svg, /id="node-[^"]+" data-node-id="[^"]+"[^>]+role="button"[^>]+aria-pressed="false"/);
     assert.match(svg, /data-edge-from="[^"]+" data-edge-to="[^"]+"/);
   });
@@ -166,7 +166,7 @@ test('Live relay ships comet layers whose timing the Motion Governor plans', () 
   for (const layer of ['wake', 'glow', 'halo', 'tail', 'head', 'ripple']) {
     assert.match(html, new RegExp(`\\.ambient-flow-${layer} \\{`));
   }
-  assert.match(html, /@keyframes archify-node-enter/);
+  assert.match(html, /@keyframes schematics-node-enter/);
   assert.match(html, /--flow-cycle: 6\.4s/);
   assert.match(html, /html\[data-theme="light"\] svg\[data-animation="trace"\] \{/);
   assert.match(html, /html\[data-theme="light"\] \.ambient-flow-head \{/);
@@ -174,9 +174,9 @@ test('Live relay ships comet layers whose timing the Motion Governor plans', () 
   // cascade, echo comet or load-time trace layer remains.
   assert.match(html, /function planRelay\(records, windows\)/);
   assert.match(html, /animation-name: var\(--flow-name, none\)/);
-  assert.doesNotMatch(html, /archify-cascade-|archify-flow-ripple-echo|tail echo|--flow-step-delay/);
-  assert.doesNotMatch(html, /archify-ambient-flow|--ambient-flow-duration/);
-  assert.doesNotMatch(html, /ambient-flow-trace|archify-trace-in|archify-trace-fade/);
+  assert.doesNotMatch(html, /schematics-cascade-|schematics-flow-ripple-echo|tail echo|--flow-step-delay/);
+  assert.doesNotMatch(html, /schematics-ambient-flow|--ambient-flow-duration/);
+  assert.doesNotMatch(html, /ambient-flow-trace|schematics-trace-in|schematics-trace-fade/);
 });
 
 process.on('exit', () => fs.rmSync(tmp, { recursive: true, force: true }));

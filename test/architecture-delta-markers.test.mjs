@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse, serializeOuter } from 'parse5';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const variants = ['default', 'emphasis', 'security', 'dashed'];
 const attr = (node, name) => node.attrs?.find((entry) => entry.name === name)?.value;
 function descendants(node) {
@@ -51,7 +51,7 @@ function markerShape(marker) {
   return serializeOuter(marker).replace(/\sid="[^"]+"/, '');
 }
 function compare(t, base, head) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-delta-markers-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-delta-markers-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const inputs = [base, head].map((value, index) => {
     if (typeof value === 'string') return value;
@@ -61,7 +61,7 @@ function compare(t, base, head) {
   });
   const output = path.join(root, 'delta.html');
   const result = spawnSync(process.execPath, [
-    path.join(skillRoot, 'bin/archify.mjs'), 'compare', 'architecture', ...inputs,
+    path.join(skillRoot, 'bin/schematics.mjs'), 'compare', 'architecture', ...inputs,
     output, '--quality', 'standard', '--json',
   ], { cwd: skillRoot, encoding: 'utf8', timeout: 30000 });
   assert.ifError(result.error);

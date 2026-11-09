@@ -9,8 +9,8 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { gzipSync, brotliCompressSync, deflateSync } from 'node:zlib';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 const icon = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 const digest = createHash('sha256').update(icon).digest('hex');
 const compressors = { gzip: gzipSync, br: brotliCompressSync, deflate: deflateSync };
@@ -20,7 +20,7 @@ function run(args) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cli, ...args], {
       cwd: skillRoot, stdio: ['ignore', 'pipe', 'pipe'], timeout: 15000,
-      env: { ...process.env, ARCHIFY_BRAND_ALLOW_PRIVATE: '1' },
+      env: { ...process.env, SCHEMATICS_BRAND_ALLOW_PRIVATE: '1' },
     });
     let stdout = '';
     let stderr = '';
@@ -163,7 +163,7 @@ for (const encoding of [undefined, 'IdEnTiTy']) {
 }
 
 test('digest-pinned validation and rendering inherit identity negotiation', { timeout: 45000 }, async (t) => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-brand-encoding-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-brand-encoding-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const data = await fixture(t, (request, response) => {
     negotiated(request, response, request.url === '/page' ? page : icon,

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseInline,renderInline} from '../archify/explainer/inline.mjs';
+import {parseInline,renderInline} from '../schematics/explainer/inline.mjs';
 
 test('inline content preserves escaped literals and safe text while exposing reference semantics',()=>{
   const source='**先查** `GET <key>`，再看 [Redis](node:path.redis)、[请求路径](route:path.api~db) 和 [依据](source:trace)。\\*';
@@ -24,7 +24,7 @@ test('unsupported or executable author input fails with located repair guidance'
     const parsed=parseInline(`plain\n${input}`,{line:20,component:'prose',panelId:'overview',input:'draft.md'});
     assert.ok(parsed.diagnostics.length,input);
     for(const d of parsed.diagnostics){assert.equal(d.subject.line,21);assert.equal(d.subject.component,'prose');assert.ok(d.evidence.reason);assert.ok(d.evidence.example);}
-    assert.throws(()=>renderInline(input),error=>Array.isArray(error.archifyDiagnostics));
+    assert.throws(()=>renderInline(input),error=>Array.isArray(error.schematicsDiagnostics));
   }
 });
 

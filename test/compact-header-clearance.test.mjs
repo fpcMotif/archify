@@ -5,21 +5,21 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 test('compact stage rail and in-canvas navigation keep the diagram clear of toolbar and controls', async (t) => {
-  if (!Object.hasOwn(process.env, 'ARCHIFY_CHROME')) return t.skip('Set ARCHIFY_CHROME for real browser checks');
+  if (!Object.hasOwn(process.env, 'SCHEMATICS_CHROME')) return t.skip('Set SCHEMATICS_CHROME for real browser checks');
   const chrome = findChrome();
   assert.ok(chrome);
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-header-clearance-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-header-clearance-'));
   const spec = JSON.parse(fs.readFileSync(path.join(root, 'examples/web-app.architecture.json'), 'utf8'));
   spec.meta.title = 'Service map';
   delete spec.meta.subtitle;
   const input = path.join(dir, 'input.json');
   const output = path.join(dir, 'output.html');
   fs.writeFileSync(input, JSON.stringify(spec));
-  execFileSync(process.execPath, [path.join(root, 'bin/archify.mjs'), 'render', 'architecture', input, output]);
+  execFileSync(process.execPath, [path.join(root, 'bin/schematics.mjs'), 'render', 'architecture', input, output]);
   const browser = new ChromeVisualBrowser(chrome);
   try {
     const session = await browser.sessionPromise;
@@ -40,7 +40,7 @@ test('compact stage rail and in-canvas navigation keep the diagram clear of tool
         const observed = await evaluate(`(async () => {
           await document.fonts.ready;
           if (document.documentElement.dataset.theme !== '${theme}') document.getElementById('btn-theme').click();
-          await Archify.layoutStability.whenStable();
+          await Schematics.layoutStability.whenStable();
           const toolbar = document.querySelector('.toolbar').getBoundingClientRect();
           const guide = document.querySelector('.diagram-container').getBoundingClientRect();
           const svg = document.querySelector('.diagram-container > svg');

@@ -7,7 +7,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'parse5';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const attr = (node, name) => node.attrs?.find((entry) => entry.name === name)?.value;
 const descendants = (node) => [node, ...(node.childNodes || []).flatMap(descendants)];
 const textContent = (node) => node.nodeName === '#text' ? node.value : (node.childNodes || []).map(textContent).join('');
@@ -50,7 +50,7 @@ function fixtures(kind, operation) {
 for (const kind of ['node', 'edge', 'boundary']) {
   for (const operation of ['removed', 'moved']) {
     test(`compare preserves literal replacement tokens in ${operation} ${kind} labels`, (t) => {
-      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-delta-literals-'));
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-delta-literals-'));
       t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
       const inputs = fixtures(kind, operation).map((value, index) => {
         const file = path.join(dir, `${index}.json`);
@@ -58,7 +58,7 @@ for (const kind of ['node', 'edge', 'boundary']) {
         return file;
       });
       const output = path.join(dir, 'delta.html');
-      const run = spawnSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'),
+      const run = spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'),
         'compare', 'architecture', ...inputs, output, '--quality', 'standard', '--json'],
       { cwd: skillRoot, encoding: 'utf8', timeout: 30000 });
       assert.ifError(run.error);

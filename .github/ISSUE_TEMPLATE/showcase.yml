@@ -1,4 +1,4 @@
-name: Share an Archify diagram
+name: Share an Schematics diagram
 description: Submit a real, reproducible diagram for the community showcase.
 title: "[Showcase]: "
 labels:
@@ -28,9 +28,9 @@ body:
       required: true
 
   - type: input
-    id: archify_version
+    id: schematics_version
     attributes:
-      label: Archify version or commit
+      label: Schematics version or commit
       description: Use an exact package version or full repository commit when possible.
       placeholder: "2.12.0 or 0123456789abcdef..."
     validations:
@@ -65,7 +65,7 @@ body:
     id: source_json
     attributes:
       label: Redacted typed JSON source
-      description: Paste the candidate Archify JSON or attach it as a file. Keep the topology needed to reproduce the result.
+      description: Paste the candidate Schematics JSON or attach it as a file. Keep the topology needed to reproduce the result.
       render: json
     validations:
       required: true
@@ -82,7 +82,7 @@ body:
     id: validation_receipt
     attributes:
       label: Validation receipt
-      description: Paste the complete JSON from `archify validate ... --quality showcase --json` or `archify deliver ... --json`.
+      description: Paste the complete JSON from `schematics validate ... --quality showcase --json` or `schematics deliver ... --json`.
       render: json
     validations:
       required: true
@@ -126,5 +126,5 @@ body:
     attributes:
       label: Permission to feature
       options:
-        - label: I allow Archify maintainers to reproduce and feature this submission in the repository, documentation, gallery, and project website under the repository license, with attribution to my GitHub account.
+        - label: I allow Schematics maintainers to reproduce and feature this submission in the repository, documentation, gallery, and project website under the repository license, with attribution to my GitHub account.
           required: true

@@ -8,8 +8,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'parse5';
 
-const skillRoot = fileURLToPath(new URL('../archify/', import.meta.url));
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 const examples = [
   ['architecture', 'web-app.architecture.json', 'components'],
   ['workflow', 'agent-tool-call.workflow.json', 'nodes'],
@@ -47,7 +47,7 @@ function assertDiagram(output, document, collection) {
     for (const panel of document.panels) {
       assert.ok(elements.some((node) => attribute(node, 'id') === panel.id), `missing authored explainer panel ${panel.id}`);
     }
-    const payload = elements.find((node) => attribute(node, 'id') === 'archify-explainer-prepared');
+    const payload = elements.find((node) => attribute(node, 'id') === 'schematics-explainer-prepared');
     assert.ok(payload, 'the explainer must retain its original draft for patching');
     const bundle = JSON.parse(payload.childNodes.map((node) => node.value || '').join(''));
     assert.equal(JSON.parse(bundle.sourceText).meta.id, document.meta.id);
@@ -95,7 +95,7 @@ function assertDiagnostic(receipt, code) {
 
 test('core smoke: public CLI diagrams, compatibility and delivery safety', async (t) => {
   // Resolve Windows 8.3 temp aliases using the same native path semantics as delivery.
-  const workspace = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'archify-core-')));
+  const workspace = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-core-')));
   t.after(() => fs.rmSync(workspace, { recursive: true, force: true }));
   const runtimeTmp = path.join(workspace, 'runtime-temp');
   fs.mkdirSync(runtimeTmp);
@@ -118,7 +118,7 @@ test('core smoke: public CLI diagrams, compatibility and delivery safety', async
     return JSON.parse(run(args, cwd, status).stdout);
   }
   function assertNoStaging(directory) {
-    assert.deepEqual(fs.readdirSync(directory).filter((name) => name.startsWith('.archify-')
+    assert.deepEqual(fs.readdirSync(directory).filter((name) => name.startsWith('.schematics-')
       || name.endsWith('.delivery-lock.json')), [], 'completed attempt must release locks and staging');
   }
   let workflow;

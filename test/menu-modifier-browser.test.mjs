@@ -5,19 +5,19 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'ARCHIFY_CHROME');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chromeConfigured = Object.prototype.hasOwnProperty.call(process.env, 'SCHEMATICS_CHROME');
 const chrome = chromeConfigured ? findChrome() : null;
 if (chromeConfigured && !chrome) {
-  throw new Error(`ARCHIFY_CHROME does not resolve to an executable browser: ${process.env.ARCHIFY_CHROME}`);
+  throw new Error(`SCHEMATICS_CHROME does not resolve to an executable browser: ${process.env.SCHEMATICS_CHROME}`);
 }
 
 test('Viewer menus preserve modified navigation keys', {
-  skip: chrome ? false : 'Set ARCHIFY_CHROME to run real-browser menu checks.',
+  skip: chrome ? false : 'Set SCHEMATICS_CHROME to run real-browser menu checks.',
 }, async (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-menu-modifier-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-menu-modifier-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const source = path.join(skillRoot, 'examples', 'web-app.architecture.json');
   const output = path.join(scratch, 'viewer.html');
@@ -60,8 +60,8 @@ test('Viewer menus preserve modified navigation keys', {
       return { triggerEvents, openState, items };
     };
     return {
-      export: inspect(Archify.exportMenu.open, Archify.exportMenu.close, Archify.exportMenu.isOpen, document.getElementById('export-menu'), document.getElementById('btn-export')),
-      preset: inspect(Archify.preset.open, Archify.preset.close, Archify.preset.isOpen, document.getElementById('preset-menu'), document.getElementById('btn-preset')),
+      export: inspect(Schematics.exportMenu.open, Schematics.exportMenu.close, Schematics.exportMenu.isOpen, document.getElementById('export-menu'), document.getElementById('btn-export')),
+      preset: inspect(Schematics.preset.open, Schematics.preset.close, Schematics.preset.isOpen, document.getElementById('preset-menu'), document.getElementById('btn-preset')),
     };
   })()`);
   for (const [name, value] of Object.entries(state)) {
@@ -77,7 +77,7 @@ test('Viewer menus preserve modified navigation keys', {
   const helpShortcut = await run(`(() => {
     const event = new KeyboardEvent('keydown', { key: '?', bubbles: true, cancelable: true, shiftKey: true });
     document.dispatchEvent(event);
-    return { prevented: event.defaultPrevented, open: Archify.guide.isOpen() };
+    return { prevented: event.defaultPrevented, open: Schematics.guide.isOpen() };
   })()`);
   assert.deepEqual(helpShortcut, { prevented: true, open: true }, 'Shift+? retains the help shortcut');
 });

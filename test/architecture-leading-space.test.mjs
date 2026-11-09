@@ -6,8 +6,8 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('../archify/', import.meta.url));
-const cli = path.join(root, 'bin/archify.mjs');
+const root = fileURLToPath(new URL('../schematics/', import.meta.url));
+const cli = path.join(root, 'bin/schematics.mjs');
 const checker = path.join(root, 'scripts/check-render-output.mjs');
 
 function run(args) {
@@ -17,7 +17,7 @@ function run(args) {
 }
 
 function fixture(t, changes = {}) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-leading-space-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-leading-space-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const source = path.join(dir, 'diagram.json');
   const output = path.join(dir, 'diagram.html');
@@ -90,7 +90,7 @@ test('authored viewBox and transformed SVGs are not suggested for automatic revi
 });
 
 test('automatic Architecture reports a node side facing more neighbours than it has ports', t => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-crowded-side-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-crowded-side-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const render = (hubHeight) => {
     const source = path.join(dir, `hub-${hubHeight}.json`);

@@ -5,17 +5,17 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chrome = process.env.ARCHIFY_CHROME ? findChrome() : null;
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
 
 test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
-  skip: chrome ? false : 'Set ARCHIFY_CHROME to run real-browser Export checks.',
+  skip: chrome ? false : 'Set SCHEMATICS_CHROME to run real-browser Export checks.',
 }, async (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-export-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-export-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
-  const evidence = process.env.ARCHIFY_EXPORT_RUNTIME_EVIDENCE;
+  const evidence = process.env.SCHEMATICS_EXPORT_RUNTIME_EVIDENCE;
   const records = [];
   if (evidence) fs.mkdirSync(evidence, { recursive: true });
   t.after(() => { if (evidence) fs.writeFileSync(path.join(evidence, 'observations.json'), JSON.stringify(records, null, 2) + '\n'); });
@@ -76,8 +76,8 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
     await send('Page.navigate', { url: pathToFileURL(file).href + '?theme=' + theme + extra });
     await loaded;
     await run('document.fonts.ready');
-    await run('Archify.readerLayout.whenStable()');
-    await run('Archify.viewerChromeLayout.whenStable()');
+    await run('Schematics.readerLayout.whenStable()');
+    await run('Schematics.viewerChromeLayout.whenStable()');
   }
   async function key(key, code, windowsVirtualKeyCode) {
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode });
@@ -89,7 +89,7 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
     await send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...point, button: 'left', clickCount: 1 });
   }
   async function record(label) {
-    const value = await run(`({open:Archify.exportMenu.isOpen(),expanded:document.getElementById('btn-export').getAttribute('aria-expanded'),
+    const value = await run(`({open:Schematics.exportMenu.isOpen(),expanded:document.getElementById('btn-export').getAttribute('aria-expanded'),
       active:document.activeElement.id||document.activeElement.dataset.action||document.activeElement.dataset.format,
       downloads:exportDownloads.map(d=>({name:d.name,type:d.blob.type,attached:d.attached})),
       urls:[...exportUrls.values()].map(u=>({type:u.blob.type,revoked:u.revoked})),
@@ -101,15 +101,15 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
     records.push({ label, ...value });
     return value;
   }
-  const route = `Archify.routeProbe.begin({source:'users',focusNode:false});if(!Archify.routeProbe.choose('db',{updateUrl:false}))throw new Error('route fixture failed');`;
-  const reach = `Archify.focus.set('api',{toggle:false,updateUrl:false});if(!Archify.focus.reach('downstream',{toggle:false,updateUrl:false,reveal:false}))throw new Error('reach fixture failed');`;
+  const route = `Schematics.routeProbe.begin({source:'users',focusNode:false});if(!Schematics.routeProbe.choose('db',{updateUrl:false}))throw new Error('route fixture failed');`;
+  const reach = `Schematics.focus.set('api',{toggle:false,updateUrl:false});if(!Schematics.focus.reach('downstream',{toggle:false,updateUrl:false,reveal:false}))throw new Error('reach fixture failed');`;
 
   await t.test('removed share actions cannot be invoked through the menu or old API', async () => {
     await load();
     assert.equal(await run(`document.querySelector('[data-format="share-card"], [data-action="copy-share-card"]') === null`), true);
-    assert.equal(await run(`typeof Archify.exportMenu.copyShareCard`), 'undefined');
-    assert.equal(await run(`Archify.exportMenu.shareCard().then(()=>false,()=>true)`), true);
-    assert.equal(await run(`Archify.exportMenu.run('share-card').then(()=>false,()=>true)`), true);
+    assert.equal(await run(`typeof Schematics.exportMenu.copyShareCard`), 'undefined');
+    assert.equal(await run(`Schematics.exportMenu.shareCard().then(()=>false,()=>true)`), true);
+    assert.equal(await run(`Schematics.exportMenu.run('share-card').then(()=>false,()=>true)`), true);
     const state = await record('removed-share-actions');
     assert.deepEqual(state.downloads, []);
     assert.deepEqual(state.urls, []);
@@ -120,8 +120,8 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
   await t.test('native menu input skips unavailable entries and preserves focus and mutual exclusion', async () => {
     for (const width of [390, 720, 1440]) {
       await load({ width, extra: '&fault=unsupported' });
-      assert.deepEqual(await run('Object.keys(Archify.exportMenu).sort()'), ['close','downloadReachShareCard','downloadRouteShareCard','isOpen','open','run','shareCard','syncReachShare','syncRouteShare'].sort());
-      assert.equal(await run('Archify.motion'), undefined);
+      assert.deepEqual(await run('Object.keys(Schematics.exportMenu).sort()'), ['close','downloadReachShareCard','downloadRouteShareCard','isOpen','open','run','shareCard','syncReachShare','syncRouteShare'].sort());
+      assert.equal(await run('Schematics.motion'), undefined);
       assert.deepEqual(await run(`[...document.querySelectorAll('#export-menu [data-format="jpeg"],#export-menu [data-format="webp"],#export-menu [data-action="copy"]')].map(e=>e.disabled)`), [true,true,true]);
       const controls = await run(`(() => {
         const visible = element => { const r = element.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(element).visibility !== 'hidden'; };
@@ -153,19 +153,19 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
       assert.equal(await run(`document.activeElement.dataset.format||document.activeElement.dataset.action`), last);
       await key('Escape', 'Escape', 27);
       assert.equal((await record('escape-' + width)).active, 'btn-export');
-      assert.equal(await run('Archify.exportMenu.isOpen()'), false);
+      assert.equal(await run('Schematics.exportMenu.isOpen()'), false);
       await click('#btn-export');
       await key('Tab', 'Tab', 9);
-      assert.equal(await run('Archify.exportMenu.isOpen()'), false);
+      assert.equal(await run('Schematics.exportMenu.isOpen()'), false);
       await click('#btn-export');
       assert.equal(await run(`document.getElementById('export-menu').contains(document.elementFromPoint(5,5))`), false);
       await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 5, y: 5, button: 'left', clickCount: 1 });
       await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 5, y: 5, button: 'left', clickCount: 1 });
-      assert.equal(await run('Archify.exportMenu.isOpen()'), false);
-      await run('Archify.preset.open();Archify.exportMenu.open()');
-      assert.equal(await run('Archify.preset.isOpen()'), false);
-      await run('Archify.semanticLens.open();Archify.exportMenu.open()');
-      assert.equal(await run('Archify.semanticLens.isOpen()'), false);
+      assert.equal(await run('Schematics.exportMenu.isOpen()'), false);
+      await run('Schematics.preset.open();Schematics.exportMenu.open()');
+      assert.equal(await run('Schematics.preset.isOpen()'), false);
+      await run('Schematics.semanticLens.open();Schematics.exportMenu.open()');
+      assert.equal(await run('Schematics.semanticLens.isOpen()'), false);
       const menu = await run(`(() => { const r = document.getElementById('export-menu').getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: innerWidth, height: innerHeight }; })()`);
       assert.ok(menu.left >= -1 && menu.right <= menu.width + 1 && menu.top >= -1 && menu.bottom <= menu.height + 1, JSON.stringify(menu));
       const state = await record('menu-' + width);
@@ -176,7 +176,7 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
   await t.test('auto-open and themed menu rendering keep stable layout', async () => {
     for (const theme of ['dark', 'light']) {
       await load({ theme, extra: '&openExport=1' });
-      await run('exportWait(()=>Archify.exportMenu.isOpen())');
+      await run('exportWait(()=>Schematics.exportMenu.isOpen())');
       const state = await record('auto-' + theme);
       assert.equal(state.expanded, 'true');assert.deepEqual(state.console, []);
       if (evidence) {
@@ -184,15 +184,15 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
         const shot = await send('Page.captureScreenshot', { format: 'png' });
         fs.writeFileSync(path.join(evidence, theme + '-menu.png'), Buffer.from(shot.data, 'base64'));
       }
-      await run('Archify.exportMenu.close(false); Archify.view.zoomOut()');
-      await run('Archify.layoutStability.whenStable()');
-      const indicator = await run(`(() => { const detail = document.querySelector('[data-view-detail]'), percent = document.querySelector('[data-view-percent]'); return { detailVisible: !detail.hidden, detail: detail.textContent.trim(), percent: percent.textContent, scale: Archify.view.state().scale }; })()`);
+      await run('Schematics.exportMenu.close(false); Schematics.view.zoomOut()');
+      await run('Schematics.layoutStability.whenStable()');
+      const indicator = await run(`(() => { const detail = document.querySelector('[data-view-detail]'), percent = document.querySelector('[data-view-percent]'); return { detailVisible: !detail.hidden, detail: detail.textContent.trim(), percent: percent.textContent, scale: Schematics.view.state().scale }; })()`);
       assert.equal(indicator.detailVisible, true);
       assert.ok(indicator.detail && !indicator.detail.includes('%'), 'detail has its own label');
       assert.equal(indicator.percent, Math.round(indicator.scale * 100) + '%');
       assert.notEqual(indicator.percent, '100%');
       await click('[data-view="reset"]');
-      await run('Archify.layoutStability.whenStable()');
+      await run('Schematics.layoutStability.whenStable()');
       assert.deepEqual(await run("({detailHidden: document.querySelector('[data-view-detail]').hidden, percent: document.querySelector('[data-view-percent]').textContent})"), { detailHidden: true, percent: '100%' });
     }
   });
@@ -200,8 +200,8 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
   await t.test('semantic card downloads retain snapshots, receipts and URL lifetime', async () => {
     for (const variant of ['route', 'reach']) {
       await load();await run(variant === 'route' ? route : reach);
-      await run(`Archify.exportMenu.open();document.querySelector('[data-action="${variant}-share-card"]').focus()`);
-      const result = await run(`(async()=>{let triggerFocus=0;const trigger=document.getElementById('btn-export');const onFocus=()=>triggerFocus++;trigger.addEventListener('focus',onFocus);const blob=await Archify.exportMenu.${variant === 'route' ? 'downloadRouteShareCard' : 'downloadReachShareCard'}();const image=await createImageBitmap(blob);const dimensions=[image.width,image.height];image.close();trigger.removeEventListener('focus',onFocus);return {dimensions,triggerFocus,type:blob.type};})()`);
+      await run(`Schematics.exportMenu.open();document.querySelector('[data-action="${variant}-share-card"]').focus()`);
+      const result = await run(`(async()=>{let triggerFocus=0;const trigger=document.getElementById('btn-export');const onFocus=()=>triggerFocus++;trigger.addEventListener('focus',onFocus);const blob=await Schematics.exportMenu.${variant === 'route' ? 'downloadRouteShareCard' : 'downloadReachShareCard'}();const image=await createImageBitmap(blob);const dimensions=[image.width,image.height];image.close();trigger.removeEventListener('focus',onFocus);return {dimensions,triggerFocus,type:blob.type};})()`);
       assert.deepEqual(result, { dimensions: [1200,630], triggerFocus: 0, type: 'image/png' });
       const live = await record(variant + '-download');
       assert.equal(live.receipt['data-last-export-variant'], variant);
@@ -212,16 +212,16 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
       assert.equal(await run(`document.querySelectorAll('a[download]').length`), 0);
       await run('exportWait(()=>[...exportUrls.values()].every(u=>u.revoked))');
       assert.deepEqual((await record(variant + '-released')).urls.map(u=>u.revoked), [true,true]);
-      await run(`Archify.exportMenu.open();${variant === 'route' ? 'Archify.routeProbe.clear()' : 'Archify.focus.clearReach()'};`);
+      await run(`Schematics.exportMenu.open();${variant === 'route' ? 'Schematics.routeProbe.clear()' : 'Schematics.focus.clearReach()'};`);
       assert.equal(await run(`document.querySelector('[data-action="${variant}-share-card"]').hidden`), true);
-      await run(`Archify.exportMenu.${variant === 'route' ? 'downloadRouteShareCard' : 'downloadReachShareCard'}()`);
+      await run(`Schematics.exportMenu.${variant === 'route' ? 'downloadRouteShareCard' : 'downloadReachShareCard'}()`);
       const missing = await record(variant + '-invalidated');
       assert.equal(missing.receipt['data-last-export-error-format'], 'share-card');
       assert.equal(missing.receipt['data-last-export-variant'], undefined);assert.equal(missing.alerts.length, 1);
       // An invalid provider snapshot must not be sanitized into a different route.
       await run(variant === 'route' ? route : reach);
-      await run(`(()=>{const provider=${variant === 'route' ? 'Archify.routeProbe' : 'Archify.focus'};const method=${JSON.stringify(variant === 'route' ? 'exportSnapshot' : 'reachabilitySnapshot')};const snapshot=provider[method]();snapshot.nodeIds=['missing'];provider[method]=()=>snapshot;})()`);
-      assert.equal(await run(`Archify.exportMenu.shareCard({variant:${JSON.stringify(variant)}}).then(()=>false,()=>true)`), true);
+      await run(`(()=>{const provider=${variant === 'route' ? 'Schematics.routeProbe' : 'Schematics.focus'};const method=${JSON.stringify(variant === 'route' ? 'exportSnapshot' : 'reachabilitySnapshot')};const snapshot=provider[method]();snapshot.nodeIds=['missing'];provider[method]=()=>snapshot;})()`);
+      assert.equal(await run(`Schematics.exportMenu.shareCard({variant:${JSON.stringify(variant)}}).then(()=>false,()=>true)`), true);
       assert.equal((await record(variant + '-malformed')).downloads.length, 1);
     }
   });
@@ -233,9 +233,9 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
       await run(`window.copyCalls=[];window.copyDone=false;window.copyBlob=null;
         window.ClipboardItem=class {constructor(data){const value=data['image/png'];copyCalls.push({promise:value instanceof Promise,gesture:navigator.userActivation.isActive,inClickHandler:copyInClickHandler});if(${JSON.stringify(mode)}==='fallback'&&value instanceof Promise)throw new Error('promise unsupported');this.value=value;}};
         Object.defineProperty(navigator,'clipboard',{configurable:true,value:{write(items){copyCalls.push({write:true});if(${JSON.stringify(mode)}==='reject'){copyDone=true;return Promise.reject(new Error('clipboard denied'));}return Promise.resolve(items[0].value).then(blob=>{copyBlob=blob;copyDone=true;});}}});
-        document.querySelector('[data-action="${action}"]').disabled=false;Archify.exportMenu.open();`);
+        document.querySelector('[data-action="${action}"]').disabled=false;Schematics.exportMenu.open();`);
       await click(`[data-action="${action}"]`);
-      await run(`exportWait(()=>copyDone&&(${JSON.stringify(mode)}==='reject'?exportAlerts.length>0:document.querySelector('.archify-toast').textContent.length>0))`);
+      await run(`exportWait(()=>copyDone&&(${JSON.stringify(mode)}==='reject'?exportAlerts.length>0:document.querySelector('.schematics-toast').textContent.length>0))`);
       const calls = await run('copyCalls');
       assert.deepEqual(calls[0], { promise: true, gesture: true, inClickHandler: true });
       if (mode === 'fallback') assert.equal(calls[1].inClickHandler, false, 'Blob fallback remains asynchronous');
@@ -265,16 +265,16 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
       if (fault === 'image') await run(`window.Image=class {set src(value){queueMicrotask(()=>this.onerror(new Error('image failed')));}}`);
       if (fault === 'context') await run('HTMLCanvasElement.prototype.getContext=()=>null');
       if (fault === 'null-blob') await run('HTMLCanvasElement.prototype.toBlob=function(callback){callback(null)}');
-      await run(`Archify.exportMenu.run('png')`);
+      await run(`Schematics.exportMenu.run('png')`);
       const state = await record('raster-' + fault);
       assert.equal(state.receipt['data-last-export-error-format'],'png');assert.equal(state.alerts.length,1);
       assert.equal(state.urls.length,1);assert.equal(state.urls[0].revoked,true);assert.deepEqual(state.downloads,[]);
-      await run(`window.Image=savedImage;HTMLCanvasElement.prototype.getContext=savedContext;HTMLCanvasElement.prototype.toBlob=savedToBlob;Archify.exportMenu.run('png')`);
+      await run(`window.Image=savedImage;HTMLCanvasElement.prototype.getContext=savedContext;HTMLCanvasElement.prototype.toBlob=savedToBlob;Schematics.exportMenu.run('png')`);
       await run('exportWait(()=>exportDownloads.length===1)');
       assert.equal((await record('retry-' + fault)).receipt['data-last-export-error-format'],undefined);
     }
     await load();
-    const sync = await run(`(()=>{const svg=document.querySelector('.diagram-container > svg'),clone=svg.cloneNode;svg.cloneNode=()=>{throw new Error('sync serialization')};try{Archify.exportMenu.run('svg');return false;}catch(e){return e.message==='sync serialization';}finally{svg.cloneNode=clone;}})()`);
+    const sync = await run(`(()=>{const svg=document.querySelector('.diagram-container > svg'),clone=svg.cloneNode;svg.cloneNode=()=>{throw new Error('sync serialization')};try{Schematics.exportMenu.run('svg');return false;}catch(e){return e.message==='sync serialization';}finally{svg.cloneNode=clone;}})()`);
     assert.equal(sync,true);assert.deepEqual((await record('svg-sync-throw')).receipt,{});
   });
 
@@ -295,18 +295,18 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
           const viewerWidths = [];
           for (const width of [640, 1440]) {
             await send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile: false });
-            await run('Archify.readerLayout.whenStable()');
-            await run('Archify.viewerChromeLayout.whenStable()');
+            await run('Schematics.readerLayout.whenStable()');
+            await run('Schematics.viewerChromeLayout.whenStable()');
             viewerWidths.push(await run(`document.querySelector('.diagram-container svg').getBoundingClientRect().width`));
           }
           assert.notEqual(viewerWidths[0], viewerWidths[1], `${mode}: Viewer remains responsive`);
           const original = await run(`document.querySelector('.diagram-container svg').outerHTML`);
-          await run(`Archify.exportMenu.run('svg')`);
+          await run(`Schematics.exportMenu.run('svg')`);
           await run('exportWait(()=>exportDownloads.length===1)');
           const svgText = await run('exportDownloads[0].blob.text()');
           const svgFile = path.join(evidence || scratch, `${mode}-${theme}.svg`);
           fs.writeFileSync(svgFile, svgText);
-          assert.match(svgText, /<metadata id="archify-software-notices">/);
+          assert.match(svgText, /<metadata id="schematics-software-notices">/);
           assert.match(svgText, /Copyright \(c\) 2025 Cocoon AI/);
           assert.match(svgText, /Apache License/);
           const figure = await run(`(()=>{const v=document.querySelector('.diagram-container svg').viewBox.baseVal;const sub=(document.querySelector('.header .subtitle')||{}).textContent;const header=document.querySelector('.header h1')?32+(sub&&sub.trim()?24:0)+18:0;return [(v.width+104)*4,(v.height+104+header)*4];})()`);
@@ -314,7 +314,7 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
           // All modes exercise real raster sizing. Shared MIME/quality encoding
           // branches additionally run on architecture in both themes.
           for (const format of mode === 'architecture' ? ['png', 'jpeg', 'webp'] : ['png']) {
-            await run(`Archify.exportMenu.run('${format}')`);
+            await run(`Schematics.exportMenu.run('${format}')`);
             const result = await run(`(async()=>{const blob=exportDownloads.at(-1).blob;const image=await createImageBitmap(blob);const dimensions=[image.width,image.height];image.close();return {dimensions,type:blob.type};})()`);
             assert.deepEqual(result.dimensions, figure, `${mode} ${theme} ${format}: native 4x framed raster`);
             assert.equal(result.type, 'image/' + format);
@@ -358,7 +358,7 @@ test('Export preserves menu, clipboard, semantic cards and raster lifecycles', {
       fs.writeFileSync(input, JSON.stringify(cjkSource));
       execFileSync(process.execPath, [path.join(skillRoot, 'renderers/architecture/render-architecture.mjs'), input, file]);
       await load();
-      await run(`Archify.exportMenu.run('svg')`);
+      await run(`Schematics.exportMenu.run('svg')`);
       await run('exportWait(()=>exportDownloads.length===1)');
       const download = await run(`exportDownloads[0].blob.text().then(text=>({name:exportDownloads[0].name,type:exportDownloads[0].blob.type,text}))`);
       assert.ok(download.name.endsWith('.svg'));

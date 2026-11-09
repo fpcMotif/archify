@@ -6,15 +6,15 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { EventEmitter } from 'node:events';
 import { fileURLToPath } from 'node:url';
-import { ChromeVisualBrowser, runVisualCheck } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, runVisualCheck } from '../schematics/bin/visual-check.mjs';
 
 // Minimal 1x1 PNG so visual-check's capture path has bytes to persist.
 const PNG_STUB = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const template = fs.readFileSync(path.join(root, 'viewer/template.source.html'), 'utf8');
-const helper = template.slice(template.indexOf('    const archifyLayoutOwners ='), template.indexOf('/* ARCHIFY:READER_LAYOUT */'));
-const joint = template.slice(template.indexOf('    Archify.layoutStability ='), template.indexOf('/* ARCHIFY:CAMERA */'));
+const helper = template.slice(template.indexOf('    const schematicsLayoutOwners ='), template.indexOf('/* SCHEMATICS:READER_LAYOUT */'));
+const joint = template.slice(template.indexOf('    Schematics.layoutStability ='), template.indexOf('/* SCHEMATICS:CAMERA */'));
 
 function fixture({ readerPending = () => false, chromePending = () => false,
   readerSnapshot = () => 'reader|original', chromeSnapshot = () => 'chrome|original', fonts } = {}) {
@@ -23,7 +23,7 @@ function fixture({ readerPending = () => false, chromePending = () => false,
   const frames = [];
   const scheduled = [];
   const context = vm.createContext({
-    Archify: {},
+    Schematics: {},
     document: { fonts: fonts || { status: 'loaded', ready: Promise.resolve() } },
     requestAnimationFrame(callback) { frames.push(callback); return ++nextId; },
     owners: {
@@ -31,7 +31,7 @@ function fixture({ readerPending = () => false, chromePending = () => false,
       viewerChrome: { schedule() { scheduled.push('chrome'); }, pending: () => chromePending(frame), snapshot: () => chromeSnapshot(frame) },
     },
   });
-  vm.runInContext(helper + '\narchifyLayoutOwners.reader = owners.reader; archifyLayoutOwners.viewerChrome = owners.viewerChrome;\n' + joint, context);
+  vm.runInContext(helper + '\nschematicsLayoutOwners.reader = owners.reader; schematicsLayoutOwners.viewerChrome = owners.viewerChrome;\n' + joint, context);
   const microtasks = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
   async function tick(before = () => {}) {
     await microtasks();
@@ -51,8 +51,8 @@ function fixture({ readerPending = () => false, chromePending = () => false,
     return { value, error, frame };
   }
   return { context, scheduled, frames, tick, settle, get frame() { return frame; },
-    wait: () => context.Archify.layoutStability.whenStable(),
-    local: owner => context.Archify.waitForStableLayout(context.owners[owner]),
+    wait: () => context.Schematics.layoutStability.whenStable(),
+    local: owner => context.Schematics.waitForStableLayout(context.owners[owner]),
   };
 }
 
@@ -63,8 +63,8 @@ test('joint contract schedules both private owners and compares an unambiguous t
   assert.deepEqual(f.scheduled, ['reader', 'chrome']);
   assert.equal(result.value.sampledFrames, 4);
   assert.deepEqual(JSON.parse(result.value.snapshot), [['reader', 'reader|original'], ['viewerChrome', 'chrome|original']]);
-  assert.deepEqual(Object.keys(f.context.Archify.layoutStability), ['whenStable']);
-  assert.equal(Object.hasOwn(f.context, 'archifyLayoutOwners'), false, 'descriptors must not become a window property');
+  assert.deepEqual(Object.keys(f.context.Schematics.layoutStability), ['whenStable']);
+  assert.equal(Object.hasOwn(f.context, 'schematicsLayoutOwners'), false, 'descriptors must not become a window property');
 });
 
 for (const owner of ['reader', 'chrome']) {
@@ -186,7 +186,7 @@ test('late owner work before the last comparison rejects at 960 instead of false
 // a fake transport/clock. No Chrome process and no real 15-second sleep needed.
 // Frame and wall-clock limits are independent: the CLI can time out before960.
 test('forever-pending joint inspection still fails at the unchanged 15000ms CDP boundary without fallback', async () => {
-  const visualSource = fs.readFileSync(path.join(root, 'archify/bin/visual-check.mjs'), 'utf8');
+  const visualSource = fs.readFileSync(path.join(root, 'schematics/bin/visual-check.mjs'), 'utf8');
   const pipeSource = visualSource.slice(visualSource.indexOf('class PipeCdp {'), visualSource.indexOf('export function chromeVisualBrowserArgs'));
   const timers = new Map();
   let nextTimer = 0;
@@ -200,11 +200,11 @@ test('forever-pending joint inspection still fails at the unchanged 15000ms CDP 
   const PipeCdp = vm.runInContext(pipeSource + '\nPipeCdp', clockContext);
   const f = fixture({ readerPending: () => true });
   const localCalls = [];
-  f.context.window = { Archify: f.context.Archify };
+  f.context.window = { Schematics: f.context.Schematics };
   f.context.document.documentElement = { setAttribute() {} };
   f.context.document.querySelector = () => null;
-  f.context.Archify.readerLayout = { whenStable() { localCalls.push('reader'); return Promise.resolve(); } };
-  f.context.Archify.viewerChromeLayout = { whenStable() { localCalls.push('chrome'); return Promise.resolve(); } };
+  f.context.Schematics.readerLayout = { whenStable() { localCalls.push('reader'); return Promise.resolve(); } };
+  f.context.Schematics.viewerChromeLayout = { whenStable() { localCalls.push('chrome'); return Promise.resolve(); } };
   const sent = [];
   const read = new EventEmitter();
   read.setEncoding = () => {};
@@ -259,17 +259,17 @@ function inspection({ capability = true, rejectJoint = false, localMethods = tru
   const states = [];
   let current = {};
   let rafCount = 0;
-  const Archify = {};
+  const Schematics = {};
   if (localMethods) {
-    Archify.readerLayout = { whenStable: async () => { calls.push('reader'); } };
-    Archify.viewerChromeLayout = { whenStable: async () => { calls.push('chrome'); } };
+    Schematics.readerLayout = { whenStable: async () => { calls.push('reader'); } };
+    Schematics.viewerChromeLayout = { whenStable: async () => { calls.push('chrome'); } };
   }
-  if (capability) Archify.layoutStability = { whenStable: async () => {
+  if (capability) Schematics.layoutStability = { whenStable: async () => {
     calls.push('joint');
     if (rejectJoint) throw new Error('joint rejection fixture');
   } };
   const page = vm.createContext({
-    Archify, window: { Archify },
+    Schematics, window: { Schematics },
     document: { documentElement: { setAttribute() {} }, querySelector: () => null,
       fonts: { ready: Promise.resolve(), status: 'loaded' } },
     requestAnimationFrame(callback) { rafCount++; queueMicrotask(callback); },
@@ -325,7 +325,7 @@ test('old artifacts keep the exact four local waits and no-layout artifacts keep
 });
 
 test('normal browser evidence retains all six inspections and receipt mappings with the joint capability', async () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-joint-contract-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-joint-contract-'));
   try {
     const artifactPath = path.join(directory, 'diagram.html');
     fs.writeFileSync(artifactPath, '<!doctype html><title>joint fixture</title>');

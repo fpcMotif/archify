@@ -5,11 +5,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { runFinalize } from '../archify/bin/finalize.mjs';
-import { CAPTURE_VIEWPORTS, VISUAL_CHECK_VIEWPORTS } from '../archify/bin/visual-check.mjs';
+import { runFinalize } from '../schematics/bin/finalize.mjs';
+import { CAPTURE_VIEWPORTS, VISUAL_CHECK_VIEWPORTS } from '../schematics/bin/visual-check.mjs';
 
 function workspace(t) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-finalize-browser-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-finalize-browser-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   return directory;
 }
@@ -137,7 +137,7 @@ function inputs(t) {
 
 function options({ input, output, outDir, runCommand, runBrowserCheck, resolveChrome, createBrowser }) {
   return {
-    cliPath: '/fake/archify.mjs',
+    cliPath: '/fake/schematics.mjs',
     type: 'architecture',
     input,
     output,

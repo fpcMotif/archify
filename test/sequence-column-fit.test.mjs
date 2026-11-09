@@ -5,14 +5,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { textUnits } from '../archify/renderers/shared/utils.ts';
-import { minimumNodeTextWidth } from '../archify/renderers/shared/text-fit.ts';
+import { textUnits } from '../schematics/renderers/shared/utils.ts';
+import { minimumNodeTextWidth } from '../schematics/renderers/shared/text-fit.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
 
 function renderOutcome(doc, publicCli = false) {
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-column-fit-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-column-fit-'));
   const input = path.join(tmp, 'input.json');
   const output = path.join(tmp, 'output.html');
   const renderDoc = structuredClone(doc);
@@ -20,7 +20,7 @@ function renderOutcome(doc, publicCli = false) {
   fs.writeFileSync(input, JSON.stringify(renderDoc));
   try {
     execFileSync(process.execPath, publicCli
-      ? [path.join(skillRoot, 'bin/archify.mjs'), 'render', 'sequence', input, output]
+      ? [path.join(skillRoot, 'bin/schematics.mjs'), 'render', 'sequence', input, output]
       : [path.join(skillRoot, 'renderers/sequence/render-sequence.mjs'), input, output], { stdio: ['ignore', 'ignore', 'pipe'] });
     return { code: 0, stderr: '', html: fs.readFileSync(output, 'utf8') };
   } catch (err) {
@@ -478,11 +478,11 @@ test('a widened automatic canvas reports sublabels at the size that stays readab
   const outcome = renderOutcome(doc);
   assert.notEqual(outcome.code, 0);
   assert.match(outcome.stderr, /Sublabel "tmp 或 reports\/review" needs ~\d+px at the [\d.]+px minimum that stays readable on this \d+px canvas/);
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-sequence-diagnostic-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-sequence-diagnostic-'));
   try {
     const input = path.join(tmp, 'input.json');
     fs.writeFileSync(input, JSON.stringify({ ...doc, meta: { ...doc.meta, output: 'sequence.html' } }));
-    const result = spawnSync(process.execPath, [path.join(skillRoot, 'bin/archify.mjs'), 'validate', 'sequence', input, '--json'], { encoding: 'utf8' });
+    const result = spawnSync(process.execPath, [path.join(skillRoot, 'bin/schematics.mjs'), 'validate', 'sequence', input, '--json'], { encoding: 'utf8' });
     assert.notEqual(result.status, 0);
     const diagnostic = JSON.parse(result.stdout).diagnostics.find(entry => entry.code === 'sequence/participant-sublabel-overflow');
     assert.equal(diagnostic.subject.nodeId, 'g');

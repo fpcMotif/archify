@@ -7,11 +7,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertFontCss, assertOfflineArtifact, inspectDocuments } from './helpers/offline-fonts.mjs';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const repoRoot = path.resolve(skillRoot, '..');
-import { softwareNotices, softwareNoticesHtml } from '../archify/renderers/shared/software-notices.mjs';
+import { softwareNotices, softwareNoticesHtml } from '../schematics/renderers/shared/software-notices.mjs';
 
-const cli = path.join(skillRoot, 'bin/archify.mjs');
+const cli = path.join(skillRoot, 'bin/schematics.mjs');
 const template = fs.readFileSync(path.join(skillRoot, 'assets/template.html'), 'utf8');
 const DIAGRAMS = [
   ['architecture', 'web-app.architecture.json', 'web-app-rendered.html'],
@@ -52,7 +52,7 @@ test('each compare srcdoc must carry its own font and reject external resources'
 });
 
 test('a freshly delivered artifact of every type reaches no external origin', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-offline-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-offline-'));
   try {
     for (const [type, input] of DIAGRAMS) {
       const output = path.join(dir, `${type}.html`);
@@ -61,7 +61,7 @@ test('a freshly delivered artifact of every type reaches no external origin', ()
       const html = fs.readFileSync(output, 'utf8');
       assertOfflineArtifact(html, type);
       assert.ok(Buffer.byteLength(html.slice(0, html.indexOf('<meta charset='))) < 1024, 'charset must remain near the document start');
-      assert.equal(JSON.parse(html.match(/id="archify-software-notices">([\s\S]*?)<\/script>/)[1]), softwareNotices);
+      assert.equal(JSON.parse(html.match(/id="schematics-software-notices">([\s\S]*?)<\/script>/)[1]), softwareNotices);
     }
     const output = path.join(dir, 'compare.html');
     const result = spawnSync(process.execPath, [cli, 'compare', 'architecture', path.join(skillRoot, 'examples/checkout-platform.base.architecture.json'), path.join(skillRoot, 'examples/checkout-platform.head.architecture.json'), output, '--json'], { encoding: 'utf8' });
@@ -74,18 +74,18 @@ test('a freshly delivered artifact of every type reaches no external origin', ()
 
 test('every checked-in viewer artifact carries its font and reaches no external origin', () => {
   // Delivery-chain roots only; frozen experiments are not maintained viewers.
-  const tracked = spawnSync('git', ['ls-files', '-z', '--', 'archify/examples'], { cwd: repoRoot, encoding: 'utf8' });
+  const tracked = spawnSync('git', ['ls-files', '-z', '--', 'schematics/examples'], { cwd: repoRoot, encoding: 'utf8' });
   assert.equal(tracked.status, 0, tracked.stderr);
   const artifacts = tracked.stdout.split('\0').filter((entry) => entry.endsWith('.html'))
-    .filter((entry) => /Archify\.readerLayout/.test(fs.readFileSync(path.join(repoRoot, entry), 'utf8')));
-  for (const required of DIAGRAMS.map(([, , output]) => `archify/examples/${output}`)) {
+    .filter((entry) => /Schematics\.readerLayout/.test(fs.readFileSync(path.join(repoRoot, entry), 'utf8')));
+  for (const required of DIAGRAMS.map(([, , output]) => `schematics/examples/${output}`)) {
     assert.ok(artifacts.includes(required), `missing delivery-chain artifact: ${required}`);
   }
   for (const relative of artifacts) assertOfflineArtifact(fs.readFileSync(path.join(repoRoot, relative), 'utf8'), relative);
 });
 
 test('standalone software notices preserve both licenses as non-executable text', () => {
-  const payload = softwareNoticesHtml.match(/<script type="application\/json" id="archify-software-notices">([\s\S]*)<\/script>/)[1];
+  const payload = softwareNoticesHtml.match(/<script type="application\/json" id="schematics-software-notices">([\s\S]*)<\/script>/)[1];
   assert.equal(JSON.parse(payload), softwareNotices);
   for (const name of ['NOTICE', 'LICENSE', 'LICENSE-MIT', 'THIRD_PARTY_NOTICES.md']) {
     const canonical = fs.readFileSync(path.join(repoRoot, name), 'utf8').trimEnd();

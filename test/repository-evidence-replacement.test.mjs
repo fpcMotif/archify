@@ -6,8 +6,8 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const cli = path.join(skillRoot, 'bin', 'archify.mjs');
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
 const repositoryUrl = 'https://github.com/example/evidence-replacement';
 const shortFile = 'first\n';
 const longFile = 'first\nsecond\nthird\n';
@@ -22,7 +22,7 @@ const cases = [
 ];
 
 function fixture(t, scenario) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-evidence-replacement-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-evidence-replacement-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const repo = path.join(root, 'repo');
   fs.mkdirSync(repo);
@@ -38,8 +38,8 @@ function fixture(t, scenario) {
     env, encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'],
   }).trim();
   git('init', '--template=');
-  git('config', 'user.name', 'Archify Tests');
-  git('config', 'user.email', 'archify@example.test');
+  git('config', 'user.name', 'Schematics Tests');
+  git('config', 'user.email', 'schematics@example.test');
   git('config', 'commit.gpgSign', 'false');
   git('config', 'core.autocrlf', 'false');
   git('remote', 'add', 'origin', `${repositoryUrl}.git`);
@@ -105,7 +105,7 @@ function checkEvidence(data, scenario, checkRefs = () => {}) {
       assert.equal(receipt.evidence.revision, data.revision);
       assert.equal(receipt.evidence.verified, true);
       const html = fs.readFileSync(data.output, 'utf8');
-      const payload = html.match(/<script id="archify-source-evidence-data" type="application\/json">([\s\S]*?)<\/script>/);
+      const payload = html.match(/<script id="schematics-source-evidence-data" type="application\/json">([\s\S]*?)<\/script>/);
       assert.ok(payload, 'verified evidence payload missing');
       const evidence = JSON.parse(payload[1]);
       assert.equal(evidence.repository.revision, data.revision);

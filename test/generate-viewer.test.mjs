@@ -8,34 +8,34 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { generateViewer } from '../scripts/generate-viewer.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const marker = '/* ARCHIFY:READER_LAYOUT */';
-const viewerCssMarker = '/* ARCHIFY:VIEWER_CSS */';
-const exportMarker = '/* ARCHIFY:EXPORT */';
-const cleanupMarker = '/* ARCHIFY:EXPORT_CLEANUP */';
-const chromeMarker = '/* ARCHIFY:CHROME_LAYOUT */';
-const cameraMarker = '/* ARCHIFY:CAMERA */';
-const radarMarker = '/* ARCHIFY:RADAR */';
-const motionMarker = '/* ARCHIFY:MOTION_GOVERNOR */';
-const finderMarker = '/* ARCHIFY:NODE_FINDER */';
-const outlineMarker = '/* ARCHIFY:NODE_OUTLINE */';
-const treeMarker = '/* ARCHIFY:TREE_BRANCHES */';
-const intentMarker = '/* ARCHIFY:INTENT_TRACE */';
-const lensMarker = '/* ARCHIFY:SEMANTIC_LENS */';
-const routeMarker = '/* ARCHIFY:ROUTE_PROBE */';
-const focusMarker = '/* ARCHIFY:FOCUS */';
+const marker = '/* SCHEMATICS:READER_LAYOUT */';
+const viewerCssMarker = '/* SCHEMATICS:VIEWER_CSS */';
+const exportMarker = '/* SCHEMATICS:EXPORT */';
+const cleanupMarker = '/* SCHEMATICS:EXPORT_CLEANUP */';
+const chromeMarker = '/* SCHEMATICS:CHROME_LAYOUT */';
+const cameraMarker = '/* SCHEMATICS:CAMERA */';
+const radarMarker = '/* SCHEMATICS:RADAR */';
+const motionMarker = '/* SCHEMATICS:MOTION_GOVERNOR */';
+const finderMarker = '/* SCHEMATICS:NODE_FINDER */';
+const outlineMarker = '/* SCHEMATICS:NODE_OUTLINE */';
+const treeMarker = '/* SCHEMATICS:TREE_BRANCHES */';
+const intentMarker = '/* SCHEMATICS:INTENT_TRACE */';
+const lensMarker = '/* SCHEMATICS:SEMANTIC_LENS */';
+const routeMarker = '/* SCHEMATICS:ROUTE_PROBE */';
+const focusMarker = '/* SCHEMATICS:FOCUS */';
 const fragments = { viewerCss: viewerCssMarker, export: exportMarker, reader: marker, cleanup: cleanupMarker, chrome: chromeMarker, camera: cameraMarker, radar: radarMarker, motion: motionMarker, finder: finderMarker, outline: outlineMarker, tree: treeMarker, intent: intentMarker, lens: lensMarker, route: routeMarker, focus: focusMarker };
 
 function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-viewer-build-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-viewer-build-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   fs.mkdirSync(path.join(root, 'scripts'));
-  fs.mkdirSync(path.join(root, 'archify/assets'), { recursive: true });
-  fs.mkdirSync(path.join(root, 'archify/renderers/shared'), { recursive: true });
-  fs.copyFileSync(path.join(repoRoot, 'archify/renderers/shared/path-semantics.mjs'), path.join(root, 'archify/renderers/shared/path-semantics.mjs'));
+  fs.mkdirSync(path.join(root, 'schematics/assets'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'schematics/renderers/shared'), { recursive: true });
+  fs.copyFileSync(path.join(repoRoot, 'schematics/renderers/shared/path-semantics.mjs'), path.join(root, 'schematics/renderers/shared/path-semantics.mjs'));
   fs.cpSync(path.join(repoRoot, 'viewer'), path.join(root, 'viewer'), { recursive: true });
   fs.copyFileSync(path.join(repoRoot, 'scripts/generate-viewer.mjs'), path.join(root, 'scripts/generate-viewer.mjs'));
-  const output = path.join(root, 'archify/assets/template.html');
-  fs.copyFileSync(path.join(repoRoot, 'archify/assets/template.html'), output);
+  const output = path.join(root, 'schematics/assets/template.html');
+  fs.copyFileSync(path.join(repoRoot, 'schematics/assets/template.html'), output);
   return {
     root, output,
     shell: path.join(root, 'viewer/template.source.html'),
@@ -93,7 +93,7 @@ test('Viewer generation runs through a preserved symlink entry', (t) => {
     cwd: os.tmpdir(), encoding: 'utf8',
   });
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(result.stdout.trim(), 'generated archify/assets/template.html');
+  assert.equal(result.stdout.trim(), 'generated schematics/assets/template.html');
   assert.deepEqual(fs.readFileSync(f.output), previous);
 });
 

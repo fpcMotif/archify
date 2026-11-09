@@ -6,17 +6,17 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { properSegmentIntersection, rectsOverlap } from '../archify/renderers/shared/geometry.ts';
+import { properSegmentIntersection, rectsOverlap } from '../schematics/renderers/shared/geometry.ts';
 import { routeHugs } from './helpers/route-hugs.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const skillRoot = path.resolve(__dirname, '..', 'archify');
+const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const renderer = path.join(skillRoot, 'renderers', 'class', 'render-class.mjs');
-const cli = path.join(skillRoot, 'bin', 'archify.mjs');
+const cli = path.join(skillRoot, 'bin', 'schematics.mjs');
 const fixtures = path.join(__dirname, 'fixtures', 'class-first-draft');
 
 function render(diagram) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-class-first-draft-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-class-first-draft-'));
   const input = path.join(directory, 'candidate.json');
   const output = path.join(directory, 'candidate.html');
   fs.writeFileSync(input, JSON.stringify(diagram));

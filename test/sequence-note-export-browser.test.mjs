@@ -5,18 +5,18 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { ChromeVisualBrowser, findChrome } from '../archify/bin/visual-check.mjs';
+import { ChromeVisualBrowser, findChrome } from '../schematics/bin/visual-check.mjs';
 
 // Sequence notes explain the messages at the normal reading zoom. Map may
 // hide them, but exports must still carry every line (#676).
-const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'archify');
-const chrome = process.env.ARCHIFY_CHROME ? findChrome() : null;
+const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+const chrome = process.env.SCHEMATICS_CHROME ? findChrome() : null;
 const LONG_NOTE = 'this note explains the whole retry and backoff policy in a lot of detail so it is very long';
 
 test('SVG and PNG exports keep every line of a wrapped sequence note', {
-  skip: chrome ? false : 'Set ARCHIFY_CHROME to run real-browser export checks.',
+  skip: chrome ? false : 'Set SCHEMATICS_CHROME to run real-browser export checks.',
 }, async (t) => {
-  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-note-export-'));
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-note-export-'));
   t.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
   const input = path.join(scratch, 'note.json');
   const file = path.join(scratch, 'note.html');
@@ -57,7 +57,7 @@ test('SVG and PNG exports keep every line of a wrapped sequence note', {
     URL.createObjectURL=blob=>{const url=create(blob);blobs.set(url,blob);return url;};
     const click=HTMLAnchorElement.prototype.click;
     HTMLAnchorElement.prototype.click=function(){if(this.download){noteDownloads.push(blobs.get(this.href));return;}return click.call(this);};
-    window.noteExport=async format=>{const count=noteDownloads.length;await Archify.exportMenu.run(format);
+    window.noteExport=async format=>{const count=noteDownloads.length;await Schematics.exportMenu.run(format);
       const start=performance.now();while(noteDownloads.length===count){if(performance.now()-start>15000)throw new Error('export timed out');await new Promise(r=>setTimeout(r,20));}
       return noteDownloads[noteDownloads.length-1];};
     window.notePixels=async blob=>{const bitmap=await createImageBitmap(blob);const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;
@@ -68,7 +68,7 @@ test('SVG and PNG exports keep every line of a wrapped sequence note', {
   await send('Page.navigate', { url: pathToFileURL(file).href });
   await loaded;
   await run('document.fonts.ready');
-  await run('Archify.readerLayout.whenStable()');
+  await run('Schematics.readerLayout.whenStable()');
 
   // Conditions and failure details remain visible at the initial reading
   // zoom. Changing depth never reflows the authored note or message geometry.
@@ -86,7 +86,7 @@ test('SVG and PNG exports keep every line of a wrapped sequence note', {
   assert.equal(initial.opacity, '1', 'initial reading exposes the complete note');
   const geometry = ({ opacity, detail, ...rest }) => rest;
   for (const [action, detail, opacity] of [['zoomOut', 'map', '0'], ['reset', 'read', '1']]) {
-    await run(`Archify.view.${action}();new Promise((resolve,reject)=>{
+    await run(`Schematics.view.${action}();new Promise((resolve,reject)=>{
       const deadline=performance.now()+2000;
       function settled(){
         const note=document.querySelector('g[data-edge-from="client"][data-edge-to="api"] > text');
@@ -101,7 +101,7 @@ test('SVG and PNG exports keep every line of a wrapped sequence note', {
     assert.deepEqual(geometry(current), geometry(initial));
   }
   // Export from Map as well: hidden-on-screen never means dropped content.
-  await run('Archify.view.zoomOut()');
+  await run('Schematics.view.zoomOut()');
   const svg = await run(`noteExport('svg').then(blob=>blob.text())`);
   for (const line of lines) assert.ok(svg.includes(`>${line}</tspan>`), `SVG export keeps "${line}"`);
   assert.doesNotMatch(svg, /data-detail=/, 'SVG export removes the zoom-only marker');
@@ -125,15 +125,15 @@ test('SVG and PNG exports keep every line of a wrapped sequence note', {
   const scale = diff.width / exportedWidth;
   assert.ok(diff.bottom - diff.top >= (lines.length - 1) * 11 * scale * 0.8, `the PNG note spans its ${lines.length} lines (${diff.bottom - diff.top}px at scale ${scale.toFixed(2)})`);
 
-  if (process.env.ARCHIFY_NOTE_EXPORT_EVIDENCE) {
+  if (process.env.SCHEMATICS_NOTE_EXPORT_EVIDENCE) {
     const png = await run(`noteExport('png').then(blob=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=reject;reader.readAsDataURL(blob);}))`);
-    fs.writeFileSync(process.env.ARCHIFY_NOTE_EXPORT_EVIDENCE, Buffer.from(png, 'base64'));
+    fs.writeFileSync(process.env.SCHEMATICS_NOTE_EXPORT_EVIDENCE, Buffer.from(png, 'base64'));
   }
 
   // This fixture has no segment overlays: the note sits on the panel over
   // the body background. Measure computed colors in Full detail, not a class
   // name, and retain the default Read/export checks above.
-  await run(`Archify.view.reset();for(let i=0;i<3;i++) Archify.view.zoomIn();
+  await run(`Schematics.view.reset();for(let i=0;i<3;i++) Schematics.view.zoomIn();
     new Promise((resolve,reject)=>{
       const deadline=performance.now()+2000;
       function settled(){
@@ -199,7 +199,7 @@ test('SVG and PNG exports keep every line of a wrapped sequence note', {
     await send('Page.reload', { ignoreCache: true });
     await reloaded;
     await run('document.fonts.ready');
-    await run('Archify.view.reset(); Archify.readerLayout.whenStable()');
+    await run('Schematics.view.reset(); Schematics.readerLayout.whenStable()');
     const before = await noteState();
     assert.equal(before.text.replace(/\s/g, ''), LONG_NOTE.replace(/\s/g, ''));
     for (const theme of ['light', 'dark']) {
@@ -243,8 +243,8 @@ test('SVG and PNG exports keep every line of a wrapped sequence note', {
       assert.deepEqual(pixels.bounds, [['150', '80'], ['241', '109']], 'authored frame extents stay fixed');
     }
     for (const [action, opacity] of [
-      ['Archify.view.zoomOut()', '0'],
-      ["Archify.focus.set('client', { toggle: false, updateUrl: false })", '1'],
+      ['Schematics.view.zoomOut()', '0'],
+      ["Schematics.focus.set('client', { toggle: false, updateUrl: false })", '1'],
     ]) {
       await run(`${action};new Promise((resolve,reject)=>{
         const deadline=performance.now()+2000;

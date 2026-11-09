@@ -6,7 +6,7 @@ import {
   listScenarioRecipes,
   publicGuideData,
   recommendScenario,
-} from '../archify/recipes/scenarios.mjs';
+} from '../schematics/recipes/scenarios.mjs';
 
 test('guide: exposes unique recipes across the supported guide diagram types', () => {
   assert.equal(new Set(SCENARIO_RECIPES.map((recipe) => recipe.id)).size, SCENARIO_RECIPES.length);

@@ -6,18 +6,18 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const compilerUrl = new URL('../archify/renderers/workflow/workflow-compiler.mjs', import.meta.url).href;
-const skillRoot = fileURLToPath(new URL('../archify/', import.meta.url));
+const compilerUrl = new URL('../schematics/renderers/workflow/workflow-compiler.mjs', import.meta.url).href;
+const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
 
 function workspace(t) {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'archify-import-isolation-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-import-isolation-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   return directory;
 }
 
 function run(args, cwd, format) {
-  const env = { ...process.env, ARCHIFY_DIAGNOSTIC_FORMAT: format === 'json' ? 'json' : '' };
-  delete env.ARCHIFY_QUALITY_PROFILE;
+  const env = { ...process.env, SCHEMATICS_DIAGNOSTIC_FORMAT: format === 'json' ? 'json' : '' };
+  delete env.SCHEMATICS_QUALITY_PROFILE;
   return spawnSync(process.execPath, args, { cwd, env, encoding: 'utf8', timeout: 15000 });
 }
 
