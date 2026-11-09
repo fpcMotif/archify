@@ -1,20 +1,60 @@
-import { compileWorkflow } from '../workflow/workflow-compiler.ts';
+import { compileWorkflow, type WorkflowCompileResult, type WorkflowDiagnostic } from '../workflow/workflow-compiler.ts';
 import {
   createMappedWorkflowCandidate,
   intrinsicWorkflow,
   planningWorkflow,
+  type ChangedCoordinate,
+  type MappedWorkflowCandidate,
 } from '../workflow/workflow-migration-geometry.ts';
+import type { WorkflowDocument } from '../workflow/workflow-document.ts';
 import { validateSchema } from '../validation/validator.ts';
+import type { Diagnostic } from '../diagnostics/diagnostics.ts';
 
 export { createHorizontalRankMapper } from '../workflow/workflow-migration-geometry.ts';
 
 const TARGET_SCHEMA_VERSION = 2;
 
-function clone(value) {
+export interface MigrationDiagnostic {
+  code: string;
+  severity: 'error';
+  message: string;
+  subject: Record<string, unknown>;
+  evidence: Record<string, unknown>;
+  supportedFixes: string[];
+}
+
+export interface WorkflowMigrationResult {
+  ok: boolean;
+  document?: WorkflowDocument;
+  fromSchemaVersion: unknown;
+  toSchemaVersion: typeof TARGET_SCHEMA_VERSION;
+  preExistingDiagnostics: readonly (WorkflowDiagnostic | Diagnostic)[];
+  migrationDiagnostics: readonly (WorkflowDiagnostic | MigrationDiagnostic)[];
+  newSchemaDiagnostics: readonly (WorkflowDiagnostic | Diagnostic)[];
+  changedCoordinates: ChangedCoordinate[];
+  oldRequiredViewBox: number[] | null;
+  newRequiredViewBox: number[] | null;
+}
+
+type MigrationResultInput = Partial<Omit<WorkflowMigrationResult, 'ok' | 'toSchemaVersion'>> & Pick<WorkflowMigrationResult, 'ok'>;
+
+interface MigrationDiagnosticInput {
+  code: string;
+  message: string;
+  subject?: Record<string, unknown>;
+  evidence?: Record<string, unknown>;
+  supportedFixes?: string[];
+}
+
+function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
-function diagnostic({ code, message, subject = {}, evidence = {}, supportedFixes = [] }) {
+function cloneDocument(value: object): WorkflowDocument {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function diagnostic({ code, message, subject = {}, evidence = {}, supportedFixes = [] }: MigrationDiagnosticInput): MigrationDiagnostic {
   return {
     code,
     severity: 'error',
@@ -25,23 +65,30 @@ function diagnostic({ code, message, subject = {}, evidence = {}, supportedFixes
   };
 }
 
-function schemaDiagnostics(workflow) {
+function attachedDiagnostics(error: unknown): Diagnostic[] | undefined {
+  if (!error || typeof error !== 'object' || !('schematicsDiagnostics' in error)) return undefined;
+  const { schematicsDiagnostics } = error;
+  return Array.isArray(schematicsDiagnostics) ? schematicsDiagnostics : undefined;
+}
+
+function schemaDiagnostics(workflow: WorkflowDocument): Diagnostic[] {
   try {
     validateSchema('workflow', workflow);
     return [];
   } catch (error) {
-    if (Array.isArray(error?.schematicsDiagnostics)) {
-      return error.schematicsDiagnostics.map((entry) => ({ ...entry }));
+    const diagnostics = attachedDiagnostics(error);
+    if (diagnostics) {
+      return diagnostics.map((entry) => ({ ...entry }));
     }
     throw error;
   }
 }
 
-function legacyLayoutProbe(workflow, qualityProfile) {
+function legacyLayoutProbe(workflow: WorkflowDocument, qualityProfile: string): WorkflowCompileResult {
   // The probe discovers fixed-v1 rank centers, not authored canvas capacity.
   // Omitting viewBox lets a capacity-only legacy failure reach the v2 compiler,
   // which can measure and monotonically expand the real migrated document.
-  const probe = {
+  const probe: WorkflowDocument = {
     schema_version: 1,
     diagram_type: 'workflow',
     meta: {
@@ -63,7 +110,7 @@ function legacyLayoutProbe(workflow, qualityProfile) {
   return compileWorkflow({ workflow: probe, qualityProfile });
 }
 
-function legacyRequirementProbe(workflow, qualityProfile) {
+function legacyRequirementProbe(workflow: WorkflowDocument, qualityProfile: string): WorkflowCompileResult {
   // Measure the complete fixed-v1 document without treating an authored
   // viewBox as its intrinsic requirement. The authored viewBox remains a
   // migration capacity and is preserved separately on the migrated document.
@@ -72,17 +119,24 @@ function legacyRequirementProbe(workflow, qualityProfile) {
   return compileWorkflow({ workflow: probe, qualityProfile });
 }
 
-function requiredViewBoxFrom(result) {
+function requiredViewBoxFrom(result: WorkflowCompileResult | undefined): number[] | null {
   if (Array.isArray(result?.receipt?.requiredViewBox)) {
     return [...result.receipt.requiredViewBox];
   }
-  const required = result?.diagnostics
-    ?.map((entry) => entry?.evidence?.requiredViewBox)
+  const diagnostics = result && 'diagnostics' in result ? result.diagnostics : undefined;
+  const required = diagnostics
+    ?.map((entry) => readRequiredViewBox(entry?.evidence))
     .find((candidate) => Array.isArray(candidate) && candidate.length === 2);
   return required ? [...required] : null;
 }
 
-function expandableViewBox(result) {
+function readRequiredViewBox(evidence: object | undefined): number[] | undefined {
+  if (!evidence || !('requiredViewBox' in evidence)) return undefined;
+  const { requiredViewBox } = evidence;
+  return Array.isArray(requiredViewBox) ? requiredViewBox : undefined;
+}
+
+function expandableViewBox(result: WorkflowCompileResult): number[] | null {
   if (result.ok || !result.diagnostics?.length) return null;
   if (!result.diagnostics.every((entry) => entry.code === 'workflow/viewbox-capacity')) return null;
   return requiredViewBoxFrom(result);
@@ -98,7 +152,7 @@ function result({
   changedCoordinates = [],
   oldRequiredViewBox = null,
   newRequiredViewBox = null,
-}) {
+}: MigrationResultInput): WorkflowMigrationResult {
   return {
     ok,
     ...(document ? { document } : {}),
@@ -113,7 +167,11 @@ function result({
   };
 }
 
-export function migrateWorkflowDocument(inputWorkflow) {
+function errorMessage(error: unknown): unknown {
+  return error && typeof error === 'object' && 'message' in error ? error.message : undefined;
+}
+
+export function migrateWorkflowDocument(inputWorkflow: unknown): WorkflowMigrationResult {
   if (!inputWorkflow || typeof inputWorkflow !== 'object' || Array.isArray(inputWorkflow)) {
     return result({
       ok: false,
@@ -124,11 +182,11 @@ export function migrateWorkflowDocument(inputWorkflow) {
       })],
     });
   }
+  const workflow = cloneDocument(inputWorkflow);
   // Migration has no quality override: the authored policy (or effective
   // standard default) must validate the document after it leaves this process.
-  const qualityProfile = inputWorkflow.meta?.quality_profile || 'standard';
+  const qualityProfile = workflow.meta?.quality_profile || 'standard';
 
-  const workflow = clone(inputWorkflow);
   const preExistingDiagnostics = schemaDiagnostics(workflow);
   if (preExistingDiagnostics.length) {
     return result({
@@ -203,12 +261,12 @@ export function migrateWorkflowDocument(inputWorkflow) {
     });
   }
 
-  let mappedCandidate;
+  let mappedCandidate: MappedWorkflowCandidate;
   try {
     mappedCandidate = createMappedWorkflowCandidate(
       workflow,
-      legacyProbe.receipt.columns,
-      planned.receipt.columns,
+      legacyProbe.receipt.columns ?? [],
+      planned.receipt.columns ?? [],
     );
   } catch (error) {
     return result({
@@ -217,7 +275,7 @@ export function migrateWorkflowDocument(inputWorkflow) {
       migrationDiagnostics: [diagnostic({
         code: 'migration/rank-mapping',
         message: 'Could not construct a stable horizontal rank mapping.',
-        evidence: { reason: error.message },
+        evidence: { reason: errorMessage(error) },
         supportedFixes: ['report the workflow and compiler receipts to the Schematics maintainers'],
       })],
       oldRequiredViewBox,
@@ -229,8 +287,8 @@ export function migrateWorkflowDocument(inputWorkflow) {
 
   let compiled = compileWorkflow({ workflow: migrated, qualityProfile });
   const requiredExpansion = migrated.meta.viewBox ? expandableViewBox(compiled) : null;
-  if (requiredExpansion) {
-    const current = migrated.meta.viewBox;
+  const current = migrated.meta.viewBox;
+  if (requiredExpansion && current) {
     const expanded = [
       Math.max(current[0], requiredExpansion[0]),
       Math.max(current[1], requiredExpansion[1]),
@@ -275,6 +333,6 @@ export function migrateWorkflowDocument(inputWorkflow) {
   });
 }
 
-export function serializeMigratedWorkflow(workflow) {
+export function serializeMigratedWorkflow(workflow: unknown): string {
   return `${JSON.stringify(workflow, null, 2)}\n`;
 }

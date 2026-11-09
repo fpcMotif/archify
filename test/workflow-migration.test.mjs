@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   createHorizontalRankMapper,
   migrateWorkflowDocument,
-} from '../schematics/packages/migrations/workflow-v2.mjs';
+} from '../schematics/packages/migrations/workflow-v2.ts';
 import {
   createMappedWorkflowCandidate,
   intrinsicWorkflow,

@@ -6551,7 +6551,7 @@ async function commandMigrate(args) {
     return;
   }
 
-  const { migrateWorkflowDocument, serializeMigratedWorkflow } = await import('../packages/migrations/workflow-v2.mjs');
+  const { migrateWorkflowDocument, serializeMigratedWorkflow } = await import('../packages/migrations/workflow-v2.ts');
   let migration;
   try {
     migration = migrateWorkflowDocument(migrationSourceDocument);
