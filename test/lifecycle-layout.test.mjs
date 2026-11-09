@@ -24,7 +24,7 @@ function render(doc) {
   const output = path.join(tmp, `case-${counter}.html`);
   fs.writeFileSync(input, JSON.stringify({ ...doc, meta: { ...doc.meta, output: `case-${counter}.html` } }));
   try {
-    execFileSync(process.execPath, [path.join(skillRoot, 'packages/lifecycle/render-lifecycle.mjs'), input, output], { stdio: ['ignore', 'ignore', 'pipe'] });
+    execFileSync(process.execPath, [path.join(skillRoot, 'packages/lifecycle/render-lifecycle.ts'), input, output], { stdio: ['ignore', 'ignore', 'pipe'] });
   } catch (error) {
     return { code: error.status ?? 1, stderr: String(error.stderr || '') };
   }

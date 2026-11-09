@@ -33,7 +33,6 @@ schematics/packages/class/render-class.mjs
 schematics/packages/erd/grid.mjs
 schematics/packages/erd/render-erd.mjs
 schematics/packages/explainer/render-explainer.mjs
-schematics/packages/lifecycle/render-lifecycle.mjs
 schematics/packages/sequence/render-sequence.mjs
 schematics/packages/timeline/render-timeline.mjs
 schematics/packages/waterfall/render-waterfall.mjs

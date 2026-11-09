@@ -26,7 +26,7 @@ test('multi-target lifecycle bus passes the public artifact checker and validati
   const input = path.join(dir, 'bus.json');
   const output = path.join(dir, 'bus.html');
   fs.writeFileSync(input, JSON.stringify(bus));
-  const render = spawnSync(process.execPath, [path.join(skillRoot, 'packages/lifecycle/render-lifecycle.mjs'), input, output], { encoding: 'utf8' });
+  const render = spawnSync(process.execPath, [path.join(skillRoot, 'packages/lifecycle/render-lifecycle.ts'), input, output], { encoding: 'utf8' });
   assert.equal(render.status, 0, render.stderr);
   assert.match(fs.readFileSync(output, 'utf8'), /data-composition-junction="a\+c"/);
   const check = spawnSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.mjs'), output], { encoding: 'utf8' });
