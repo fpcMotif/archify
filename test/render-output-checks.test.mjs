@@ -11,7 +11,7 @@ import { compactFinalizeReceipt } from '../schematics/bin/finalize.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-checks-'));
-const checker = path.join(skillRoot, 'scripts/check-render-output.mjs');
+const checker = path.join(skillRoot, 'scripts/check-render-output.ts');
 
 test('render output check: finite_svg preserves slashes in unquoted HTML attribute values', () => {
   for (const [markup, expected] of [

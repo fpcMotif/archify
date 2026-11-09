@@ -5,13 +5,20 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sameEntry } from '../schematics/packages/output/path-semantics.ts';
 
+export interface GenerateViewerOptions {
+  root?: string;
+  check?: boolean;
+}
+
+type ViewerFragment = readonly [marker: string, file: string, indent?: number];
+
 const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // Each fragment maps a marker in `viewer/template.source.html` to a file in
 // `viewer/`. The optional indent re-prefixes every non-empty source line so
 // the inlined block sits inside the surrounding `<style>` / `<script>` tags at
 // the same depth the marker occupies. JS fragments need no indent because their
 // markers are already at column 0; the standalone CSS file needs four spaces.
-const fragments = [
+const fragments: readonly ViewerFragment[] = [
   ['/* SCHEMATICS:VIEWER_CSS */', 'viewer.css', 4],
   ['/* SCHEMATICS:EXPORT */', 'export.js'],
   ['/* SCHEMATICS:READER_LAYOUT */', 'reader-layout.js'],
@@ -31,7 +38,7 @@ const fragments = [
 const childMarker = '/* SCHEMATICS:EXPORT_CLEANUP */';
 const childOwner = 'export.js';
 
-function reindent(source, spaces) {
+function reindent(source: string, spaces: number): string {
   if (!spaces) return source;
   const pad = ' '.repeat(spaces);
   return source
@@ -40,7 +47,7 @@ function reindent(source, spaces) {
     .join('\n');
 }
 
-export function generateViewer({ root = defaultRoot, check = false } = {}) {
+export function generateViewer({ root = defaultRoot, check = false }: GenerateViewerOptions = {}): void {
   const output = path.join(root, 'schematics/assets/template.html');
   let generated = fs.readFileSync(path.join(root, 'viewer/template.source.html'), 'utf8');
   for (const [marker, file, indent = 0] of fragments) {
@@ -58,11 +65,11 @@ export function generateViewer({ root = defaultRoot, check = false } = {}) {
     // reindented source's trailing newline is the only separator — without
     // this we'd emit a blank line between the fragment and the surrounding
     // CSS, and every byte after the seam would shift.
-    let tail = parts[1];
+    let tail = parts[1] ?? '';
     if (indent && tail.startsWith('\n')) tail = tail.slice(1);
     // Preserve classic-script scope, execution position and literal source bytes,
     // including characters with String.replace semantics.
-    generated = parts[0] + reindent(source, indent) + tail;
+    generated = (parts[0] ?? '') + reindent(source, indent) + tail;
   }
   if (check) {
     if (!fs.existsSync(output) || fs.readFileSync(output, 'utf8') !== generated) {
@@ -83,12 +90,12 @@ if (process.argv[1] && sameEntry(process.argv[1], fileURLToPath(import.meta.url)
   try {
     const args = process.argv.slice(2);
     if (args.length > 1 || (args.length === 1 && args[0] !== '--check')) {
-      throw new Error('Usage: node scripts/generate-viewer.mjs [--check]');
+      throw new Error('Usage: node scripts/generate-viewer.ts [--check]');
     }
     generateViewer({ check: args[0] === '--check' });
     if (args.length === 0) console.log('generated schematics/assets/template.html');
   } catch (error) {
-    console.error(error.message);
+    console.error(error instanceof Error ? error.message : (typeof error === 'object' && error !== null && 'message' in error ? error.message : undefined));
     process.exitCode = 1;
   }
 }

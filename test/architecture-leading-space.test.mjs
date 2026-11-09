@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../schematics/', import.meta.url));
 const cli = path.join(root, 'bin/schematics.mjs');
-const checker = path.join(root, 'scripts/check-render-output.mjs');
+const checker = path.join(root, 'scripts/check-render-output.ts');
 
 function run(args) {
   const result = spawnSync(process.execPath, args, { encoding: 'utf8' });

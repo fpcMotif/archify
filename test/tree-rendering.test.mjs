@@ -11,7 +11,7 @@ import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const renderer = rendererEntry(skillRoot, 'tree');
-const checker = path.join(skillRoot, 'scripts', 'check-render-output.mjs');
+const checker = path.join(skillRoot, 'scripts', 'check-render-output.ts');
 const small = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'payment-platform.tree.json'), 'utf8'));
 const large = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'schematics-repository.tree.json'), 'utf8'));
 const clone = (value) => JSON.parse(JSON.stringify(value));

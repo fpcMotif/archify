@@ -12,7 +12,7 @@ import { segmentIntersectsRect } from '../schematics/packages/geometry/geometry.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const renderer = path.join(skillRoot, 'packages', 'erd', 'render-erd.ts');
-const checker = path.join(skillRoot, 'scripts', 'check-render-output.mjs');
+const checker = path.join(skillRoot, 'scripts', 'check-render-output.ts');
 const examplePath = path.join(skillRoot, 'examples', 'orders.erd.json');
 // One legend band plus the title gap a band has to clear below the content.
 const MARKER_FREE_BAND = 30;

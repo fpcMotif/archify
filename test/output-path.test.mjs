@@ -305,7 +305,7 @@ while (!fs.existsSync(release) && Date.now() < deadline) {
 if (!fs.existsSync(release)) throw new Error('timed out waiting for output-path race release');
 fs.writeFileSync(output, '<!doctype html><title>verified candidate</title><svg></svg>');
 `);
-  fs.writeFileSync(path.join(installedScripts, 'check-render-output.mjs'), `
+  fs.writeFileSync(path.join(installedScripts, 'check-render-output.ts'), `
 export const checkArtifact = () => ({
   ok: true,
   checks: [{ name: 'single_svg', ok: true }],
@@ -1033,7 +1033,7 @@ if (path.basename(output) === 'head.html') {
 }
 fs.writeFileSync(output, '<!doctype html><svg role="img"></svg>');
 `);
-  fs.writeFileSync(path.join(installedScripts, 'check-render-output.mjs'), `
+  fs.writeFileSync(path.join(installedScripts, 'check-render-output.ts'), `
 export const checkArtifact = () => ({
   ok: true,
   checks: [{ name: 'single_svg', ok: true }],

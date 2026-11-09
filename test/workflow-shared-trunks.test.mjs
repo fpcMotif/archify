@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.ts';
 
-const checker = fileURLToPath(new URL('../schematics/scripts/check-render-output.mjs', import.meta.url));
+const checker = fileURLToPath(new URL('../schematics/scripts/check-render-output.ts', import.meta.url));
 
 function sharedCrossingWorkflow() {
   return {

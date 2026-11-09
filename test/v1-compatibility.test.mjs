@@ -50,7 +50,7 @@ function validate(mode, doc) {
 
 function check(output) {
   const stdout = execFileSync(process.execPath, [
-    path.join(skillRoot, 'scripts/check-render-output.mjs'),
+    path.join(skillRoot, 'scripts/check-render-output.ts'),
     output,
   ], { encoding: 'utf8' });
   return JSON.parse(stdout);

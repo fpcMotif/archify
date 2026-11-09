@@ -132,8 +132,8 @@ test('validator freshness check accepts CRLF checkouts', () => {
     fs.mkdirSync(path.join(scratch, 'packages', 'validation'), { recursive: true });
     fs.cpSync(path.join(skillRoot, 'schemas'), path.join(scratch, 'schemas'), { recursive: true });
     fs.copyFileSync(
-      path.join(skillRoot, 'scripts', 'generate-validators.mjs'),
-      path.join(scratch, 'scripts', 'generate-validators.mjs'),
+      path.join(skillRoot, 'scripts', 'generate-validators.ts'),
+      path.join(scratch, 'scripts', 'generate-validators.ts'),
     );
 
     const generatedFiles = [
@@ -148,7 +148,7 @@ test('validator freshness check accepts CRLF checkouts', () => {
     }
 
     const result = spawnSync(process.execPath, [
-      path.join(scratch, 'scripts', 'generate-validators.mjs'),
+      path.join(scratch, 'scripts', 'generate-validators.ts'),
       '--check',
     ], { encoding: 'utf8' });
 

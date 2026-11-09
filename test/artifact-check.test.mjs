@@ -5,11 +5,11 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { checkArtifact } from '../schematics/scripts/check-render-output.mjs';
+import { checkArtifact } from '../schematics/scripts/check-render-output.ts';
 import { checkExplainerHtml } from '../schematics/packages/explainer/check.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const checker = path.join(repoRoot, 'schematics/scripts/check-render-output.mjs');
+const checker = path.join(repoRoot, 'schematics/scripts/check-render-output.ts');
 const passing = path.join(repoRoot, 'schematics/examples/web-app-rendered.html');
 
 function artifactFile(t, body) {

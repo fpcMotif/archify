@@ -10,7 +10,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..');
 const outputRoot = path.resolve(process.argv[2] || path.join(skillRoot, 'examples'));
 
-const TARGETS = [
+type RenderTarget = readonly [mode: string, input: string, output: string];
+
+const TARGETS: readonly RenderTarget[] = [
   ['workflow', 'agent-tool-call.workflow.json', 'workflow-agent-tool-call-rendered.html'],
   ['sequence', 'cache-miss-request.sequence.json', 'sequence-cache-miss-request.html'],
   ['dataflow', 'product-analytics.dataflow.json', 'dataflow-product-analytics.html'],

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { generateViewer } from '../scripts/generate-viewer.mjs';
+import { generateViewer } from '../scripts/generate-viewer.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const marker = '/* SCHEMATICS:READER_LAYOUT */';
@@ -33,7 +33,7 @@ function fixture(t) {
   fs.mkdirSync(path.join(root, 'schematics/packages/output'), { recursive: true });
   fs.copyFileSync(path.join(repoRoot, 'schematics/packages/output/path-semantics.ts'), path.join(root, 'schematics/packages/output/path-semantics.ts'));
   fs.cpSync(path.join(repoRoot, 'viewer'), path.join(root, 'viewer'), { recursive: true });
-  fs.copyFileSync(path.join(repoRoot, 'scripts/generate-viewer.mjs'), path.join(root, 'scripts/generate-viewer.mjs'));
+  fs.copyFileSync(path.join(repoRoot, 'scripts/generate-viewer.ts'), path.join(root, 'scripts/generate-viewer.ts'));
   const output = path.join(root, 'schematics/assets/template.html');
   fs.copyFileSync(path.join(repoRoot, 'schematics/assets/template.html'), output);
   return {
@@ -54,7 +54,7 @@ function fixture(t) {
     lens: path.join(root, 'viewer/semantic-lens.js'),
     route: path.join(root, 'viewer/route-probe.js'),
     focus: path.join(root, 'viewer/focus.js'),
-    run: (...args) => spawnSync(process.execPath, [path.join(root, 'scripts/generate-viewer.mjs'), ...args], {
+    run: (...args) => spawnSync(process.execPath, [path.join(root, 'scripts/generate-viewer.ts'), ...args], {
       cwd: os.tmpdir(), encoding: 'utf8',
     }),
   };
@@ -76,7 +76,7 @@ test('the committed Viewer rebuilds deterministically outside the repository wor
 
 test('Viewer generation runs through a preserved symlink entry', (t) => {
   const f = fixture(t);
-  const script = path.join(f.root, 'scripts/generate-viewer.mjs');
+  const script = path.join(f.root, 'scripts/generate-viewer.ts');
   const alias = path.join(f.root, 'scripts/generate-viewer-alias.mjs');
   try {
     fs.symlinkSync(script, alias);
@@ -100,7 +100,7 @@ test('Viewer generation runs through a preserved symlink entry', (t) => {
 test('importing the generator with an unavailable entry path does not run or throw', (t) => {
   const f = fixture(t);
   const previous = fs.readFileSync(f.output);
-  const moduleUrl = pathToFileURL(path.join(f.root, 'scripts/generate-viewer.mjs')).href;
+  const moduleUrl = pathToFileURL(path.join(f.root, 'scripts/generate-viewer.ts')).href;
   const missingEntry = path.join(f.root, 'scripts/missing-entry.mjs');
   const result = spawnSync(process.execPath, ['--input-type=module', '-e',
     `process.argv[1] = ${JSON.stringify(missingEntry)}; await import(${JSON.stringify(moduleUrl)}); console.log('imported');`], {

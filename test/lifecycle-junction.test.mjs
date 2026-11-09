@@ -29,7 +29,7 @@ test('multi-target lifecycle bus passes the public artifact checker and validati
   const render = spawnSync(process.execPath, [path.join(skillRoot, 'packages/lifecycle/render-lifecycle.ts'), input, output], { encoding: 'utf8' });
   assert.equal(render.status, 0, render.stderr);
   assert.match(fs.readFileSync(output, 'utf8'), /data-composition-junction="a\+c"/);
-  const check = spawnSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.mjs'), output], { encoding: 'utf8' });
+  const check = spawnSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.ts'), output], { encoding: 'utf8' });
   const receipt = JSON.parse(check.stdout);
   assert.equal(check.status, 0, check.stdout);
   assert.equal(receipt.composition.metrics.ambiguousCorridors, 0);
@@ -78,7 +78,7 @@ test('public checker rejects interior vertical overlaps even when the junction a
     }).join('\n');
     const file = path.join(dir, `${junction}.html`);
     fs.writeFileSync(file, `<html><body><svg viewBox="0 0 300 200" data-quality-profile="showcase">${strokes}</svg></body></html>`);
-    const checked = spawnSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.mjs'), file], { encoding: 'utf8' });
+    const checked = spawnSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.ts'), file], { encoding: 'utf8' });
     const receipt = JSON.parse(checked.stdout);
     assert.equal(checked.status, 1);
     assert.equal(receipt.composition.metrics.ambiguousCorridors, 1);

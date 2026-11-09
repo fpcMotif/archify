@@ -1798,7 +1798,7 @@ test('architecture: unavoidable automatic crossing renders as a verified crossov
   assert.doesNotMatch(svg, /automatic-crossover-underlay"[^>]*data-edge-/);
 
   const receipt = JSON.parse(execFileSync(process.execPath, [
-    path.join(skillRoot, 'scripts', 'check-render-output.mjs'),
+    path.join(skillRoot, 'scripts', 'check-render-output.ts'),
     outPath,
   ], { encoding: 'utf8' }));
   assert.equal(receipt.ok, true, JSON.stringify(receipt.composition.issues));

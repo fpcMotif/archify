@@ -1,4 +1,90 @@
-const RAW_RECIPES = [
+export type GuideLanguage = 'en' | 'zh';
+
+export type RecipeSignal = readonly [signal: string, weight: number];
+
+export interface RecipeCopy {
+  title: string;
+  question: string;
+  summary: string;
+  useWhen: string;
+  avoidWhen: string;
+  include: readonly string[];
+  prompt: string;
+}
+
+export interface RecipePresentation {
+  preset: string;
+  motion: string;
+  views?: string;
+}
+
+export interface RecipeStartCopy {
+  descriptionPrompt: string;
+}
+
+interface RawRecipe {
+  id: string;
+  type: string;
+  proof: string;
+  presentation: RecipePresentation;
+  start?: Record<GuideLanguage, RecipeStartCopy>;
+  signals: RecipeSignal[];
+  en: RecipeCopy;
+  zh: RecipeCopy;
+}
+
+export interface ScenarioRecipe {
+  readonly id: string;
+  readonly type: string;
+  readonly proof: string;
+  readonly presentation: Readonly<RecipePresentation>;
+  readonly start?: Readonly<Record<GuideLanguage, Readonly<RecipeStartCopy>>>;
+  readonly signals: readonly RecipeSignal[];
+  readonly en: Readonly<RecipeCopy>;
+  readonly zh: Readonly<RecipeCopy>;
+}
+
+export interface LocalizedRecipe extends RecipeCopy {
+  id: string;
+  type: string;
+  proof: string;
+  presentation: RecipePresentation;
+  include: string[];
+}
+
+export interface StartPrompts {
+  descriptionPrompt: string;
+  repositoryPrompt: string;
+}
+
+export interface RecommendScenarioOptions {
+  lang?: unknown;
+}
+
+export interface ScenarioRecommendation {
+  ok: true;
+  mode: 'recommendation';
+  lang: GuideLanguage;
+  query: string;
+  confidence: 'high' | 'medium' | 'low';
+  matchedSignals: string[];
+  recommendation: LocalizedRecipe;
+  alternatives: Array<LocalizedRecipe & { score: number }>;
+}
+
+export interface PublicGuideRecipe extends LocalizedRecipe {
+  en: Readonly<RecipeCopy>;
+  zh: Readonly<RecipeCopy>;
+  signals: Array<[string, number]>;
+}
+
+interface RecipeScore {
+  recipe: ScenarioRecipe;
+  score: number;
+  matched: string[];
+}
+
+const RAW_RECIPES: RawRecipe[] = [
   {
     id: 'system-overview', type: 'architecture', proof: 'web-app',
     presentation: { preset: 'classic', motion: 'static' },
@@ -316,24 +402,24 @@ const RAW_RECIPES = [
   },
 ];
 
-export const SCENARIO_RECIPES = Object.freeze(RAW_RECIPES.map((recipe) => Object.freeze({
+export const SCENARIO_RECIPES: readonly ScenarioRecipe[] = Object.freeze(RAW_RECIPES.map((recipe): ScenarioRecipe => Object.freeze({
   ...recipe,
   presentation: Object.freeze({ ...recipe.presentation }),
   ...(recipe.start ? { start: Object.freeze({
     en: Object.freeze({ ...recipe.start.en }),
     zh: Object.freeze({ ...recipe.start.zh }),
   }) } : {}),
-  signals: Object.freeze(recipe.signals.map((signal) => Object.freeze(signal.slice()))),
+  signals: Object.freeze(recipe.signals.map((signal): RecipeSignal => Object.freeze([...signal]))),
   en: Object.freeze({ ...recipe.en, include: Object.freeze(recipe.en.include.slice()) }),
   zh: Object.freeze({ ...recipe.zh, include: Object.freeze(recipe.zh.include.slice()) }),
 })));
 
-export function detectGuideLanguage(value = '') {
+export function detectGuideLanguage(value = ''): GuideLanguage {
   return /[\u3400-\u9fff]/u.test(value) ? 'zh' : 'en';
 }
 
-export function startPromptsFor(recipe, lang = 'en') {
-  const language = lang === 'zh' ? 'zh' : 'en';
+export function startPromptsFor(recipe: ScenarioRecipe, lang: unknown = 'en'): StartPrompts {
+  const language: GuideLanguage = lang === 'zh' ? 'zh' : 'en';
   const copy = recipe[language];
   const descriptionPrompt = recipe.start?.[language]?.descriptionPrompt;
   if (!descriptionPrompt) {
@@ -347,11 +433,11 @@ export function startPromptsFor(recipe, lang = 'en') {
   return { descriptionPrompt, repositoryPrompt };
 }
 
-function normalized(value) {
+function normalized(value: unknown): string {
   return String(value || '').normalize('NFKC').toLowerCase().replace(/[\s_]+/g, ' ').trim();
 }
 
-function localized(recipe, lang) {
+function localized(recipe: ScenarioRecipe, lang: unknown): LocalizedRecipe {
   const copy = recipe[lang === 'zh' ? 'zh' : 'en'];
   return {
     id: recipe.id,
@@ -363,18 +449,18 @@ function localized(recipe, lang) {
   };
 }
 
-export function listScenarioRecipes(lang = 'en') {
+export function listScenarioRecipes(lang: unknown = 'en'): LocalizedRecipe[] {
   return SCENARIO_RECIPES.map((recipe) => localized(recipe, lang));
 }
 
-function scoreRecipe(recipe, query) {
+function scoreRecipe(recipe: ScenarioRecipe, query: unknown): RecipeScore {
   const text = normalized(query);
   if (!text) return { recipe, score: 0, matched: [] };
   if (text === recipe.id || text === recipe.id.replace(/-/g, ' ')) {
     return { recipe, score: 100, matched: [recipe.id] };
   }
   let score = 0;
-  const matched = [];
+  const matched: string[] = [];
   for (const [signal, weight] of recipe.signals) {
     if (text.includes(normalized(signal))) {
       score += weight;
@@ -384,11 +470,18 @@ function scoreRecipe(recipe, query) {
   return { recipe, score, matched };
 }
 
-export function recommendScenario(query, options = {}) {
+function firstEntry<T>(entries: readonly T[]): T {
+  const [first] = entries;
+  if (first === undefined) throw new Error('Scenario recipes must not be empty.');
+  return first;
+}
+
+export function recommendScenario(query?: string, options: RecommendScenarioOptions = {}): ScenarioRecommendation {
   const lang = options.lang === 'zh' || options.lang === 'en' ? options.lang : detectGuideLanguage(query);
   const ranked = SCENARIO_RECIPES.map((recipe) => scoreRecipe(recipe, query))
     .sort((left, right) => right.score - left.score || SCENARIO_RECIPES.indexOf(left.recipe) - SCENARIO_RECIPES.indexOf(right.recipe));
-  const winner = ranked[0].score > 0 ? ranked[0] : { recipe: SCENARIO_RECIPES[0], score: 0, matched: [] };
+  const best = firstEntry(ranked);
+  const winner: RecipeScore = best.score > 0 ? best : { recipe: firstEntry(SCENARIO_RECIPES), score: 0, matched: [] };
   const confidence = winner.score >= 14 ? 'high' : winner.score >= 7 ? 'medium' : 'low';
   return {
     ok: true,
@@ -404,7 +497,7 @@ export function recommendScenario(query, options = {}) {
   };
 }
 
-export function formatScenarioList(lang = 'en') {
+export function formatScenarioList(lang: unknown = 'en'): string {
   const isZh = lang === 'zh';
   const heading = isZh
     ? `Schematics 场景配方（${SCENARIO_RECIPES.length}）`
@@ -418,7 +511,7 @@ export function formatScenarioList(lang = 'en') {
   ])].join('\n');
 }
 
-export function formatScenarioRecommendation(result) {
+export function formatScenarioRecommendation(result: ScenarioRecommendation): string {
   const isZh = result.lang === 'zh';
   const recipe = result.recommendation;
   const labels = isZh ? {
@@ -445,7 +538,7 @@ export function formatScenarioRecommendation(result) {
   return lines.join('\n');
 }
 
-export function publicGuideData() {
+export function publicGuideData(): PublicGuideRecipe[] {
   return SCENARIO_RECIPES.map((recipe) => ({
     ...localized(recipe, 'en'),
     en: recipe.en,

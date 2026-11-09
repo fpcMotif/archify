@@ -910,7 +910,7 @@ test('cli: deliver accepts a dense artifact whose checker receipt exceeds the 1 
   const provenance = JSON.parse(fs.readFileSync(deliveryProvenancePath(out), 'utf8'));
   assert.equal(provenance.status, 'current');
 
-  const checked = spawnSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.mjs'), out], {
+  const checked = spawnSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.ts'), out], {
     cwd: skillRoot,
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,

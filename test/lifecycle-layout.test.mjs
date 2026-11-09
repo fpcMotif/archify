@@ -29,7 +29,7 @@ function render(doc) {
     return { code: error.status ?? 1, stderr: String(error.stderr || '') };
   }
   const html = fs.readFileSync(output, 'utf8');
-  const check = JSON.parse(execFileSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.mjs'), output], { encoding: 'utf8' }));
+  const check = JSON.parse(execFileSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.ts'), output], { encoding: 'utf8' }));
   return { code: 0, html, svg: html.match(/<svg\b[\s\S]*?<\/svg>/)[0], check };
 }
 
@@ -357,7 +357,7 @@ test('the artifact checker flags identical overlapping lifecycle routes', () => 
     .replace(/data-composition-points="[^"]*"/, `data-composition-points="${routePoints}"`);
   const file = path.join(tmp, 'overlapping-routes.html');
   fs.writeFileSync(file, result.html.replace(groups[1][0], duplicated));
-  const checked = spawnSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.mjs'), file], { encoding: 'utf8' });
+  const checked = spawnSync(process.execPath, [path.join(skillRoot, 'scripts/check-render-output.ts'), file], { encoding: 'utf8' });
   const receipt = JSON.parse(checked.stdout);
   assert.ok(receipt.composition.issues.some((issue) => issue.code === 'composition/ambiguous-corridor'),
     JSON.stringify(receipt.composition.issues));

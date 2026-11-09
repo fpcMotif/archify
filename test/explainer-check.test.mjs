@@ -21,7 +21,7 @@ function fixture({children={},dependencies=[],asset}={}) {
 }
 test('zero native diagrams is a valid explainer family and CLI check dispatch',()=>{
  const html=fixture();assert.equal(checkExplainerHtml(html).ok,true);
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'explainer-check-test-'));try {const file=path.join(dir,'page.html');fs.writeFileSync(file,html);const run=spawnSync(process.execPath,['schematics/scripts/check-render-output.mjs',file],{encoding:'utf8'});assert.equal(run.status,0,run.stdout+run.stderr);assert.equal(JSON.parse(run.stdout).family,'explainer');}finally{fs.rmSync(dir,{recursive:true,force:true});}
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'explainer-check-test-'));try {const file=path.join(dir,'page.html');fs.writeFileSync(file,html);const run=spawnSync(process.execPath,['schematics/scripts/check-render-output.ts',file],{encoding:'utf8'});assert.equal(run.status,0,run.stdout+run.stderr);assert.equal(JSON.parse(run.stdout).family,'explainer');}finally{fs.rmSync(dir,{recursive:true,force:true});}
 });
 test('each frozen native diagram receives the existing native geometry checks',()=>{
  const native=fs.readFileSync(new URL('../schematics/examples/erd-orders-rendered.html',import.meta.url),'utf8');

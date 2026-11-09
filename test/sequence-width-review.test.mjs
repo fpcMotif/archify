@@ -9,7 +9,7 @@ import { compactFinalizeReceipt } from '../schematics/bin/finalize.mjs';
 
 const root = fileURLToPath(new URL('../schematics/', import.meta.url));
 const cli = path.join(root, 'bin/schematics.mjs');
-const checker = path.join(root, 'scripts/check-render-output.mjs');
+const checker = path.join(root, 'scripts/check-render-output.ts');
 
 function sequence(count = 6) {
   return {

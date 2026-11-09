@@ -13,7 +13,7 @@ import { bandedLayout, resolveEntityPos } from '../schematics/packages/erd/grid.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
 const renderer = path.join(skillRoot, 'packages', 'class', 'render-class.ts');
-const checker = path.join(skillRoot, 'scripts', 'check-render-output.mjs');
+const checker = path.join(skillRoot, 'scripts', 'check-render-output.ts');
 const small = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'payments.class.json'), 'utf8'));
 const large = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', 'payment-processors.class.json'), 'utf8'));
 

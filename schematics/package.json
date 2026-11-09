@@ -12,13 +12,13 @@
     "bun": ">=1.4"
   },
   "scripts": {
-    "generate:viewer": "bun ../scripts/generate-viewer.mjs",
-    "check:viewer": "bun ../scripts/generate-viewer.mjs --check",
-    "generate:brand-marks": "bun scripts/generate-brand-marks.mjs",
-    "check:brand-marks": "bun scripts/generate-brand-marks.mjs --check",
-    "generate:validators": "bun scripts/generate-validators.mjs",
-    "check:validators": "bun scripts/generate-validators.mjs --check",
-    "render:examples": "bun scripts/render-examples.mjs"
+    "generate:viewer": "bun ../scripts/generate-viewer.ts",
+    "check:viewer": "bun ../scripts/generate-viewer.ts --check",
+    "generate:brand-marks": "bun scripts/generate-brand-marks.ts",
+    "check:brand-marks": "bun scripts/generate-brand-marks.ts --check",
+    "generate:validators": "bun scripts/generate-validators.ts",
+    "check:validators": "bun scripts/generate-validators.ts --check",
+    "render:examples": "bun scripts/render-examples.ts"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

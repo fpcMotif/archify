@@ -2277,7 +2277,7 @@ function runNode(args, options = {}) {
 
 async function runArtifactCheck(file) {
   try {
-    const { checkArtifact } = await import('../scripts/check-render-output.mjs');
+    const { checkArtifact } = await import('../scripts/check-render-output.ts');
     const resolved = path.resolve(file);
     return { receipt: checkArtifact(fs.readFileSync(resolved), { file: resolved }) };
   } catch (error) {
@@ -6005,7 +6005,7 @@ function commandExamples(args) {
   const unknown = args.find((arg) => arg.startsWith('--'));
   if (unknown) fail(`Unknown examples option "${unknown}".`);
   if (args.length) fail(usage());
-  const result = runNode([path.join(skillRoot, 'scripts/render-examples.mjs')], { cwd: skillRoot });
+  const result = runNode([path.join(skillRoot, 'scripts/render-examples.ts')], { cwd: skillRoot });
   if (result.status !== 0) exitFrom(result);
 }
 
@@ -6029,7 +6029,7 @@ async function commandDoctor(args) {
     missing: fs.existsSync(template) ? 0 : 1,
   });
 
-  const examplesRenderer = path.join(skillRoot, 'scripts/render-examples.mjs');
+  const examplesRenderer = path.join(skillRoot, 'scripts/render-examples.ts');
   checks.push({
     label: 'Example renderer',
     ok: fs.existsSync(examplesRenderer),
@@ -6092,7 +6092,7 @@ async function commandDoctor(args) {
     missing: fs.existsSync(portablePathRuntime) ? 0 : 1,
   });
 
-  const scenarioGuide = path.join(skillRoot, 'recipes/scenarios.mjs');
+  const scenarioGuide = path.join(skillRoot, 'recipes/scenarios.ts');
   checks.push({
     label: 'Scenario recipe guide',
     ok: fs.existsSync(scenarioGuide),
@@ -6220,7 +6220,7 @@ async function commandGuide(args) {
     }
   }
 
-  const guidePath = path.join(skillRoot, 'recipes/scenarios.mjs');
+  const guidePath = path.join(skillRoot, 'recipes/scenarios.ts');
   let guide;
   try {
     guide = await import(pathToFileURL(guidePath).href);

@@ -55,7 +55,7 @@ test('delivered Architecture review names a node blocking the direct main corrid
   const output = path.join(cwd, 'diagram.html');
   const rendered = run([cli, 'render', 'architecture', input, output], cwd);
   assert.equal(rendered.status, 0, rendered.stdout + rendered.stderr);
-  const checked = run([path.join(root, 'scripts/check-render-output.mjs'), output], cwd);
+  const checked = run([path.join(root, 'scripts/check-render-output.ts'), output], cwd);
   assert.equal(checked.status, 0, checked.stdout + checked.stderr);
   const report = JSON.parse(checked.stdout);
   assert.deepEqual(report.composition.routeReview.detours[0].directCorridorBlockers, [{
