@@ -11,7 +11,7 @@ import { routeHugs } from './helpers/route-hugs.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
-const renderer = path.join(skillRoot, 'packages', 'erd', 'render-erd.mjs');
+const renderer = path.join(skillRoot, 'packages', 'erd', 'render-erd.ts');
 const checker = path.join(skillRoot, 'scripts', 'check-render-output.mjs');
 const fixtures = path.join(__dirname, 'fixtures', 'erd-first-draft');
 // The crow's foot reaches this far from the table edge and is 16 units tall.

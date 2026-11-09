@@ -9,7 +9,7 @@ import { rectsOverlap, segmentRectClearanceWithin } from '../schematics/packages
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const cli = path.join(root, 'schematics/bin/schematics.mjs');
-const renderer = path.join(root, 'schematics/packages/erd/render-erd.mjs');
+const renderer = path.join(root, 'schematics/packages/erd/render-erd.ts');
 const rows = count => Array.from({ length: count }, (_, index) => ({ name: `field_${index}`, type: 'TEXT' }));
 
 function fixture(quality = 'standard') {

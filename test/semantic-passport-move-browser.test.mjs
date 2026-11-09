@@ -347,7 +347,7 @@ test('compact ERD Passport reclamps to the settled container when the reader cap
 }, async () => {
   const artifact = path.join(tmp, 'compact-erd-passport.html');
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'packages/erd/render-erd.mjs'),
+    path.join(skillRoot, 'packages/erd/render-erd.ts'),
     path.join(skillRoot, '../test/fixtures/reader-readability/compact-table.erd.json'), artifact,
   ]);
   const browser = desktopBrowser(chromePath);

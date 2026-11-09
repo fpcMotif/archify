@@ -21,7 +21,7 @@ import {
 } from '../svg/legend.ts';
 import { nodeTextFit } from '../svg/text-fit.ts';
 import { translateMessage as i18nText } from '../i18n/i18n.ts';
-import { bandedLayout, resolveEntityPos } from '../erd/grid.mjs';
+import { bandedLayout, resolveEntityPos } from '../erd/grid.ts';
 import {
   asArray,
   cleanAmbiguousCorridorProblems,

@@ -43,7 +43,7 @@ test('Reader Layout preserves final-artifact behavior across its ownership bound
     artifacts[mode] = output;
   }
   const compactErd = path.join(scratch, 'compact-table.html');
-  execFileSync(process.execPath, [path.join(skillRoot, 'packages/erd/render-erd.mjs'),
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/erd/render-erd.ts'),
     path.resolve(skillRoot, '../test/fixtures/reader-readability/compact-table.erd.json'), compactErd]);
   const browser = new ChromeVisualBrowser(chromePath);
   const records = [];

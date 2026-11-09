@@ -8,7 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { textUnits } from '../schematics/packages/svg/utils.ts';
-import { bandedLayout, resolveEntityPos } from '../schematics/packages/erd/grid.mjs';
+import { bandedLayout, resolveEntityPos } from '../schematics/packages/erd/grid.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
