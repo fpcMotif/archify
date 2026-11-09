@@ -43,7 +43,7 @@ test('reader cards keep an unbreakable note inside the viewport width', {
     const output = path.join(scratch, `cards-${cardCount}.html`);
     const input = path.join(scratch, `cards-${cardCount}.architecture.json`);
     fs.writeFileSync(input, JSON.stringify(fixture(cardCount, `cards-${cardCount}.html`)));
-    execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'), input, output]);
+    execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.ts'), input, output]);
     artifacts[cardCount] = output;
   }
 

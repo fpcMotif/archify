@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
-const renderer = path.join(skillRoot, 'packages/architecture/render-architecture.mjs');
+const renderer = path.join(skillRoot, 'packages/architecture/render-architecture.ts');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-spread-'));
 
 const component = (index) => ({

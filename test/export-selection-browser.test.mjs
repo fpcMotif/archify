@@ -21,7 +21,7 @@ test('Export menu preserves authored reach until genuine outside dismissal', {
   fs.mkdirSync(downloads);
   const file = path.join(root, 'architecture.html');
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'packages/architecture/render-architecture.mjs'),
+    path.join(skillRoot, 'packages/architecture/render-architecture.ts'),
     path.join(skillRoot, 'examples/web-app.architecture.json'),
     file,
   ]);

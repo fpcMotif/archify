@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../schematics/', import.meta.url));
 const cli = path.join(root, 'bin/schematics.mjs');
-const renderer = path.join(root, 'packages/architecture/render-architecture.mjs');
+const renderer = path.join(root, 'packages/architecture/render-architecture.ts');
 function setup(t, positions, viewBox = [600, 420]) {
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-repair-evidence-'));
   t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));

@@ -27,7 +27,7 @@ function renderArtifact(locale = 'en', animation = null) {
     fs.writeFileSync(input, JSON.stringify(document));
   }
   execFileSync(process.execPath, [
-    path.join(skillRoot, 'packages/architecture/render-architecture.mjs'),
+    path.join(skillRoot, 'packages/architecture/render-architecture.ts'),
     input,
     artifact,
   ]);

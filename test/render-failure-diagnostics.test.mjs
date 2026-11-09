@@ -147,7 +147,7 @@ test('render layout rejection exposes the existing diagnostic and preserves an e
     assert.ok(Array.isArray(layout.supportedFixes));
     assert.equal(fs.readFileSync(output, 'utf8'), 'trusted artifact');
   }
-  const direct = run([path.join(skillRoot, 'packages/architecture/render-architecture.mjs'), input, output], cwd, true);
+  const direct = run([path.join(skillRoot, 'packages/architecture/render-architecture.ts'), input, output], cwd, true);
   assert.equal(direct.status, 1);
   assert.equal(direct.stdout, '');
   const receipt = JSON.parse(direct.stderr);
@@ -185,7 +185,7 @@ test('direct renderer warning modes preserve the successful artifact contract', 
   const document = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples/web-app.architecture.json'), 'utf8'));
   document.meta.locale = 'en-US';
   fs.writeFileSync(input, JSON.stringify(document));
-  const renderer = path.join(skillRoot, 'packages/architecture/render-architecture.mjs');
+  const renderer = path.join(skillRoot, 'packages/architecture/render-architecture.ts');
   const human = run([renderer, input, output], cwd);
   assert.equal(human.status, 0, human.stderr);
   assert.equal(human.stdout, `${output}\n`);

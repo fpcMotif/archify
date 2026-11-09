@@ -38,7 +38,7 @@ test('Route Probe preserves directed paths, Journey and export contracts', {
   trace.meta.animation = 'trace';
   const traceInput = path.join(scratch, 'trace.json');
   fs.writeFileSync(traceInput, JSON.stringify(trace)); files.trace = path.join(scratch, 'trace.html');
-  execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'), traceInput, files.trace]);
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.ts'), traceInput, files.trace]);
   const browser = new ChromeVisualBrowser(chrome);
   t.after(() => browser.close());
   const session = await browser.sessionPromise;

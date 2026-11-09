@@ -339,7 +339,7 @@ import { syncBuiltinESMExports } from 'node:module';
 const original = childProcess.spawnSync;
 childProcess.spawnSync = (command, args, options) => {
   const result = original(command, args, options);
-  if (String(args?.[0]).endsWith('render-architecture.mjs') && result.status === 0) {
+  if (String(args?.[0]).endsWith('render-architecture.ts') && result.status === 0) {
     const html = fs.readFileSync(args[2], 'utf8');
     let replaced = false;
     const broken = html.replace(/<path\\b[^>]*>/g, tag => {

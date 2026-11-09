@@ -89,7 +89,7 @@ test('Camera preserves transactions, rendered state and real caller handoffs', {
   trace.meta.animation = 'trace';
   fs.writeFileSync(path.join(scratch, 'trace.json'), JSON.stringify(trace));
   files.trace = path.join(scratch, 'trace.html');
-  execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'),
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.ts'),
     path.join(scratch, 'trace.json'), files.trace]);
   const longSequence = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', cases.sequence), 'utf8'));
   longSequence.meta.viewBox = [1080, 3400];
@@ -106,7 +106,7 @@ test('Camera preserves transactions, rendered state and real caller handoffs', {
   mobileWide.meta.viewBox = [1600, 700];
   fs.writeFileSync(path.join(scratch, 'mobile-wide.json'), JSON.stringify(mobileWide));
   files.mobileWide = path.join(scratch, 'mobile-wide.html');
-  execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.mjs'),
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/architecture/render-architecture.ts'),
     path.join(scratch, 'mobile-wide.json'), files.mobileWide]);
   const browser = new ChromeVisualBrowser(chrome);
   t.after(() => browser.close());

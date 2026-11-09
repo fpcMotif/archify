@@ -932,7 +932,7 @@ import childProcess from 'node:child_process';
 import { syncBuiltinESMExports } from 'node:module';
 const original = childProcess.spawnSync;
 childProcess.spawnSync = (executable, childArgs, options) => {
-  if (String(childArgs?.[0]).endsWith('render-architecture.mjs')) {
+  if (String(childArgs?.[0]).endsWith('render-architecture.ts')) {
     return {
       status: 0,
       signal: null,

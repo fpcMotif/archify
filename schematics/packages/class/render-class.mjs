@@ -41,7 +41,7 @@ import {
   suggestComponentSeparation,
   suggestLabelObstacleFix,
 } from '../geometry/geometry.ts';
-import { createRouter } from '../architecture/routing.mjs';
+import { createRouter } from '../architecture/routing.ts';
 import { placeAutomaticLabels } from '../svg/automatic-labels.ts';
 import { connectionPath as relationshipPath } from '../diagnostics/layout-report.ts';
 

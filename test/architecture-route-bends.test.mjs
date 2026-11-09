@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createRouter } from '../schematics/packages/architecture/routing.mjs';
+import { createRouter } from '../schematics/packages/architecture/routing.ts';
 
 const cli = fileURLToPath(new URL('../schematics/bin/schematics.mjs', import.meta.url));
 

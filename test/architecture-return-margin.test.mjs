@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createRouter } from '../schematics/packages/architecture/routing.mjs';
-import { reservedLabelRect } from '../schematics/packages/architecture/labels.mjs';
+import { createRouter } from '../schematics/packages/architecture/routing.ts';
+import { reservedLabelRect } from '../schematics/packages/architecture/labels.ts';
 import { labelPoint, properSegmentIntersection, routeHonorsEndpointSides } from '../schematics/packages/geometry/geometry.ts';
 import { textUnits } from '../schematics/packages/svg/utils.ts';
 import fs from 'node:fs';

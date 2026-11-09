@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRouter } from '../schematics/packages/architecture/routing.mjs';
+import { createRouter } from '../schematics/packages/architecture/routing.ts';
 import { properSegmentIntersection, routeBudgetMetrics } from '../schematics/packages/geometry/geometry.ts';
 
 function fixture() {

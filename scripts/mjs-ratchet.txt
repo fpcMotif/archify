@@ -28,10 +28,6 @@ schematics/packages/explainer/validate.mjs
 schematics/packages/explainer/writing.mjs
 schematics/packages/migrations/workflow-v2.mjs
 schematics/recipes/scenarios.mjs
-schematics/packages/architecture/grid.mjs
-schematics/packages/architecture/labels.mjs
-schematics/packages/architecture/render-architecture.mjs
-schematics/packages/architecture/routing.mjs
 schematics/packages/artifact-check/check-diagram.mjs
 schematics/packages/class/render-class.mjs
 schematics/packages/dataflow/dataflow-compiler.mjs
