@@ -30,10 +30,6 @@ schematics/packages/migrations/workflow-v2.mjs
 schematics/recipes/scenarios.mjs
 schematics/packages/artifact-check/check-diagram.mjs
 schematics/packages/class/render-class.mjs
-schematics/packages/dataflow/dataflow-compiler.mjs
-schematics/packages/dataflow/joint-label-routing.mjs
-schematics/packages/dataflow/label-capacity.mjs
-schematics/packages/dataflow/render-dataflow.mjs
 schematics/packages/erd/grid.mjs
 schematics/packages/erd/render-erd.mjs
 schematics/packages/explainer/render-explainer.mjs

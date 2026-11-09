@@ -1,8 +1,40 @@
 import { textUnits } from '../svg/utils.ts';
-import { rectsOverlap, segmentRectClearanceWithin } from '../geometry/geometry.ts';
+import { rectsOverlap, segmentRectClearanceWithin, type Point, type Rect, type Relation, type Segment } from '../geometry/geometry.ts';
+import type { AutomaticLabel } from '../svg/automatic-labels.ts';
+
+export interface FlowLabelText {
+  label: string;
+  classification?: string;
+}
+
+export interface FlowLabelRelation extends Relation, FlowLabelText {
+  label: string;
+}
+
+export interface FlowLabelRect<R extends FlowLabelRelation = FlowLabelRelation> extends AutomaticLabel {
+  relation: R;
+  label: string;
+  lines?: string[];
+}
+
+export interface FlowLabelRoute {
+  relationIndex: number;
+  points: Point[];
+}
+
+export interface FlowLabelSize {
+  width: number;
+  height: number;
+}
+
+interface RouteSegment extends Segment {
+  relationIndex: number;
+}
+
+const PINNED_LABEL_KEYS = ['labelAt', 'labelDx', 'labelDy', 'labelSegment'] as const;
 
 export const FLOW_LABEL_HEIGHT = 16;
-export function flowLabelSize(flow, lines = [flow.label]) {
+export function flowLabelSize(flow: FlowLabelText, lines: string[] = [flow.label]): FlowLabelSize {
   const longestLine = Math.max(...lines.map(textUnits), textUnits(flow.classification || ''));
   return {
     width: Math.round(Math.max(34, longestLine * 4.9 + 12) * 10) / 10,
@@ -12,18 +44,25 @@ export function flowLabelSize(flow, lines = [flow.label]) {
 
 // A last capacity repair after routing: two complete text rows can fit beside
 // a short arrow where one wide row cannot. Never move a route or a valid label.
-export function wrapBlockedFlowLabels({ labels, routes, components, titles, viewBox, placementBottom }) {
+export function wrapBlockedFlowLabels<L extends FlowLabelRect>({ labels, routes, components, titles, viewBox, placementBottom }: {
+  labels: L[];
+  routes: FlowLabelRoute[];
+  components: Rect[];
+  titles: Rect[];
+  viewBox: [number, number];
+  placementBottom: number;
+}): L[] {
   const placed = [...labels];
-  const segments = routes.flatMap(route => route.points.slice(1).map((end, index) => ({
+  const segments: RouteSegment[] = routes.flatMap(route => route.points.slice(1).map((end, index) => ({
     relationIndex: route.relationIndex, start: route.points[index], end,
   })));
-  const inside = rect => rect.x >= 0 && rect.y >= 0
+  const inside = (rect: Rect) => rect.x >= 0 && rect.y >= 0
     && rect.x + rect.width <= viewBox[0] && rect.y + rect.height <= placementBottom;
-  const masks = (segment, rect) => segmentRectClearanceWithin(segment, rect, 4) + 0.0001 < 4;
+  const masks = (segment: Segment, rect: Rect) => (segmentRectClearanceWithin(segment, rect, 4) ?? 0) + 0.0001 < 4;
   const obstacles = [...components, ...titles];
-  let wordSegmenter;
+  let wordSegmenter: Intl.Segmenter | undefined;
   for (const [index, label] of placed.entries()) {
-    if (['labelAt', 'labelDx', 'labelDy', 'labelSegment'].some(key => label.relation[key] !== undefined)) continue;
+    if (PINNED_LABEL_KEYS.some(key => label.relation[key] !== undefined)) continue;
     if (inside(label) && !components.some(rect => rectsOverlap(label, rect, -2))
       && !titles.some(rect => rectsOverlap(label, rect))
       && !placed.some((rect, i) => i !== index && rectsOverlap(label, rect))
@@ -35,7 +74,7 @@ export function wrapBlockedFlowLabels({ labels, routes, components, titles, view
       return { lines, ...flowLabelSize(label.relation, lines) };
     }).filter(shape => shape.lines.every(line => line.trim()) && shape.width < label.width)
       .sort((a, b) => a.width - b.width).slice(0, 8);
-    const blockers = [
+    const blockers: { rect: Rect; gap: number }[] = [
       ...obstacles.map(rect => ({ rect, gap: 2 })),
       ...placed.filter((_, i) => i !== index).map(rect => ({ rect, gap: 2 })),
       ...segments.map(segment => ({ rect: {
@@ -44,7 +83,7 @@ export function wrapBlockedFlowLabels({ labels, routes, components, titles, view
       }, gap: 4 })),
     ];
     let probes = 0;
-    const seen = new Set();
+    const seen = new Set<string>();
     search: for (const shape of shapes) {
       for (const segment of segments.filter(segment => segment.relationIndex === label.relationIndex)) {
         const [a, b] = [segment.start, segment.end];

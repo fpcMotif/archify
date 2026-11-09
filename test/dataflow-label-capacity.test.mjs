@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { flowLabelSize, wrapBlockedFlowLabels } from '../schematics/packages/dataflow/label-capacity.mjs';
+import { flowLabelSize, wrapBlockedFlowLabels } from '../schematics/packages/dataflow/label-capacity.ts';
 import { rectsOverlap, segmentRectClearanceWithin } from '../schematics/packages/geometry/geometry.ts';
 
 function fixture(text = '保存 / 复制结果') {

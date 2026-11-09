@@ -1,16 +1,16 @@
-import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../svg/utils.ts';
+import { esc, renderDefinitions, renderSemanticSigil, textUnits, type InfoCard } from '../svg/utils.ts';
 import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, svgAccessibleText, svgRootAttrs } from '../svg/cli.ts';
-import { throwDiagnosticProblems, withIsolatedDiagnosticRecording, rendererFailure } from '../diagnostics/diagnostics.ts';
+import { throwDiagnosticProblems, withIsolatedDiagnosticRecording, rendererFailure, type DiagnosticError, type DiagnosticInput } from '../diagnostics/diagnostics.ts';
 import { chooseFix, fixFields, setFix } from '../diagnostics/fixes.ts';
-import { resolveLegend, renderLegend as renderResolvedLegend, legendFootprint } from '../svg/legend.ts';
+import { resolveLegend, renderLegend as renderResolvedLegend, legendFootprint, type LegendConfig, type LegendEntry } from '../svg/legend.ts';
 import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth, nodeLabelLayout } from '../svg/text-fit.ts';
 import { brandLabelFitWidth, brandMarkFor, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../svg/brand-marks.ts';
-import { translateMessage as i18nText } from '../i18n/i18n.ts';
+import { translateMessage as i18nText, type Translations } from '../i18n/i18n.ts';
 import { DECLARED_WIDE_READER_RATIO, minimumReadableSourceTextPx, predictedFixedWidthOverflow } from '../diagnostics/desktop-readability.ts';
 import { placeAutomaticLabels } from '../svg/automatic-labels.ts';
-import { shortestOrthogonalGridRoute } from '../geometry/route-quality.ts';
-import { repairLabelRoutes } from './joint-label-routing.mjs';
-import { FLOW_LABEL_HEIGHT, flowLabelSize, wrapBlockedFlowLabels } from './label-capacity.mjs';
+import { shortestOrthogonalGridRoute, type GridRouteOptions } from '../geometry/route-quality.ts';
+import { repairLabelRoutes } from './joint-label-routing.ts';
+import { FLOW_LABEL_HEIGHT, flowLabelSize, wrapBlockedFlowLabels, type FlowLabelRect } from './label-capacity.ts';
 import {
   asArray,
   isFinitePoint,
@@ -48,8 +48,151 @@ import {
   componentText,
   arrowClassMap,
   edgeLabelAccent,
-  properSegmentIntersection
+  properSegmentIntersection,
+  type Frame,
+  type Point,
+  type Rect,
+  type Relation,
+  type Segment,
 } from '../geometry/geometry.ts';
+
+export type DataflowSide = 'left' | 'right' | 'top' | 'bottom';
+export type DataflowVariant = 'default' | 'emphasis' | 'security' | 'dashed';
+export type DataflowComponentType = 'frontend' | 'backend' | 'database' | 'cloud' | 'security' | 'messagebus' | 'external';
+
+export interface DataflowStage {
+  label: string;
+}
+
+export interface DataflowNode {
+  id: string;
+  type: DataflowComponentType;
+  label: string;
+  sublabel?: string;
+  tag?: string;
+  icon?: string;
+  brand?: unknown;
+  sources?: readonly unknown[];
+  stage: number;
+  row: number;
+  width?: number;
+  height?: number;
+  yOffset?: number;
+}
+
+export interface DataflowFlow {
+  id?: string;
+  from: string;
+  to: string;
+  label: string;
+  classification?: string;
+  variant?: DataflowVariant;
+  route?: 'auto' | 'straight' | 'vertical-channel' | 'bottom-channel' | 'top-channel';
+  fromSide?: DataflowSide;
+  toSide?: DataflowSide;
+  channelX?: number;
+  channelY?: number;
+  labelAt?: Point;
+  labelDx?: number;
+  labelDy?: number;
+  labelSegment?: number;
+  via?: Point[];
+  width?: number;
+}
+
+export interface DataflowMeta {
+  title: string;
+  output: string;
+  locale?: string;
+  translations?: Translations;
+  subtitle?: string;
+  animation?: 'trace' | 'none';
+  visual_preset?: string;
+  quality_profile?: string;
+  repository?: unknown;
+  views?: unknown;
+  legend?: LegendConfig;
+  viewBox?: [number, number];
+}
+
+export interface DataflowDiagram {
+  schema_version: 1;
+  diagram_type: 'dataflow';
+  meta: DataflowMeta;
+  stages: DataflowStage[];
+  nodes: DataflowNode[];
+  flows: DataflowFlow[];
+  cards?: InfoCard[];
+}
+
+export interface DataflowSourceEvidence {
+  nodes?: Record<string, readonly unknown[] | undefined>;
+}
+
+export interface CompileDataflowOptions {
+  dataflow: DataflowDiagram;
+  sourceEvidence?: DataflowSourceEvidence | null;
+  qualityProfile?: string;
+}
+
+interface MeasuredNode extends DataflowNode {
+  width: number;
+  height: number;
+  cx: number;
+  cy: number;
+  x: number;
+  y: number;
+  autoHeightInset?: number;
+}
+
+interface StageFrame extends Frame {
+  id: string;
+  label: string;
+  kind: 'stage';
+  radius: number;
+}
+
+interface RoutedFlow {
+  d: string;
+  points: Point[];
+}
+
+interface FlowSides {
+  fromSide: string;
+  toSide: string;
+}
+
+interface PortItem {
+  incoming: boolean;
+  width: number;
+}
+
+type DataflowLabelRect = FlowLabelRect<DataflowFlow>;
+type DataflowLegendEntry = LegendEntry & { className?: string; marker?: string; strokeWidth?: number };
+
+const PINNED_LABEL_KEYS = ['labelAt', 'labelDx', 'labelDy', 'labelSegment'] as const;
+const SIDE_KEYS = { from: 'fromSide', to: 'toSide' } as const;
+const ENDPOINT_FIELDS = ['from', 'to'] as const;
+
+function required<K, V>(map: ReadonlyMap<K, V>, key: K): V {
+  const value = map.get(key);
+  if (value === undefined) throw new Error(`Data-flow layout has no entry for ${JSON.stringify(key)}.`);
+  return value;
+}
+
+function lastPoint(points: readonly Point[]): Point {
+  const point = points.at(-1);
+  if (!point) throw new Error('Data-flow route has no points.');
+  return point;
+}
+
+function clearance(value: number | null): number {
+  return value ?? 0;
+}
+
+function isDiagnosticError(value: unknown): value is DiagnosticError {
+  return value instanceof Error;
+}
 
 const nodeTextFit = {
   sublabelPreferred: 7,
@@ -60,8 +203,8 @@ const nodeTextFit = {
 
 // All geometry is local to an attempt. File publication and source loading
 // stay in the CLI renderer and happen once, after a complete valid SVG exists.
-export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requestedQualityProfile }) {
-  function build(rebalancePorts) {
+export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requestedQualityProfile }: CompileDataflowOptions): string {
+  function build(rebalancePorts: boolean): string | null {
     const layout = {
       stageY: 46,
       stageH: 36,
@@ -88,14 +231,14 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
     const stageRight = stageX(asArray(dataflow.stages).length - 1) + layout.stageW / 2;
     const nodeRights = asArray(dataflow.nodes).map(node =>
       stageX(node.stage) + (node.width || layout.nodeW) / 2).filter(Number.isFinite);
-    const pinnedLabelRights = asArray(dataflow.flows).filter(flow => flow.label && Array.isArray(flow.labelAt) && isFinitePoint(...flow.labelAt))
-      .map(flow => flow.labelAt[0] + flowLabelSize(flow).width / 2);
+    const pinnedLabelRights = asArray(dataflow.flows).flatMap(flow => flow.label && Array.isArray(flow.labelAt) && isFinitePoint(...flow.labelAt)
+      ? [flow.labelAt[0] + flowLabelSize(flow).width / 2] : []);
     // Automatic width fits stages/nodes with 24px right pad. The old 940px floor
     // left a blank third of the canvas on 2–3 stage drafts; five default stages
     // still measure ~1068 and stay unchanged. Height starts at 720 and is refit
     // by heightForLabels for automatic showcase.
     const contentWidth = Math.ceil(Math.max(stageRight, ...nodeRights, ...pinnedLabelRights, 0) + 24);
-    const viewBox = dataflow.meta?.viewBox || [
+    const viewBox: [number, number] = dataflow.meta?.viewBox || [
       Math.max(480, contentWidth),
       720,
     ];
@@ -103,13 +246,13 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       ? Math.max(6, Math.ceil(minimumReadableSourceTextPx(viewBox[0]) * 10) / 10)
       : 6;
 
-    function stageX(index) {
+    function stageX(index: number): number {
       return layout.leftX + index * layout.colGap;
     }
 
-    function stageFrame(stage, index) {
+    function stageFrame(stage: DataflowStage, index: number): StageFrame {
       return {
-        id: index,
+        id: String(index),
         label: stage.label,
         kind: 'stage',
         x: stageX(index) - layout.stageW / 2,
@@ -120,7 +263,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       };
     }
 
-    function measureNode(node) {
+    function measureNode(node: DataflowNode): MeasuredNode {
       const cx = stageX(node.stage);
       // Expand only unpinned showcase nodes, within their existing stage budget.
       // Very long text still gets an actionable error instead of an unbounded
@@ -144,26 +287,27 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       };
     }
 
-    const nodes = new Map(asArray(dataflow.nodes).map((node) => [node.id, measureNode(node)]));
+    const nodes = new Map(asArray(dataflow.nodes).map((node): [string, MeasuredNode] => [node.id, measureNode(node)]));
     // Move one outgoing arrow off a crowded mixed side when its
     // perpendicular exit has capacity and reaches the target with a clear corner.
-    const hasPinnedFlowGeometry = flow => flow.via || (flow.route && flow.route !== 'auto')
-      || ['fromSide', 'toSide', 'channelX', 'channelY', 'labelAt', 'labelDx', 'labelDy', 'labelSegment']
+    const hasPinnedFlowGeometry = (flow: DataflowFlow) => flow.via || (flow.route && flow.route !== 'auto')
+      || (['fromSide', 'toSide', 'channelX', 'channelY', 'labelAt', 'labelDx', 'labelDy', 'labelSegment'] as const)
         .some(key => flow[key] !== undefined);
     // Arrowheads are seven stroke-width units tall. Reserve two units of
     // clear ink within the automatic spread's existing 18px spacing limit.
-    const portSpan = items => 32 + Math.max(0, items.length - 1) * Math.min(18,
+    const portSpan = (items: readonly PortItem[]) => 32 + Math.max(0, items.length - 1) * Math.min(18,
       Math.ceil(Math.max(0, ...items.map(item => item.width * (item.incoming ? 7 : 1)))) + 2);
 
-    const automaticSourceSides = new Map();
+    const automaticSourceSides = new Map<DataflowFlow, string>();
     if (automaticShowcase && rebalancePorts) {
       const flows = asArray(dataflow.flows);
       for (const node of nodes.values()) {
         const authored = dataflow.nodes.find(item => item.id === node.id);
+        if (!authored) throw new Error(`Data-flow node "${node.id}" is not authored.`);
         if (authored.height !== undefined || authored.yOffset !== undefined) continue;
         const incident = flows.filter(flow => flow.from === node.id || flow.to === node.id);
         if (incident.some(hasPinnedFlowGeometry)) continue;
-        const sides = { left: [], right: [], top: [], bottom: [] };
+        const sides: Record<string, (PortItem & { flow: DataflowFlow })[]> = { left: [], right: [], top: [], bottom: [] };
         for (const flow of incident) {
           const from = nodes.get(flow.from), to = nodes.get(flow.to);
           if (!from || !to) continue;
@@ -172,12 +316,12 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
             : automaticSourceSides.get(flow) || defaultFromSide(from, to);
           sides[side].push({ flow, incoming, width: flowStrokeWidth(flow) });
         }
-        const choices = [];
+        const choices: { flow: DataflowFlow; alternate: string; distance: number }[] = [];
         for (const side of ['left', 'right']) {
           const items = sides[side];
           if (!items.some(item => item.incoming) || portSpan(items) <= node.height) continue;
           for (const item of items.filter(item => !item.incoming)) {
-            const target = nodes.get(item.flow.to), dy = target.cy - node.cy;
+            const target = required(nodes, item.flow.to), dy = target.cy - node.cy;
             if (Math.abs(dy) < (node.height + target.height) / 2 + 16) continue;
             const alternate = dy > 0 ? 'bottom' : 'top';
             if (portSpan([...sides[alternate], item]) > node.width) continue;
@@ -210,10 +354,10 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       const rowBudget = Math.min(...layout.rowYs.slice(1).map((y, index) => y - layout.rowYs[index])) - 10;
       for (const authored of asArray(dataflow.nodes)) {
         if (authored.height !== undefined || authored.yOffset !== undefined) continue;
-        const node = nodes.get(authored.id);
+        const node = required(nodes, authored.id);
         const incident = flows.filter(flow => flow.from === node.id || flow.to === node.id);
         if (incident.some(hasPinnedFlowGeometry)) continue;
-        const sides = { left: [], right: [] };
+        const sides: Partial<Record<string, PortItem[]>> = { left: [], right: [] };
         for (const flow of incident) {
           if (!nodes.has(flow.from) || !nodes.has(flow.to)) continue;
           const { fromSide, toSide } = flowSides(flow);
@@ -221,7 +365,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
           if (flow.to === node.id) sides[toSide]?.push({ incoming: true, width: flowStrokeWidth(flow) });
         }
         const desired = Math.max(node.height, ...Object.values(sides)
-          .filter(items => items.some(item => item.incoming)).map(portSpan));
+          .flatMap(items => items?.some(item => item.incoming) ? [portSpan(items)] : []));
         const neighbours = originalBoxes.filter(other => other.id !== node.id
           && other.x < node.x + node.width + 10 && other.x + other.width + 10 > node.x);
         const height = Math.min(desired, rowBudget,
@@ -239,7 +383,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
         }
       }
     }
-    const nodeSteps = new Map();
+    const nodeSteps = new Map<string, number>();
     for (const [index, flow] of asArray(dataflow.flows).entries()) {
       if (!nodeSteps.has(flow.from)) nodeSteps.set(flow.from, index);
       if (!nodeSteps.has(flow.to)) nodeSteps.set(flow.to, index + 1);
@@ -248,9 +392,9 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       if (!nodeSteps.has(node.id)) nodeSteps.set(node.id, index);
     }
 
-    function validateDataflow() {
-      const problems = [];
-      const diagnostics = [];
+    function validateDataflow(): void {
+      const problems: (string | null)[] = [];
+      const diagnostics: DiagnosticInput[] = [];
       if (nodes.size !== asArray(dataflow.nodes).length) problems.push('Node ids must be unique.');
 
       const stageCount = asArray(dataflow.stages).length;
@@ -295,7 +439,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
           // node is short enough to fit between them at all; reducing height moves
           // only the bottom edge, and only reaches the bound while a node short
           // enough to do it is still legal to author.
-          const supportedFixes = [];
+          const supportedFixes: string[] = [];
           const roomForNode = diagramAreaBottom - diagramAreaTop;
           // The height that clears the bound at the node's current y. The room
           // between the bounds is the cap only while the node can still move; once
@@ -318,8 +462,8 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
           const raisedOverflow = predictedFixedWidthOverflow({
             viewBoxWidth: viewBox[0],
             viewBoxHeight: requiredViewBoxHeight,
-            readerFit: null,
-            diagramType: null,
+            readerFit: undefined,
+            diagramType: undefined,
           });
           const raisedCanvasFits = raisedOverflow === null;
           let maximumViewBoxHeight = Math.floor(viewBox[0] / DECLARED_WIDE_READER_RATIO);
@@ -328,8 +472,8 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
           while (maximumViewBoxHeight > 1 && predictedFixedWidthOverflow({
             viewBoxWidth: viewBox[0],
             viewBoxHeight: maximumViewBoxHeight,
-            readerFit: null,
-            diagramType: null,
+            readerFit: undefined,
+            diagramType: undefined,
           }) !== null) {
             maximumViewBoxHeight -= 1;
           }
@@ -382,7 +526,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
         for (const [field, value, minimum] of [
           ['Sublabel', node.sublabel, contextFontMinimum],
           ['Tag', node.tag, contextFontMinimum],
-        ]) {
+        ] as const) {
           if (!value) continue;
           const minimumW = minimumNodeTextWidth(value, minimum);
           if (minimumW > availableTextW) {
@@ -394,8 +538,8 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       const nodeList = asArray(dataflow.nodes);
       for (let i = 0; i < nodeList.length; i += 1) {
         for (let j = i + 1; j < nodeList.length; j += 1) {
-          const a = nodes.get(nodeList[i].id);
-          const b = nodes.get(nodeList[j].id);
+          const a = required(nodes, nodeList[i].id);
+          const b = required(nodes, nodeList[j].id);
           if (rectsOverlap(a, b, 10)) {
             problems.push(`Nodes "${a.id}" and "${b.id}" are less than 10px apart — move one to another stage/row or adjust yOffset.`);
           }
@@ -403,25 +547,28 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       }
 
       const flowList = asArray(dataflow.flows);
-      const stageById = new Map(asArray(dataflow.nodes).map((node) => [node.id, node.stage]));
+      const stageById = new Map(asArray(dataflow.nodes).map((node): [string, number] => [node.id, node.stage]));
       for (const flow of flowList) {
         const flowIndex = flowList.indexOf(flow);
-        for (const [field, endpoint] of [['from', 'source'], ['to', 'target']]) {
+        for (const [field, endpoint] of [['from', 'source'], ['to', 'target']] as const) {
           if (nodes.has(flow[field])) continue;
           const problem = `Flow "${flow.label || flow[field]}" references unknown ${endpoint} "${flow[field]}".`;
           const anchorStage = stageById.get(flow[field === 'from' ? 'to' : 'from']);
           const anchorId = flow[field === 'from' ? 'to' : 'from'];
-          const stageDelta = (id) => (anchorStage === undefined || stageById.get(id) === undefined
-            ? 0
-            : field === 'to'
-              ? stageById.get(id) - anchorStage
-              : anchorStage - stageById.get(id));
+          const stageDelta = (id: string) => {
+            const stage = stageById.get(id);
+            return anchorStage === undefined || stage === undefined
+              ? 0
+              : field === 'to'
+                ? stage - anchorStage
+                : anchorStage - stage;
+          };
           const candidates = [...stageById.keys()]
             .filter((id) => id !== anchorId)
             .sort((a, b) => {
               const da = stageDelta(a);
               const db = stageDelta(b);
-              const forwardDiff = (db > 0) - (da > 0);
+              const forwardDiff = Number(db > 0) - Number(da > 0);
               return forwardDiff !== 0 ? forwardDiff : da - db;
             });
           diagnostics.push({
@@ -462,17 +609,17 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       problems.push(...cleanEndpointSideProblems({
         relations: dataflow.flows,
         endpointIds: new Set(nodes.keys()),
-        pathFor,
+        pathFor: relationPath,
         diagramType: 'dataflow',
         relationCollection: 'flows',
-        fromSideFor: (flow) => flowSides(flow).fromSide,
-        toSideFor: (flow) => flowSides(flow).toSide,
+        fromSideFor: (flow) => flowSides(flowOf(flow)).fromSide,
+        toSideFor: (flow) => flowSides(flowOf(flow)).toSide,
         routeHint: 'keep automatic routing, or choose fromSide/toSide and via points whose first and final segments cross node borders perpendicularly',
       }));
       problems.push(...cleanFlowProblems({
         relations: dataflow.flows,
         obstacles: nodes.values(),
-        pathFor,
+        pathFor: relationPath,
         diagramType: 'dataflow',
         relationCollection: 'flows',
         obstacleKind: 'node',
@@ -481,7 +628,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       problems.push(...cleanCrossingProblems({
         relations: dataflow.flows,
         endpointIds: new Set(nodes.keys()),
-        pathFor,
+        pathFor: relationPath,
         diagramType: 'dataflow',
         relationCollection: 'flows',
         profile: dataflow.meta?.quality_profile,
@@ -491,7 +638,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       problems.push(...cleanAmbiguousCorridorProblems({
         relations: dataflow.flows,
         endpointIds: new Set(nodes.keys()),
-        pathFor,
+        pathFor: relationPath,
         diagramType: 'dataflow',
         relationCollection: 'flows',
         profile: dataflow.meta?.quality_profile,
@@ -501,7 +648,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
         relations: dataflow.flows,
         endpointIds: new Set(nodes.keys()),
         frames: compositionFrames,
-        pathFor,
+        pathFor: relationPath,
         diagramType: 'dataflow',
         relationCollection: 'flows',
         profile: dataflow.meta?.quality_profile,
@@ -510,7 +657,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       problems.push(...cleanRouteRhythmProblems({
         relations: dataflow.flows,
         endpointIds: new Set(nodes.keys()),
-        pathFor,
+        pathFor: relationPath,
         diagramType: 'dataflow',
         relationCollection: 'flows',
         profile: dataflow.meta?.quality_profile,
@@ -536,7 +683,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
         relations: dataflow.flows,
         labels: labelRects,
         endpointIds: new Set(nodes.keys()),
-        pathFor,
+        pathFor: relationPath,
         diagramType: 'dataflow',
         relationCollection: 'flows',
         profile: dataflow.meta?.quality_profile,
@@ -563,12 +710,12 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       }
     }
 
-    function supportsAutomaticCrossover(flow) {
+    function supportsAutomaticCrossover(flow: DataflowFlow): boolean {
       return automaticShowcase && !flow.via && (!flow.route || flow.route === 'auto')
         && flow.channelX === undefined && flow.channelY === undefined;
     }
 
-    function routeVia(flow, from, to, start, end) {
+    function routeVia(flow: DataflowFlow, from: MeasuredNode, to: MeasuredNode, start: Point, end: Point): Point[] {
       if (flow.via) return flow.via;
       switch (flow.route || 'auto') {
         case 'straight':
@@ -606,15 +753,16 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
           if (fromVertical !== toVertical) {
             // Perpendicular sides meet at one corner when both endpoints face it;
             // otherwise each leaves through a short stub before the corner.
-            const outward = { left: [-24, 0], right: [24, 0], top: [0, -24], bottom: [0, 24] };
-            const stub = (point, side) => [point[0] + outward[side][0], point[1] + outward[side][1]];
+            const outward: Record<string, Point> = { left: [-24, 0], right: [24, 0], top: [0, -24], bottom: [0, 24] };
+            const stub = (point: Point, side: string): Point => [point[0] + outward[side][0], point[1] + outward[side][1]];
             const startStub = stub(start, fromSide);
             const endStub = stub(end, toSide);
-            const route = [
+            const candidates: Point[][] = [
               [fromVertical ? [start[0], end[1]] : [end[0], start[1]]],
               [startStub, [startStub[0], endStub[1]], endStub],
               [startStub, [endStub[0], startStub[1]], endStub],
-            ].find(candidate => {
+            ];
+            const route = candidates.find(candidate => {
               const points = normalizeRoutePoints([start, ...candidate, end]);
               return routeHonorsEndpointSides(points, fromSide, toSide)
                 && ![...nodes.values()].some(node => points.slice(1).some((point, index) => (
@@ -636,7 +784,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
             .filter((x) => x > Math.min(start[0], end[0]) && x < Math.max(start[0], end[0]))
             .sort((left, right) => Math.abs(left - midX) - Math.abs(right - midX));
           const turnX = [midX, ...gapXs].find((x) => {
-            const points = [start, [x, start[1]], [x, end[1]], end];
+            const points: Point[] = [start, [x, start[1]], [x, end[1]], end];
             return ![...nodes.values()].some((node) => node.id !== from.id && node.id !== to.id
               && points.slice(1).some((point, index) => segmentIntersectsRect({ start: points[index], end: point }, node, 2)));
           }) ?? midX;
@@ -645,11 +793,18 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       }
     }
 
-    const pathCache = new Map();
+    const pathCache = new Map<DataflowFlow, RoutedFlow>();
+    const authoredFlows = new Set<Relation>(asArray(dataflow.flows));
+    const isFlow = (relation: Relation): relation is DataflowFlow => authoredFlows.has(relation);
+    function flowOf(relation: Relation): DataflowFlow {
+      if (!isFlow(relation)) throw new Error('Data-flow geometry received a relation that is not an authored flow.');
+      return relation;
+    }
+    const relationPath = (relation: Relation) => pathFor(flowOf(relation));
 
-    function flowSides(flow) {
-      const from = nodes.get(flow.from);
-      const to = nodes.get(flow.to);
+    function flowSides(flow: DataflowFlow): FlowSides {
+      const from = required(nodes, flow.from);
+      const to = required(nodes, flow.to);
       return {
         fromSide: chosenSide(flow.fromSide, automaticSourceSides.get(flow) || defaultFromSide(from, to)),
         toSide: chosenSide(flow.toSide, defaultToSide(from, to)),
@@ -660,14 +815,15 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
     // Raise the ceiling so a side that has room spreads them; a short side still
     // clamps to usable/(n-1) and keeps the previous layout.
     const automaticPorts = automaticPortSpread(dataflow.flows, nodes, {
-      sideFor: (flow, endpoint) => flowSides(flow)[endpoint === 'source' ? 'fromSide' : 'toSide'],
+      sideFor: (flow, endpoint) => flowSides(flowOf(flow))[endpoint === 'source' ? 'fromSide' : 'toSide'],
       maxSpacing: 18,
     });
 
-    function pathFor(flow) {
-      if (pathCache.has(flow)) return pathCache.get(flow);
-      const from = nodes.get(flow.from);
-      const to = nodes.get(flow.to);
+    function pathFor(flow: DataflowFlow): RoutedFlow {
+      const cached = pathCache.get(flow);
+      if (cached) return cached;
+      const from = required(nodes, flow.from);
+      const to = required(nodes, flow.to);
       const ports = automaticPorts.get(flow);
       const { fromSide, toSide } = flowSides(flow);
       let start = ports?.from || anchor(from, fromSide);
@@ -682,11 +838,11 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
             // labels between neighbouring branches.
             for (const [rect, side, point] of [
               [from, fromSide, points[0]], [to, toSide, points[1]],
-            ]) {
+            ] as const) {
               for (const other of asArray(dataflow.flows)) {
                 if (other === flow || !nodes.has(other.from) || !nodes.has(other.to)) continue;
-                for (const field of ['from', 'to']) {
-                  if (other[field] !== rect.id || flowSides(other)[field === 'from' ? 'fromSide' : 'toSide'] !== side) continue;
+                for (const field of ENDPOINT_FIELDS) {
+                  if (other[field] !== rect.id || flowSides(other)[SIDE_KEYS[field]] !== side) continue;
                   const occupied = automaticPorts.get(other)?.[field] || anchor(rect, side);
                   if (Math.hypot(point[0] - occupied[0], point[1] - occupied[1]) < 18 - 0.0001) return false;
                 }
@@ -703,7 +859,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       // marker-end orientation from the last segment, and a degenerate segment
       // leaves the arrowhead angle undefined (see #169).
       const rawPoints = [start, ...routeVia(flow, from, to, start, end), end];
-      const points = [];
+      const points: Point[] = [];
       for (const p of rawPoints) {
         const prev = points.at(-1);
         if (!prev || Math.abs(p[0] - prev[0]) > 0.0001 || Math.abs(p[1] - prev[1]) > 0.0001) {
@@ -718,25 +874,25 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       return routed;
     }
 
-    const resolvedCrossoverFlows = new Set();
+    const resolvedCrossoverFlows = new Set<Relation>();
     const routable = asArray(dataflow.flows).filter(flow => nodes.has(flow.from) && nodes.has(flow.to));
-    const segmentsOf = points => points.slice(1).map((end, index) => ({ start: points[index], end }));
-    const related = (left, right) => [left.from, left.to].some(id => id === right.from || id === right.to);
-    const crosses = (left, right) => segmentsOf(pathFor(left).points).some(a => segmentsOf(pathFor(right).points).some(b => (
+    const segmentsOf = (points: readonly Point[]): Segment[] => points.slice(1).map((end, index) => ({ start: points[index], end }));
+    const related = (left: DataflowFlow, right: DataflowFlow) => [left.from, left.to].some(id => id === right.from || id === right.to);
+    const crosses = (left: DataflowFlow, right: DataflowFlow) => segmentsOf(pathFor(left).points).some(a => segmentsOf(pathFor(right).points).some(b => (
       properSegmentIntersection(a.start, a.end, b.start, b.end))));
-    const unrelated = flow => routable.filter(other => other !== flow && !related(flow, other));
-    const length = points => segmentsOf(points).reduce((sum, { start, end }) => sum + Math.abs(end[0] - start[0]) + Math.abs(end[1] - start[1]), 0);
+    const unrelated = (flow: DataflowFlow) => routable.filter(other => other !== flow && !related(flow, other));
+    const length = (points: readonly Point[]) => segmentsOf(points).reduce((sum, { start, end }) => sum + Math.abs(end[0] - start[0]) + Math.abs(end[1] - start[1]), 0);
     const DETOUR_NODE_GAP = 12;
     const ENDPOINT_STUB = 24;
-    function intrudesNode(flow, points) {
+    function intrudesNode(flow: DataflowFlow, points: readonly Point[]): boolean {
       return [...nodes.values()].some(node => segmentsOf(points).some((segment, index) => (
         segmentIntersectsRect(segment, node, 2)
         && !((node.id === flow.from && index === 0) || (node.id === flow.to && index === points.length - 2))
       )));
     }
-    function sharesCorridor(flow, points, deferred = new Set()) {
+    function sharesCorridor(flow: DataflowFlow, points: Point[], deferred: ReadonlySet<DataflowFlow> = new Set()): boolean {
       return unrelated(flow).some(other => {
-        const occupied = deferred.has(other)
+        const occupied: Point[][] = deferred.has(other)
           ? endpointStubs(other).map(({ start, end }) => [start, end])
           : [pathFor(other).points];
         return occupied.some(otherPoints => collectAmbiguousCorridors({
@@ -744,19 +900,19 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
         }).length > 0);
       });
     }
-    function endpointStubs(flow) {
+    function endpointStubs(flow: DataflowFlow): Segment[] {
       const points = pathFor(flow).points;
       const { fromSide, toSide } = flowSides(flow);
-      const directions = { left: [-1, 0], right: [1, 0], top: [0, -1], bottom: [0, 1] };
-      return [[points[0], fromSide], [points.at(-1), toSide]].map(([start, side]) => ({
-        start, end: start.map((value, axis) => value + directions[side][axis] * ENDPOINT_STUB),
+      const directions: Record<string, Point> = { left: [-1, 0], right: [1, 0], top: [0, -1], bottom: [0, 1] };
+      return ([[points[0], fromSide], [lastPoint(points), toSide]] as const).map(([start, side]) => ({
+        start, end: [start[0] + directions[side][0] * ENDPOINT_STUB, start[1] + directions[side][1] * ENDPOINT_STUB],
       }));
     }
-    function crossingFlows(flow, points) {
+    function crossingFlows(flow: DataflowFlow, points: readonly Point[]): DataflowFlow[] {
       return unrelated(flow).filter(other => segmentsOf(points).some(a => segmentsOf(pathFor(other).points).some(b => (
         properSegmentIntersection(a.start, a.end, b.start, b.end)))));
     }
-    function readingCost(flow, points) {
+    function readingCost(flow: DataflowFlow, points: readonly Point[]): number {
       return length(points) + Math.max(0, points.length - 2) * 48 + crossingFlows(flow, points).length * 160;
     }
 
@@ -769,21 +925,21 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       // Reserve the fixed tops/sides now, extending sides past the search area.
       const routingBottom = Math.max(viewBox[1], ...[...nodes.values()].map(node => node.y + node.height),
         ...routable.flatMap(flow => pathFor(flow).points.map(point => point[1]))) + DETOUR_NODE_GAP + ENDPOINT_STUB;
-      const routingFrames = asArray(dataflow.stages).map((stage, index) => ({
+      const routingFrames = asArray(dataflow.stages).map((stage, index): StageFrame => ({
         ...stageFrame(stage, index), height: routingBottom - layout.stageY,
       }));
       const stageBorders = routingFrames.flatMap(frame => frameBorderSegments(frame).filter(border => border.side !== 'bottom'));
       // Check nearby simple corridors before accepting a grid detour. Coordinate
       // thinning can discard an open two-bend corridor beside an occupied one.
       // Bound these candidates; the grid still handles routes around obstacles.
-      function compactCorridors(flow) {
+      function compactCorridors(flow: DataflowFlow): Point[][] {
         const { fromSide, toSide } = flowSides(flow);
         const axis = fromSide === 'right' && toSide === 'left' ? 0
           : fromSide === 'left' && toSide === 'right' ? 0
           : fromSide === 'bottom' && toSide === 'top' ? 1
           : fromSide === 'top' && toSide === 'bottom' ? 1 : -1;
-        if (axis < 0) return [];
-        const [start, end] = [pathFor(flow).points[0], pathFor(flow).points.at(-1)];
+        if (axis === -1) return [];
+        const [start, end] = [pathFor(flow).points[0], lastPoint(pathFor(flow).points)];
         const low = Math.min(start[axis], end[axis]) + ENDPOINT_STUB;
         const high = Math.max(start[axis], end[axis]) - ENDPOINT_STUB;
         if (low > high) return [];
@@ -801,7 +957,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
         return [...coordinates].filter(value => value >= low && value <= high)
           .sort((a, b) => Math.abs(a - middle) - Math.abs(b - middle)).slice(0, 16)
           .map(value => {
-            const a = [...start], b = [...end];
+            const a: Point = [start[0], start[1]], b: Point = [end[0], end[1]];
             a[axis] = b[axis] = value;
             return normalizeRoutePoints([start, a, b, end]);
           }).filter(points => routeHonorsEndpointSides(points, fromSide, toSide)
@@ -815,14 +971,14 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
               includeSharedEndpoints: () => true,
             }).length));
       }
-      function gridDetour(flow, allowAvoidedCrossings = false, deferred = new Set()) {
+      function gridDetour(flow: DataflowFlow, allowAvoidedCrossings = false, deferred: ReadonlySet<DataflowFlow> = new Set()): Point[] | null {
         const { points } = pathFor(flow);
         const { fromSide, toSide } = flowSides(flow);
         const others = unrelated(flow);
-        const options = {
+        const options: GridRouteOptions = {
           start: points[0],
-          end: points.at(-1),
-          points: [points[0], points.at(-1)],
+          end: lastPoint(points),
+          points: [points[0], lastPoint(points)],
           // Keep a detour a readable gap away from the nodes it passes; only its
           // own endpoints are held to the grid's 2-unit clearance.
           obstacles: [...nodes.values()].map(node => (node.id === flow.from || node.id === flow.to ? node : {
@@ -856,7 +1012,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
         return normalized && !collectRouteRhythmIssues({ routedRelations: [{ points: normalized }] }).length
           ? normalized : null;
       }
-      function detourFor(flow) {
+      function detourFor(flow: DataflowFlow): { flow: DataflowFlow; routed: RoutedFlow; cost: number } | null {
         const { points } = pathFor(flow);
         const normalized = gridDetour(flow);
         if (!normalized) return null;
@@ -891,9 +1047,9 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
           const current = pathFor(flow).points;
           if (!intrudesNode(flow, current) && !sharesCorridor(flow, current)) continue;
           const { fromSide, toSide } = flowSides(flow);
-          const candidatesFor = deferred => [gridDetour(flow, false, deferred), gridDetour(flow, true, deferred)].filter(points => points
+          const candidatesFor = (deferred: ReadonlySet<DataflowFlow>) => [gridDetour(flow, false, deferred), gridDetour(flow, true, deferred)].filter((points): points is Point[] => Boolean(points
             && routeHonorsEndpointSides(points, fromSide, toSide) && !intrudesNode(flow, points)
-            && !sharesCorridor(flow, points, deferred) && crossingFlows(flow, points).every(supportsAutomaticCrossover));
+            && !sharesCorridor(flow, points, deferred) && crossingFlows(flow, points).every(supportsAutomaticCrossover)));
           let candidates = candidatesFor(new Set());
           if (!candidates.length) {
             const deferred = new Set(unrelated(flow).filter(other => supportsAutomaticCrossover(other)
@@ -913,10 +1069,13 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       // get explicit halos; supplied geometry retains its crossing diagnostic.
       for (let pass = 0; pass < routable.length; pass += 1) {
         const crossing = routable.filter(flow => supportsAutomaticCrossover(flow) && unrelated(flow).some(other => crosses(flow, other)));
-        const options = crossing.map(detourFor).filter(Boolean).sort((left, right) => left.cost - right.cost);
+        const options = crossing.flatMap(flow => {
+          const option = detourFor(flow);
+          return option ? [option] : [];
+        }).sort((left, right) => left.cost - right.cost);
         const before = routable.filter(flow => unrelated(flow).some(other => crosses(flow, other))).length;
         const chosen = options.find(({ flow, routed }) => {
-          const previous = pathCache.get(flow);
+          const previous = required(pathCache, flow);
           pathCache.set(flow, routed);
           const after = routable.filter(other => unrelated(other).some(next => crosses(other, next))).length;
           if (after < before) return true;
@@ -927,9 +1086,9 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       }
     }
 
-    const intersectionCount = (points, otherPoints) => segmentsOf(points).reduce((count, a) => count
+    const intersectionCount = (points: readonly Point[], otherPoints: readonly Point[]) => segmentsOf(points).reduce((count, a) => count
       + segmentsOf(otherPoints).filter(b => properSegmentIntersection(a.start, a.end, b.start, b.end)).length, 0);
-    const foldsBack = points => {
+    const foldsBack = (points: readonly Point[]) => {
       const segments = segmentsOf(points);
       return segments.some((segment, index) => segments.slice(index + 2).some(other => segmentIntersectsRect(segment, {
         x: Math.min(other.start[0], other.end[0]), y: Math.min(other.start[1], other.end[1]),
@@ -942,15 +1101,15 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
     // the whole automatic group becomes shorter without adding any intersection.
     if (automaticShowcase) {
       const portFrames = asArray(dataflow.stages).map(stageFrame);
-      const groups = new Map();
-      for (const flow of routable) for (const field of ['from', 'to']) {
-        const side = flowSides(flow)[field === 'from' ? 'fromSide' : 'toSide'];
+      const groups = new Map<string, { flow: DataflowFlow; field: 'from' | 'to'; side: string }[]>();
+      for (const flow of routable) for (const field of ENDPOINT_FIELDS) {
+        const side = flowSides(flow)[SIDE_KEYS[field]];
         const key = `${flow[field]}\0${side}`;
         if (!groups.has(key)) groups.set(key, []);
-        groups.get(key).push({ flow, field, side });
+        required(groups, key).push({ flow, field, side });
       }
-      const pinned = flow => !supportsAutomaticCrossover(flow)
-        || ['fromSide', 'toSide', 'labelAt', 'labelDx', 'labelDy', 'labelSegment'].some(key => flow[key] !== undefined);
+      const pinned = (flow: DataflowFlow) => !supportsAutomaticCrossover(flow)
+        || (['fromSide', 'toSide', 'labelAt', 'labelDx', 'labelDy', 'labelSegment'] as const).some(key => flow[key] !== undefined);
       let probes = 0;
       for (const group of groups.values()) {
         if (probes >= 16) break;
@@ -969,15 +1128,15 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
         const ordered = [...items].sort((a, b) => a.turn - b.turn || a.coordinate - b.coordinate);
         if (ordered.every((item, index) => item.coordinate === slots[index])) continue;
         probes++;
-        const proposal = new Map();
+        const proposal = new Map<DataflowFlow, Point[]>();
         let straightened = false;
         for (const [index, item] of ordered.entries()) {
-          const outward = item.outward.map(point => [...point]);
+          const outward = item.outward.map((point): Point => [point[0], point[1]]);
           outward[0][axis] = slots[index];
           if (outward.length > 2) outward[1][axis] = slots[index];
           let points = item.field === 'from' ? outward : outward.reverse();
           const { fromSide, toSide } = flowSides(item.flow);
-          const direct = [points[0], points.at(-1)];
+          const direct: Point[] = [points[0], lastPoint(points)];
           if (routeHonorsEndpointSides(direct, fromSide, toSide)
             && (direct[0][0] === direct[1][0] || direct[0][1] === direct[1][1])) points = direct;
           points = normalizeRoutePoints(points);
@@ -985,7 +1144,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
           proposal.set(item.flow, points);
         }
         if (!straightened || items.some(({ flow, current }) => {
-          const points = proposal.get(flow), { fromSide, toSide } = flowSides(flow);
+          const points = required(proposal, flow), { fromSide, toSide } = flowSides(flow);
           return points.length > current.length || length(points) > length(current) + 0.0001 || foldsBack(points)
             || !routeHonorsEndpointSides(points, fromSide, toSide) || intrudesNode(flow, points)
             || collectRouteRhythmIssues({ routedRelations: [{ points }] }).length
@@ -1000,9 +1159,9 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
               }).length));
         })) continue;
         for (const { flow, field } of items) {
-          const points = proposal.get(flow);
+          const points = required(proposal, flow);
           pathCache.set(flow, { points, d: polylinePath(points) });
-          automaticPorts.get(flow)[field] = field === 'from' ? points[0] : points.at(-1);
+          required(automaticPorts, flow)[field] = field === 'from' ? points[0] : lastPoint(points);
         }
       }
     }
@@ -1010,31 +1169,31 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
     // The legacy two-point anchor is relative to the source's y coordinate.
     // On an automatic vertical flow that places the label inside the source.
     // Start in the inter-node corridor; explicit offsets retain their old anchor.
-    function labelPoint(flow, points) {
+    function labelPoint(flow: DataflowFlow, points: Point[]): Point {
       if (automaticShowcase && !flow.classification && points.length === 2 && points[0][0] === points[1][0]
-        && !['labelAt', 'labelDx', 'labelDy', 'labelSegment'].some(key => flow[key] !== undefined)) {
-        const anchor = [points[0][0], (points[0][1] + points[1][1]) / 2 - 10];
+        && !PINNED_LABEL_KEYS.some(key => flow[key] !== undefined)) {
+        const anchor: Point = [points[0][0], (points[0][1] + points[1][1]) / 2 - 10];
         const { width, height } = flowLabelSize(flow);
         const rect = { x: anchor[0] - width / 2, y: anchor[1] - 11, width, height };
         // Sibling flows share a fixed source-side corridor. Keep the old search
         // anchor if a sibling occupies the midpoint; interior routes from other
         // nodes can still move during the later label/corridor repair.
         if (routable.every(other => other === flow || other.from !== flow.from || segmentsOf(pathFor(other).points)
-          .every(segment => segmentRectClearanceWithin(segment, rect, 4) + 0.0001 >= 4))) return anchor;
+          .every(segment => clearance(segmentRectClearanceWithin(segment, rect, 4)) + 0.0001 >= 4))) return anchor;
       }
       return legacyLabelPoint(flow, points);
     }
 
-    function extraLabelLineMasksRoute(rect, points) {
+    function extraLabelLineMasksRoute(rect: Rect, points: readonly Point[]): boolean {
       if (rect.height <= layout.labelH) return false;
       const segments = segmentsOf(points);
       return segments.some(segment => segmentIntersectsRect(segment, rect))
         && !segments.some(segment => segmentIntersectsRect(segment, { ...rect, height: layout.labelH }));
     }
 
-    const resolvedLabelPoints = new Map();
-    const twoLineOcclusions = new Set();
-    const initialLabelRects = asArray(dataflow.flows).flatMap((flow, relationIndex) => {
+    const resolvedLabelPoints = new Map<DataflowFlow, Point>();
+    const twoLineOcclusions = new Set<DataflowFlow>();
+    const initialLabelRects = asArray(dataflow.flows).flatMap((flow, relationIndex): DataflowLabelRect[] => {
       if (!flow.label || !nodes.has(flow.from) || !nodes.has(flow.to)) return [];
       const [lx, ly] = labelPoint(flow, pathFor(flow).points);
       const { width, height } = flowLabelSize(flow);
@@ -1045,7 +1204,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       // Only repair the additional footprint of an unpinned second line. A
       // single-line plate may intentionally interrupt its own route, especially
       // on a vertical segment; that established placement remains authoritative.
-      if (flow.classification && !['labelAt', 'labelDx', 'labelDy', 'labelSegment'].some(key => flow[key] !== undefined)) {
+      if (flow.classification && !PINNED_LABEL_KEYS.some(key => flow[key] !== undefined)) {
         if (extraLabelLineMasksRoute(rect, pathFor(flow).points)) {
           twoLineOcclusions.add(flow);
         }
@@ -1054,14 +1213,19 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
     });
     // Routing depends on node geometry and canvas width, so its actual footprint
     // can determine height without another copy of routeVia's preset rules.
-    function heightForLabels(labels) {
+    function originalLabel(relation: DataflowFlow): DataflowLabelRect {
+      const original = initialLabelRects.find(label => label.relation === relation);
+      if (!original) throw new Error(`Data-flow label for "${relation.label}" has no initial placement.`);
+      return original;
+    }
+    function heightForLabels(labels: readonly Rect[]): number {
       const geometryBottom = Math.max(0,
         ...[...nodes.values()].map(node => node.y + node.height),
         ...routable.flatMap(flow => pathFor(flow).points.map(point => point[1])));
       const contentBottom = Math.max(geometryBottom, ...labels.map(rect => rect.y + rect.height));
       return Math.max(360, Math.ceil(contentBottom + 24 + layout.stageBottomPad));
     }
-    function fitAutomaticWidthToLabels(labels) {
+    function fitAutomaticWidthToLabels(labels: readonly Rect[]): void {
       if (dataflow.meta?.viewBox) return;
       const labelRight = Math.max(0, ...labels.map(rect => rect.x + rect.width));
       viewBox[0] = Math.max(viewBox[0], Math.ceil(labelRight + 24));
@@ -1090,9 +1254,8 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       // while rejecting a collision-free island far from the labelled route.
       const ownPoints = pathFor(rect.relation).points;
       const nearby = ownPoints.slice(1).some((point, index) =>
-        segmentRectClearanceWithin({ start: ownPoints[index], end: point }, rect, 36) <= 36);
-      const original = initialLabelRects.find(label => label.relation === rect.relation);
-      const kept = nearby ? rect : original;
+        clearance(segmentRectClearanceWithin({ start: ownPoints[index], end: point }, rect, 36)) <= 36);
+      const kept = nearby ? rect : originalLabel(rect.relation);
       const resolved = { ...kept, ly: kept.ly + 1 };
       if (automaticShowcase) resolvedLabelPoints.set(rect.relation, [resolved.lx, resolved.ly]);
       return resolved;
@@ -1106,17 +1269,17 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       if (!twoLineOcclusions.has(rect.relation)) continue;
       const ownPoints = pathFor(rect.relation).points;
       if (!ownPoints.slice(1).some((end, segmentIndex) => segmentIntersectsRect({ start: ownPoints[segmentIndex], end }, rect))) continue;
-      const original = initialLabelRects.find(label => label.relation === rect.relation);
+      const original = originalLabel(rect.relation);
       const extraHeight = original.height - layout.labelH;
       const preferred = { ...original, y: original.y - extraHeight, ly: original.ly - extraHeight };
-      const ownRouteBands = ownPoints.slice(1).map((end, segmentIndex) => {
+      const ownRouteBands = ownPoints.slice(1).map((end, segmentIndex): Rect => {
         const start = ownPoints[segmentIndex];
         return {
           x: Math.min(start[0], end[0]) - 2, y: Math.min(start[1], end[1]) - 2,
           width: Math.abs(end[0] - start[0]) + 4, height: Math.abs(end[1] - start[1]) + 4,
         };
       });
-      const labels = resolvedLabelRects.map((other, otherIndex) => otherIndex === index ? preferred : {
+      const labels = resolvedLabelRects.map((other, otherIndex): DataflowLabelRect => otherIndex === index ? preferred : {
         ...other, ly: other.ly - 1,
         relation: { ...other.relation, labelAt: [other.lx, other.ly] },
       });
@@ -1142,10 +1305,10 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
         && ![...nodes.values(), ...titles].some(obstacle => rectsOverlap(replacement, obstacle, 2))
         && !resolvedLabelRects.some((other, otherIndex) => otherIndex !== index && rectsOverlap(replacement, other, 2))
         && routes.every(route => route.points.slice(1).every((end, segmentIndex) => (
-          segmentRectClearanceWithin({ start: route.points[segmentIndex], end }, replacement, 4) >= 4
+          clearance(segmentRectClearanceWithin({ start: route.points[segmentIndex], end }, replacement, 4)) >= 4
         )))
         && ownPoints.slice(1).some((end, segmentIndex) => (
-          segmentRectClearanceWithin({ start: ownPoints[segmentIndex], end }, replacement, 36) <= 36
+          clearance(segmentRectClearanceWithin({ start: ownPoints[segmentIndex], end }, replacement, 36)) <= 36
         ));
       if (!clear) continue;
       const resolved = { ...replacement, ly: replacement.ly + 1 };
@@ -1164,21 +1327,26 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       // Bound the complete candidate checks, including rejected geometry, across
       // the diagram. Each accepted move clears one route's label collisions.
       let attempts = 0;
-      const nearOwnRoute = (rect, points) => segmentsOf(points)
-        .some(segment => segmentRectClearanceWithin(segment, rect, 36) <= 36);
-      const masksLabel = (points, rect) => segmentsOf(points)
-        .some(segment => segmentRectClearanceWithin(segment, rect, labelGap) + 0.0001 < labelGap);
-      const overlapsNode = rect => [...nodes.values()].some(node => rectsOverlap(rect, node, -2));
+      const nearOwnRoute = (rect: Rect, points: readonly Point[]) => segmentsOf(points)
+        .some(segment => clearance(segmentRectClearanceWithin(segment, rect, 36)) <= 36);
+      const masksLabel = (points: readonly Point[], rect: Rect) => segmentsOf(points)
+        .some(segment => clearance(segmentRectClearanceWithin(segment, rect, labelGap)) + 0.0001 < labelGap);
+      const overlapsNode = (rect: Rect) => [...nodes.values()].some(node => rectsOverlap(rect, node, -2));
+      const labelFor = (relation: DataflowFlow, labels: readonly DataflowLabelRect[]) => {
+        const label = labels.find(rect => rect.relation === relation);
+        if (!label) throw new Error(`Data-flow label for "${relation.label}" is not placed.`);
+        return label;
+      };
       // A label left inside a node does not mask the route occupying its usable
       // slot. Probe a nearby node-clear slot with the other labels fixed. These
       // are search targets only: accept a corridor move after placing every label
       // against the real routes, including resolving the original node overlap.
       let slotProbes = 0;
       const blockedLabelSlots = resolvedLabelRects.flatMap((rect, index) => {
-        if (slotProbes >= 16 || ['labelAt', 'labelDx', 'labelDy', 'labelSegment'].some(key => rect.relation[key] !== undefined)
+        if (slotProbes >= 16 || PINNED_LABEL_KEYS.some(key => rect.relation[key] !== undefined)
           || !overlapsNode(rect)) return [];
         slotProbes++;
-        const labels = resolvedLabelRects.map((other, otherIndex) => ({ ...other, ly: other.ly - 1,
+        const labels = resolvedLabelRects.map((other, otherIndex): DataflowLabelRect => ({ ...other, ly: other.ly - 1,
           relation: otherIndex === index ? other.relation : { ...other.relation, labelAt: [other.lx, other.ly] } }));
         const probe = placeAutomaticLabels({ labels,
           routes: [{ relationIndex: rect.relationIndex, points: pathFor(rect.relation).points }],
@@ -1189,27 +1357,27 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       for (const flow of routable) {
         if (attempts >= 16) break;
         if (!supportsAutomaticCrossover(flow)
-          || ['labelAt', 'labelDx', 'labelDy', 'labelSegment'].some(key => flow[key] !== undefined)) continue;
+          || PINNED_LABEL_KEYS.some(key => flow[key] !== undefined)) continue;
         const current = normalizeRoutePoints(pathFor(flow).points);
         const pendingSlots = blockedLabelSlots.filter(slot => overlapsNode(
-          resolvedLabelRects.find(rect => rect.relation === slot.relation)));
+          labelFor(slot.relation, resolvedLabelRects)));
         const blocked = [...resolvedLabelRects, ...pendingSlots]
           .filter(rect => rect.relation !== flow && masksLabel(current, rect));
         if (!blocked.length) continue;
-        const candidates = new Map();
+        const candidates = new Map<string, Point[]>();
         for (const rect of blocked) {
           for (let index = 1; index < current.length - 2; index++) {
             const [start, end] = [current[index], current[index + 1]];
-            if (segmentRectClearanceWithin({ start, end }, rect, labelGap) + 0.0001 >= labelGap) continue;
+            if (clearance(segmentRectClearanceWithin({ start, end }, rect, labelGap)) + 0.0001 >= labelGap) continue;
             const axis = start[0] === end[0] ? 0 : start[1] === end[1] ? 1 : -1;
             if (axis === -1) continue;
             const [low, size] = axis === 0 ? [rect.x, rect.width] : [rect.y, rect.height];
             for (const coordinate of [low - labelGap, low + size + labelGap]) {
-              const points = current.map(point => [...point]);
+              const points = current.map((point): Point => [point[0], point[1]]);
               points[index][axis] = points[index + 1][axis] = coordinate;
               // Do not reverse either neighbouring segment into a doubled-back
               // path. A zero-length neighbour can be removed by normalization.
-              if ([index - 1, index + 1].some(k => [0, 1].reduce((dot, axis) => dot
+              if ([index - 1, index + 1].some(k => ([0, 1] as const).reduce<number>((dot, axis) => dot
                 + (current[k + 1][axis] - current[k][axis]) * (points[k + 1][axis] - points[k][axis]), 0) < 0)) continue;
               const normalized = normalizeRoutePoints(points);
               candidates.set(JSON.stringify(normalized), normalized);
@@ -1217,7 +1385,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
           }
         }
         const { fromSide, toSide } = flowSides(flow);
-        const oldCrossings = new Map(unrelated(flow).map(other => [other, intersectionCount(current, pathFor(other).points)]));
+        const oldCrossings = new Map(unrelated(flow).map((other): [DataflowFlow, number] => [other, intersectionCount(current, pathFor(other).points)]));
         const oldCost = readingCost(flow, current);
         const ranked = [...candidates.values()].map(points => ({ points, cost: readingCost(flow, points) }))
           .sort((a, b) => a.cost - b.cost);
@@ -1245,7 +1413,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
             viewBox, placementBottom: viewBox[1] - layout.stageBottomPad, maxOwnRouteDistance: 36 });
           if (placed.some(rect => rect.relation !== flow && masksLabel(points, rect))) continue;
           if (blocked.some(slot => pendingSlots.includes(slot) && overlapsNode(
-            placed.find(rect => rect.relation === slot.relation)))) continue;
+            labelFor(slot.relation, placed)))) continue;
           if (placed.some((rect, index) => {
             const oldPoints = pathFor(rect.relation).points;
             const ownPoints = rect.relation === flow ? points : oldPoints;
@@ -1268,27 +1436,27 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       for (const flow of routable) {
         if (alignmentProbes >= 16) break;
         if (!supportsAutomaticCrossover(flow)
-          || ['labelAt', 'labelDx', 'labelDy', 'labelSegment'].some(key => flow[key] !== undefined)) continue;
+          || PINNED_LABEL_KEYS.some(key => flow[key] !== undefined)) continue;
         const current = normalizeRoutePoints(pathFor(flow).points);
         if (current.length <= 2) continue;
         const index = resolvedLabelRects.findIndex(rect => rect.relation === flow);
         if (index < 0) continue;
-        const from = nodes.get(flow.from), to = nodes.get(flow.to);
+        const from = required(nodes, flow.from), to = required(nodes, flow.to);
         const { fromSide, toSide } = flowSides(flow);
-        let placedLabel;
-        const aligned = alignAutomaticFacingPorts(flow, from, to, current[0], current.at(-1), fromSide, toSide, automaticPorts.get(flow), {
+        const placement: { label?: DataflowLabelRect } = {};
+        const aligned = alignAutomaticFacingPorts(flow, from, to, current[0], lastPoint(current), fromSide, toSide, automaticPorts.get(flow), {
           accept: points => {
             if (alignmentProbes >= 16 || intrudesNode(flow, points)
               || unrelated(flow).some(other => intersectionCount(points, pathFor(other).points)
                 > intersectionCount(current, pathFor(other).points))
               || resolvedLabelRects.some(rect => rect.relation !== flow && masksLabel(points, rect))) return false;
             for (const [node, side, point, original] of [
-              [from, fromSide, points[0], current[0]], [to, toSide, points[1], current.at(-1)],
-            ]) {
+              [from, fromSide, points[0], current[0]], [to, toSide, points[1], lastPoint(current)],
+            ] as const) {
               if (Math.hypot(point[0] - original[0], point[1] - original[1]) < 0.0001) continue;
-              for (const other of routable) for (const field of ['from', 'to']) {
-                if (other === flow || other[field] !== node.id || flowSides(other)[field === 'from' ? 'fromSide' : 'toSide'] !== side) continue;
-                const occupied = field === 'from' ? pathFor(other).points[0] : pathFor(other).points.at(-1);
+              for (const other of routable) for (const field of ENDPOINT_FIELDS) {
+                if (other === flow || other[field] !== node.id || flowSides(other)[SIDE_KEYS[field]] !== side) continue;
+                const occupied = field === 'from' ? pathFor(other).points[0] : lastPoint(pathFor(other).points);
                 if (Math.hypot(point[0] - occupied[0], point[1] - occupied[1]) < 18 - 0.0001) return false;
               }
             }
@@ -1298,7 +1466,7 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
             }).length)) return false;
             alignmentProbes++;
             const [lx, ly] = labelPoint(flow, points), rect = resolvedLabelRects[index];
-            const labels = resolvedLabelRects.map((other, i) => i === index
+            const labels = resolvedLabelRects.map((other, i): DataflowLabelRect => i === index
               ? { ...other, x: lx - other.width / 2, y: ly - 11, lx, ly: ly - 1 }
               : { ...other, ly: other.ly - 1, relation: { ...other.relation, labelAt: [other.lx, other.ly] } });
             const routes = routable.map(other => ({ relationIndex: asArray(dataflow.flows).indexOf(other), points: other === flow ? points : pathFor(other).points }));
@@ -1311,12 +1479,13 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
               || routes.some(route => route.relationIndex !== rect.relationIndex && masksLabel(route.points, candidate))
               || !nearOwnRoute(candidate, points)
               || (extraLabelLineMasksRoute(candidate, points) && !extraLabelLineMasksRoute(rect, current))) return false;
-            placedLabel = { ...candidate, ly: candidate.ly + 1 };
+            placement.label = { ...candidate, ly: candidate.ly + 1 };
             return true;
           },
         });
+        const placedLabel = placement.label;
         if (!placedLabel) continue;
-        const points = [aligned.start, aligned.end];
+        const points: Point[] = [aligned.start, aligned.end];
         pathCache.set(flow, { points, d: polylinePath(points) });
         resolvedLabelRects[index] = placedLabel;
         resolvedLabelPoints.set(flow, [placedLabel.lx, placedLabel.ly]);
@@ -1383,17 +1552,17 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
 
     // Header measurement follows 276970789's #257, including the ordinal.
     // Long titles wrap at the same legible floor instead of becoming invalid input.
-    function stageHeaderText(stage, index) {
+    function stageHeaderText(stage: DataflowStage, index: number): string {
       return `${String(index + 1).padStart(2, '0')} / ${stage.label}`;
     }
 
-    function renderStageHeader(stage, index, cx) {
+    function renderStageHeader(stage: DataflowStage, index: number, cx: number): string {
       const text = stageHeaderText(stage, index);
       const font = fittedNodeFontSize(text, layout.stageW, 9, 7);
       const available = availableNodeTextWidth(layout.stageW);
       const open = `<text x="${cx}" y="${layout.stageY + 22}" class="t-dim" font-size="${font}" font-weight="600" text-anchor="middle">`;
       if (minimumNodeTextWidth(text, font) <= available) return `${open}${esc(text)}</text>`;
-      const lines = [];
+      const lines: string[] = [];
       let line = '';
       // Prefer word boundaries; split oversized words and CJK by grapheme, without
       // dropping whitespace or splitting a combining character/emoji sequence.
@@ -1421,23 +1590,24 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
       return `${open}${content}</text>`;
     }
 
-    function renderStage(stage, index) {
+    function renderStage(stage: DataflowStage, index: number): string {
       const frame = compositionFrames[index];
       const cx = stageX(index);
       return `        <rect data-graph-role="structural-frame" data-composition-frame-kind="stage" data-composition-frame-id="${index}" x="${frame.x}" y="${frame.y}" width="${frame.width}" height="${frame.height}" rx="${frame.radius}" class="c-lane" stroke-width="1"/>
         ${renderStageHeader(stage, index, cx)}`;
     }
 
-    function renderNode(node) {
+    function renderNode(node: MeasuredNode): string {
       const fill = componentFill[node.type] || 'c-external';
       const accent = componentText[node.type] || 't-muted';
-      const hasSub = node.sublabel != null && node.sublabel !== '';
+      const sublabel = node.sublabel ?? '';
+      const hasSub = sublabel !== '';
       const labelFontSize = fittedNodeFontSize(node.label, brandLabelFitWidth(node, node.width), 10, 8);
-      const sublabelFontSize = fittedNodeFontSize(node.sublabel, node.width, Math.max(nodeTextFit.sublabelPreferred, contextFontMinimum), contextFontMinimum);
-      const tagFontSize = fittedNodeFontSize(node.tag, node.width, Math.max(nodeTextFit.tagPreferred, contextFontMinimum), contextFontMinimum);
+      const sublabelFontSize = fittedNodeFontSize(sublabel, node.width, Math.max(nodeTextFit.sublabelPreferred, contextFontMinimum), contextFontMinimum);
+      const tagFontSize = fittedNodeFontSize(node.tag ?? '', node.width, Math.max(nodeTextFit.tagPreferred, contextFontMinimum), contextFontMinimum);
       const inset = node.autoHeightInset || 0;
       const textRows = [{ text: node.label, font: labelFontSize, y: 21 + inset }];
-      if (hasSub) textRows.push({ text: node.sublabel, font: sublabelFontSize, y: 37 + inset });
+      if (hasSub) textRows.push({ text: sublabel, font: sublabelFontSize, y: 37 + inset });
       if (node.tag) textRows.push({ text: node.tag, font: tagFontSize, y: node.height - 11 - inset });
       const labelLayout = nodeLabelLayout({ width: node.width, height: node.height, rows: textRows,
         brand: Boolean(brandMarkFor(node)), source: Boolean(sourceEvidence?.nodes?.[node.id]?.length) });
@@ -1462,11 +1632,11 @@ export function compileDataflow({ dataflow, sourceEvidence, qualityProfile: requ
         </g>`;
     }
 
-    function flowStrokeWidth(flow) {
+    function flowStrokeWidth(flow: DataflowFlow): number {
       return flow.width || (flow.variant === 'emphasis' ? 1.8 : 1.4);
     }
 
-    function renderFlowPath(flow, index) {
+    function renderFlowPath(flow: DataflowFlow, index: number): string {
       const [cls, marker] = arrowClassMap[flow.variant || 'default'] || arrowClassMap.default;
       const routed = pathFor(flow);
       const strokeWidth = flowStrokeWidth(flow);
@@ -1479,7 +1649,7 @@ ${edge}
         </g>`;
     }
 
-    function renderFlowLabel(flow, index) {
+    function renderFlowLabel(flow: DataflowFlow, index: number): string {
       const routed = pathFor(flow);
       const [lx, ly] = resolvedLabelPoints.get(flow) || labelPoint(flow, routed.points);
       const rect = resolvedLabelRects.find(rect => rect.relation === flow);
@@ -1507,7 +1677,7 @@ ${edge}
     }));
 
     function renderLegend() {
-      const presentKinds = new Set(asArray(dataflow.flows).map((flow) => flow.variant || 'default'));
+      const presentKinds = new Set<string>(asArray(dataflow.flows).map((flow) => flow.variant || 'default'));
       if ([...nodes.values()].some((node) => node.type === 'database')) presentKinds.add('database');
       const entries = resolveLegend(dataflow.meta?.legend, LEGEND_CATALOG, presentKinds);
       return renderResolvedLegend({
@@ -1532,7 +1702,7 @@ ${edge}
       // fill the canvas height, so growing height alone does not free a legend
       // band — widen just enough for a one-row pack instead.
       if (dataflow.meta?.viewBox) return;
-      const presentKinds = new Set(asArray(dataflow.flows).map((flow) => flow.variant || 'default'));
+      const presentKinds = new Set<string>(asArray(dataflow.flows).map((flow) => flow.variant || 'default'));
       if ([...nodes.values()].some((node) => node.type === 'database')) presentKinds.add('database');
       const entries = resolveLegend(dataflow.meta?.legend, LEGEND_CATALOG, presentKinds);
       if (!entries.length) return;
@@ -1578,20 +1748,22 @@ ${renderLegend()}
     return renderSvg();
   }
 
-  function attempt(rebalancePorts) {
+  function attempt(rebalancePorts: boolean): string | null {
     return withIsolatedDiagnosticRecording(() => {
       try { return build(rebalancePorts); }
       catch (error) {
-        if (error?.schematicsDiagnostics) error.schematicsDiagnostics = rendererFailure(error).diagnostics;
+        if (isDiagnosticError(error) && error.schematicsDiagnostics) error.schematicsDiagnostics = rendererFailure(error).diagnostics;
         throw error;
       }
     });
   }
 
   try {
-    return attempt(false);
+    const svg = attempt(false);
+    if (svg !== null) return svg;
+    throw new Error('Data-flow layout produced no SVG.');
   } catch (initial) {
-    const layoutFailure = error => error?.schematicsDiagnostics?.length
+    const layoutFailure = (error: unknown) => isDiagnosticError(error) && Boolean(error.schematicsDiagnostics?.length)
       && error.message.startsWith('Data-flow layout validation failed:');
     if (!layoutFailure(initial)) throw initial;
     try {
