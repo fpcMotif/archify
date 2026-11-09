@@ -12,7 +12,7 @@ import {
   quarantineRemoveRegularFileBinding,
   releaseRegularFileBinding,
   removeOwnedRegularFile,
-} from '../schematics/packages/output/atomic-output.mjs';
+} from '../schematics/packages/output/atomic-output.ts';
 import { loadDiagram, writeDiagram } from '../schematics/packages/svg/cli.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));

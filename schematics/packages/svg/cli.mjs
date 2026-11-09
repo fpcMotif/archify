@@ -1,4 +1,4 @@
-import { softwareNoticesHtml } from '../output/software-notices.mjs';
+import { softwareNoticesHtml } from '../output/software-notices.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import { applyTemplate, renderCards, esc } from './utils.ts';
@@ -9,7 +9,7 @@ import { validateEngineeringProfile } from './engineering-profiles.mjs';
 import {
   resolveOutputPath,
   validateAuthoredOutputPath,
-} from '../output/output-path.mjs';
+} from '../output/output-path.ts';
 import {
   captureAtomicOutput,
   captureRegularFileBinding,
@@ -17,7 +17,7 @@ import {
   releaseRegularFileBinding,
   removeOwnedRegularFile,
   verifyAtomicOutput,
-} from '../output/atomic-output.mjs';
+} from '../output/atomic-output.ts';
 import { resolveLocale, translateMessage, registerLocale, localeDiagnostics } from '../i18n/i18n.ts';
 import { prepareDiagramBrandMarks } from './brand-marks.mjs';
 

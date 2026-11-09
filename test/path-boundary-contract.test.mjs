@@ -173,7 +173,7 @@ test('production callers do not implement native path identity or containment wi
   assert.deepEqual(
     violations,
     [],
-    `Path-boundary regressions must delegate to path-semantics.mjs:\n${violations
+    `Path-boundary regressions must delegate to path-semantics.ts:\n${violations
       .map(({ file, line, rule }) => `- ${file}:${line} ${rule}`)
       .join('\n')}`,
   );

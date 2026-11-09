@@ -1,4 +1,4 @@
-import { recoverRetiredPublication } from '../packages/output/atomic-output.mjs';
+import { recoverRetiredPublication } from '../packages/output/atomic-output.ts';
 
 function usage(stream = process.stderr) {
   stream.write('Usage: node bin/recover-output.mjs <private-recovery-directory> [--json]\n');

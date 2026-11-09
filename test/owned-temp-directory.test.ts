@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
-import { createOwnedTempDirectory } from '../schematics/packages/output/owned-temp-directory.mjs';
+import { createOwnedTempDirectory } from '../schematics/packages/output/owned-temp-directory.ts';
 
 test('cleanup finishes while another process deletes the same directory', async () => {
   for (let round = 0; round < 5; round++) {

@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startPreview } from '../schematics/bin/preview.mjs';
 import { loadDiagram, writeDiagram } from '../schematics/packages/svg/cli.mjs';
-import { pathsAlias } from '../schematics/packages/output/output-path.mjs';
+import { pathsAlias } from '../schematics/packages/output/output-path.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..', 'schematics');
@@ -274,24 +274,24 @@ test('deliver rechecks aliases immediately before committing a verified candidat
   fs.mkdirSync(installedScripts, { recursive: true });
   fs.copyFileSync(cli, path.join(installedBin, 'schematics.mjs'));
   fs.copyFileSync(
-    path.join(skillRoot, 'packages/output/output-path.mjs'),
-    path.join(installedShared, 'output-path.mjs'),
+    path.join(skillRoot, 'packages/output/output-path.ts'),
+    path.join(installedShared, 'output-path.ts'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'packages/output/path-semantics.mjs'),
-    path.join(installedShared, 'path-semantics.mjs'),
+    path.join(skillRoot, 'packages/output/path-semantics.ts'),
+    path.join(installedShared, 'path-semantics.ts'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'packages/output/portable-path.mjs'),
-    path.join(installedShared, 'portable-path.mjs'),
+    path.join(skillRoot, 'packages/output/portable-path.ts'),
+    path.join(installedShared, 'portable-path.ts'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'packages/output/atomic-output.mjs'),
-    path.join(installedShared, 'atomic-output.mjs'),
+    path.join(skillRoot, 'packages/output/atomic-output.ts'),
+    path.join(installedShared, 'atomic-output.ts'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'packages/output/sidecar-path.mjs'),
-    path.join(installedShared, 'sidecar-path.mjs'),
+    path.join(skillRoot, 'packages/output/sidecar-path.ts'),
+    path.join(installedShared, 'sidecar-path.ts'),
   );
   fs.writeFileSync(path.join(installedRenderer, 'render-workflow.mjs'), `
 import fs from 'node:fs';
@@ -1001,24 +1001,24 @@ test('compare rechecks every target immediately before committing the artifact p
   }
   fs.copyFileSync(cli, path.join(installedBin, 'schematics.mjs'));
   fs.copyFileSync(
-    path.join(skillRoot, 'packages/output/output-path.mjs'),
-    path.join(installedShared, 'output-path.mjs'),
+    path.join(skillRoot, 'packages/output/output-path.ts'),
+    path.join(installedShared, 'output-path.ts'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'packages/output/path-semantics.mjs'),
-    path.join(installedShared, 'path-semantics.mjs'),
+    path.join(skillRoot, 'packages/output/path-semantics.ts'),
+    path.join(installedShared, 'path-semantics.ts'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'packages/output/portable-path.mjs'),
-    path.join(installedShared, 'portable-path.mjs'),
+    path.join(skillRoot, 'packages/output/portable-path.ts'),
+    path.join(installedShared, 'portable-path.ts'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'packages/output/atomic-output.mjs'),
-    path.join(installedShared, 'atomic-output.mjs'),
+    path.join(skillRoot, 'packages/output/atomic-output.ts'),
+    path.join(installedShared, 'atomic-output.ts'),
   );
   fs.copyFileSync(
-    path.join(skillRoot, 'packages/output/sidecar-path.mjs'),
-    path.join(installedShared, 'sidecar-path.mjs'),
+    path.join(skillRoot, 'packages/output/sidecar-path.ts'),
+    path.join(installedShared, 'sidecar-path.ts'),
   );
   fs.writeFileSync(path.join(installedRenderer, 'render-architecture.mjs'), `
 import fs from 'node:fs';
@@ -1115,7 +1115,7 @@ test('doctor reports a missing output-path safety runtime in an installed skill'
   const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-doctor-'));
   const installedRoot = path.join(cwd, 'skill');
   copyInstalledSkill(installedRoot);
-  fs.rmSync(path.join(installedRoot, 'packages/output/output-path.mjs'));
+  fs.rmSync(path.join(installedRoot, 'packages/output/output-path.ts'));
 
   const result = spawnSync(process.execPath, [path.join(installedRoot, 'bin/schematics.mjs'), 'doctor'], {
     cwd: installedRoot,
@@ -1127,9 +1127,9 @@ test('doctor reports a missing output-path safety runtime in an installed skill'
 });
 
 for (const [relative, label] of [
-  ['packages/output/path-semantics.mjs', 'Physical path semantics runtime'],
-  ['packages/output/portable-path.mjs', 'Portable path contract runtime'],
-  ['packages/output/sidecar-path.mjs', 'Sidecar path naming runtime'],
+  ['packages/output/path-semantics.ts', 'Physical path semantics runtime'],
+  ['packages/output/portable-path.ts', 'Portable path contract runtime'],
+  ['packages/output/sidecar-path.ts', 'Sidecar path naming runtime'],
 ]) {
   test(`doctor reports a missing ${path.basename(relative)} runtime without crashing`, () => {
     const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-output-doctor-dependency-'));

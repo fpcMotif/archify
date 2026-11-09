@@ -2,12 +2,24 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { sameEntry } from './path-semantics.mjs';
+import { errorCode, errorMessage, sameEntry } from './path-semantics.ts';
 
 // Bun's recursive rmSync reports ENOENT on the root when Chrome deletes a profile file mid-walk.
-const retryable = new Set(['EBUSY', 'EPERM', 'EACCES', 'ENOTEMPTY', 'ENOENT']);
+const retryable = new Set<unknown>(['EBUSY', 'EPERM', 'EACCES', 'ENOTEMPTY', 'ENOENT']);
 
-function directoryIdentity(directory) {
+interface DirectoryIdentity {
+  directory: string;
+  dev: bigint;
+  ino: bigint;
+  birthtimeNs: bigint;
+}
+
+export interface OwnedTempDirectory {
+  readonly path: string;
+  cleanup(): Promise<void>;
+}
+
+function directoryIdentity(directory: string): DirectoryIdentity {
   const stat = fs.lstatSync(directory, { bigint: true });
   if (!stat.isDirectory() || stat.isSymbolicLink() || stat.ino === 0n) {
     throw new Error(`Temporary directory identity is unavailable or changed: ${directory}`);
@@ -15,7 +27,7 @@ function directoryIdentity(directory) {
   return { directory, dev: stat.dev, ino: stat.ino, birthtimeNs: stat.birthtimeNs };
 }
 
-function verifyIdentity(expected) {
+function verifyIdentity(expected: DirectoryIdentity): void {
   const current = directoryIdentity(expected.directory);
   if (current.dev !== expected.dev || current.ino !== expected.ino
     || current.birthtimeNs !== expected.birthtimeNs) {
@@ -27,10 +39,13 @@ function verifyIdentity(expected) {
 // This detects substitution between creation and cleanup (including junctions)
 // and between retries. Path-based Node APIs cannot eliminate a hostile mutation
 // racing the final check and rm; this is not a filesystem sandbox.
-export function createOwnedTempDirectory(prefix, { parent = os.tmpdir() } = {}) {
+export function createOwnedTempDirectory(
+  prefix: string,
+  { parent = os.tmpdir() }: { parent?: string } = {},
+): OwnedTempDirectory {
   if (!/^[a-zA-Z0-9-]+-$/.test(prefix)) throw new Error('Invalid temporary directory prefix');
   const canonicalParent = fs.realpathSync.native(path.resolve(parent));
-  const ancestors = [];
+  const ancestors: DirectoryIdentity[] = [];
   for (let current = canonicalParent; ; current = path.dirname(current)) {
     ancestors.push(directoryIdentity(current));
     const parentRelation = sameEntry(current, path.dirname(current));
@@ -53,7 +68,7 @@ export function createOwnedTempDirectory(prefix, { parent = os.tmpdir() } = {}) 
     try {
       verifyIdentity(identity);
     } catch (error) {
-      if (error.code === 'ENOENT') return;
+      if (errorCode(error) === 'ENOENT') return;
       throw error;
     }
     // No internal retry: each new attempt must revalidate the entire binding.
@@ -68,13 +83,14 @@ export function createOwnedTempDirectory(prefix, { parent = os.tmpdir() } = {}) 
           remove();
           return;
         } catch (cause) {
-          if (retryable.has(cause.code) && attempt < 3) {
+          if (retryable.has(errorCode(cause)) && attempt < 3) {
             await delay(100 * (attempt + 1));
             continue;
           }
-          const error = new Error(`Temporary directory cleanup failed; retained path "${directory}": ${cause.message}`, { cause });
-          error.code = 'SCHEMATICS_TEMP_CLEANUP';
-          error.directory = directory;
+          const error = Object.assign(
+            new Error(`Temporary directory cleanup failed; retained path "${directory}": ${errorMessage(cause)}`, { cause }),
+            { code: 'SCHEMATICS_TEMP_CLEANUP', directory },
+          );
           throw error;
         }
       }

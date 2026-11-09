@@ -3,12 +3,12 @@ import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { canonicalFuturePath, pathsAlias, resolveNativeOutputDirectory, resolveOutputPath } from '../packages/output/output-path.mjs';
-import { boundedSidecarStem } from '../packages/output/sidecar-path.mjs';
+import { canonicalFuturePath, pathsAlias, resolveNativeOutputDirectory, resolveOutputPath } from '../packages/output/output-path.ts';
+import { boundedSidecarStem } from '../packages/output/sidecar-path.ts';
 import {
   captureAtomicOutput, captureRegularFileBinding, publishRegularFileBinding,
   releaseRegularFileBinding, removeOwnedRegularFile, verifyAtomicOutput,
-} from '../packages/output/atomic-output.mjs';
+} from '../packages/output/atomic-output.ts';
 import {
   browserCheckSidecarPaths,
   CAPTURE_VIEWPORTS,

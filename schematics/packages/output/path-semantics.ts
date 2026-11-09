@@ -3,14 +3,97 @@ import path from 'node:path';
 
 const MAX_SYMLINK_DEPTH = 64;
 const RECENT_PROBE_NAME_LIMIT = 128;
-const recentProbeNames = new Set();
+const recentProbeNames = new Set<string>();
 const WINDOWS_SMB_SHARE_FORBIDDEN = /[\u0000-\u001F"\/\\[\]:|<>+=;,?*]/u;
 
-export function isWindowsIpcShare(share) {
+export type SemanticStatus = 'match' | 'different' | 'unknown';
+
+export interface SemanticReason {
+  code: string;
+  method?: string;
+  operation?: string;
+  systemCode?: string;
+  recoveryPath?: string;
+  restoredAtTarget?: boolean;
+  [detail: string]: unknown;
+}
+
+export interface SemanticResult<S extends SemanticStatus = SemanticStatus> {
+  status: S;
+  reason: SemanticReason;
+}
+
+export type UnknownResult = SemanticResult<'unknown'>;
+
+export type PhysicalLocation =
+  | { kind: 'existing'; path: string }
+  | { kind: 'future'; ancestorPath: string; unresolved: string[] };
+
+export interface ResolvedPhysicalLocation {
+  status: 'resolved';
+  location: PhysicalLocation;
+  reason: SemanticReason;
+}
+
+export interface SidecarNamespaceKey {
+  status: 'resolved';
+  directoryPath: string;
+  componentKey: string;
+  reason: SemanticReason;
+}
+
+type ReasonDetails = Record<string, unknown>;
+
+export function readField(value: unknown, key: string): unknown {
+  return typeof value === 'object' && value !== null ? Reflect.get(value, key) : undefined;
+}
+
+export function errorCode(error: unknown): unknown {
+  return readField(error, 'code');
+}
+
+export function errorMessage(error: unknown): unknown {
+  return readField(error, 'message');
+}
+
+interface Failure {
+  ok: false;
+  failure: UnknownResult;
+}
+
+interface KnownEntry {
+  realPath: string;
+  stat: fs.BigIntStats;
+}
+
+interface IdentityEntry {
+  realPath: string;
+  stat: fs.BigIntStats | undefined;
+}
+
+interface PathPlan {
+  root: string;
+  segments: string[];
+}
+
+interface SplitOptions {
+  internalRelativeLinkTarget?: boolean;
+}
+
+type AbsolutePathResult = Failure | { ok: true; path: string };
+type SplitTailResult = Failure | { ok: true; segments: string[] };
+type SplitResult = Failure | ({ ok: true } & PathPlan);
+type ExistingResolution = { ok: true; existing: true; entry: KnownEntry; unresolved: string[] };
+type FutureResolution = { ok: true; existing: false; ancestor: KnownEntry; unresolved: string[] };
+type Resolution = Failure | ExistingResolution | FutureResolution;
+type ComponentResult = Failure | { ok: true; component: string };
+type ParentResult = Failure | { ok: true; entry: KnownEntry };
+
+export function isWindowsIpcShare(share: string): boolean {
   return /^(?:IPC\$|pipe|mailslot)$/iu.test(share);
 }
 
-export function isValidWindowsSmbShareName(share) {
+export function isValidWindowsSmbShareName(share: unknown): boolean {
   return typeof share === 'string'
     && share.length > 0
     && share.length <= 80
@@ -18,7 +101,7 @@ export function isValidWindowsSmbShareName(share) {
     && !/[ .]$/u.test(share);
 }
 
-function result(status, code, details = {}) {
+function result<S extends SemanticStatus>(status: S, code: string, details: ReasonDetails = {}): SemanticResult<S> {
   return {
     status,
     reason: {
@@ -28,26 +111,29 @@ function result(status, code, details = {}) {
   };
 }
 
-function unknown(code, details = {}) {
+function unknown(code: string, details: ReasonDetails = {}): UnknownResult {
   return result('unknown', code, details);
 }
 
-function systemFailure(code, error, details = {}) {
+function systemFailure(code: string, error: unknown, details: ReasonDetails = {}): UnknownResult {
+  const systemCode = readField(error, 'code');
+  const recoveryPath = readField(error, 'recoveryPath');
+  const restoredAtTarget = readField(error, 'restoredAtTarget');
   return unknown(code, {
     ...details,
-    ...(typeof error?.code === 'string' ? { systemCode: error.code } : {}),
-    ...(typeof error?.recoveryPath === 'string' ? { recoveryPath: error.recoveryPath } : {}),
-    ...(typeof error?.restoredAtTarget === 'boolean'
-      ? { restoredAtTarget: error.restoredAtTarget }
+    ...(typeof systemCode === 'string' ? { systemCode } : {}),
+    ...(typeof recoveryPath === 'string' ? { recoveryPath } : {}),
+    ...(typeof restoredAtTarget === 'boolean'
+      ? { restoredAtTarget }
       : {}),
   });
 }
 
-function hostPath() {
+function hostPath(): typeof path.posix {
   return process.platform === 'win32' ? path.win32 : path.posix;
 }
 
-function absolutePath(input, side, basePath = process.cwd()) {
+function absolutePath(input: unknown, side: string, basePath = process.cwd()): AbsolutePathResult {
   if (typeof input !== 'string' || input.length === 0) {
     return {
       ok: false,
@@ -74,14 +160,18 @@ function absolutePath(input, side, basePath = process.cwd()) {
   }
 }
 
-function rootFailure(code, side) {
+function rootFailure(code: string, side: string): Failure {
   return {
     ok: false,
     failure: unknown(code, { side }),
   };
 }
 
-function splitWindowsExtendedTail(tail, side, { internalRelativeLinkTarget = false } = {}) {
+function splitWindowsExtendedTail(
+  tail: string,
+  side: string,
+  { internalRelativeLinkTarget = false }: SplitOptions = {},
+): SplitTailResult {
   const authoredSegments = tail.split('\\');
   // A single final separator is harmless, while an internal empty segment
   // would require normalizing a raw extended path before it reaches Windows.
@@ -97,7 +187,11 @@ function splitWindowsExtendedTail(tail, side, { internalRelativeLinkTarget = fal
   return { ok: true, segments };
 }
 
-function splitWindowsAbsolute(absolute, side, { internalRelativeLinkTarget = false } = {}) {
+function splitWindowsAbsolute(
+  absolute: string,
+  side: string,
+  { internalRelativeLinkTarget = false }: SplitOptions = {},
+): SplitResult {
   if (/^[\\/]{2}\.[\\/]/u.test(absolute)) {
     return rootFailure('windows-namespace-unsupported', side);
   }
@@ -184,7 +278,7 @@ function splitWindowsAbsolute(absolute, side, { internalRelativeLinkTarget = fal
   return rootFailure('windows-root-invalid', side);
 }
 
-function splitAbsolute(absolute, side, options) {
+function splitAbsolute(absolute: string, side: string, options?: SplitOptions): SplitResult {
   if (process.platform === 'win32') return splitWindowsAbsolute(absolute, side, options);
   const root = path.posix.parse(absolute).root;
   return {
@@ -194,11 +288,11 @@ function splitAbsolute(absolute, side, options) {
   };
 }
 
-function statBigInt(targetPath) {
+function statBigInt(targetPath: string): fs.BigIntStats {
   return fs.statSync(targetPath, { bigint: true });
 }
 
-function ordinaryWindowsRoot(extendedRoot) {
+function ordinaryWindowsRoot(extendedRoot: string): string | null {
   const drive = extendedRoot.match(/^\\\\\?\\([A-Za-z]:\\)$/u);
   if (drive) return drive[1];
 
@@ -206,13 +300,13 @@ function ordinaryWindowsRoot(extendedRoot) {
   return unc ? `\\\\${unc[1]}\\${unc[2]}\\` : null;
 }
 
-function hasStableIdentity(stat) {
+function hasStableIdentity(stat: fs.BigIntStats | undefined): stat is fs.BigIntStats {
   return typeof stat?.dev === 'bigint'
     && typeof stat?.ino === 'bigint'
     && stat.ino !== 0n;
 }
 
-function compareKnownEntries(left, right, operation) {
+function compareKnownEntries(left: IdentityEntry, right: IdentityEntry, operation: string): SemanticResult {
   if (hasStableIdentity(left.stat) && hasStableIdentity(right.stat)) {
     const matches = left.stat.dev === right.stat.dev && left.stat.ino === right.stat.ino;
     return result(matches ? 'match' : 'different', matches ? 'file-identity-match' : 'file-identity-different', {
@@ -235,28 +329,39 @@ function compareKnownEntries(left, right, operation) {
   });
 }
 
-function rememberProbeName(name) {
+function rememberProbeName(name: string): void {
   recentProbeNames.add(name);
   if (recentProbeNames.size > RECENT_PROBE_NAME_LIMIT) {
-    recentProbeNames.delete(recentProbeNames.values().next().value);
+    const oldest = recentProbeNames.values().next().value;
+    if (oldest !== undefined) recentProbeNames.delete(oldest);
   }
 }
 
-function probeInterference(message, code = 'SCHEMATICS_PROBE_IDENTITY_CHANGED', details = {}) {
-  const error = new Error(message);
-  error.code = code;
+function probeInterference(
+  message: string,
+  code = 'SCHEMATICS_PROBE_IDENTITY_CHANGED',
+  details: ReasonDetails = {},
+): Error {
+  const error = Object.assign(new Error(message), { code });
   Object.assign(error, details);
   return error;
 }
 
-function sameStableIdentity(left, right) {
+function withRecovery(error: unknown, recoveryPath: string): unknown {
+  if (typeof error === 'object' && error !== null) {
+    Object.assign(error, { recoveryPath, restoredAtTarget: false });
+  }
+  return error;
+}
+
+function sameStableIdentity(left: fs.BigIntStats | undefined, right: fs.BigIntStats | undefined): boolean {
   return hasStableIdentity(left)
     && hasStableIdentity(right)
     && left.dev === right.dev
     && left.ino === right.ino;
 }
 
-function preserveQuarantinedReplacement(quarantinePath, targetPath) {
+function preserveQuarantinedReplacement(quarantinePath: string, targetPath: string): { restoredAtTarget: boolean } {
   try {
     fs.linkSync(quarantinePath, targetPath);
     return { restoredAtTarget: true };
@@ -267,12 +372,12 @@ function preserveQuarantinedReplacement(quarantinePath, targetPath) {
   }
 }
 
-function removeOwnedProbe(targetPath, expectedStat) {
+function removeOwnedProbe(targetPath: string, expectedStat: fs.BigIntStats): unknown {
   let currentStat;
   try {
     currentStat = fs.lstatSync(targetPath, { bigint: true });
   } catch (error) {
-    if (error?.code === 'ENOENT') {
+    if (errorCode(error) === 'ENOENT') {
       return probeInterference('filesystem probe disappeared before cleanup', 'SCHEMATICS_PROBE_MISSING');
     }
     return error;
@@ -296,9 +401,7 @@ function removeOwnedProbe(targetPath, expectedStat) {
   try {
     quarantineStat = fs.lstatSync(quarantinePath, { bigint: true });
   } catch (error) {
-    error.recoveryPath = quarantinePath;
-    error.restoredAtTarget = false;
-    return error;
+    return withRecovery(error, quarantinePath);
   }
   if (!sameStableIdentity(expectedStat, quarantineStat)) {
     const recovery = preserveQuarantinedReplacement(quarantinePath, targetPath);
@@ -316,13 +419,11 @@ function removeOwnedProbe(targetPath, expectedStat) {
     fs.unlinkSync(quarantinePath);
     return null;
   } catch (error) {
-    error.recoveryPath = quarantinePath;
-    error.restoredAtTarget = false;
-    return error;
+    return withRecovery(error, quarantinePath);
   }
 }
 
-function resolvePlan({ root, segments }, side, depth) {
+function resolvePlan({ root, segments }: PathPlan, side: string, depth: number): Resolution {
   if (depth > MAX_SYMLINK_DEPTH) {
     return {
       ok: false,
@@ -330,8 +431,8 @@ function resolvePlan({ root, segments }, side, depth) {
     };
   }
 
-  let current;
-  let currentStat;
+  let current: string;
+  let currentStat: fs.BigIntStats;
   try {
     current = fs.realpathSync.native(root);
   } catch (error) {
@@ -340,7 +441,7 @@ function resolvePlan({ root, segments }, side, depth) {
     // validated by splitWindowsAbsolute, so retain its exact spelling for
     // traversal.
     if (process.platform === 'win32'
-      && error?.code === 'EISDIR'
+      && errorCode(error) === 'EISDIR'
       && ordinaryWindowsRoot(root)) {
       current = root;
     } else {
@@ -358,7 +459,7 @@ function resolvePlan({ root, segments }, side, depth) {
     // A drive or share root is short enough for its ordinary spelling, while
     // `current` remains namespaced so descendants keep long-path semantics.
     const ordinaryRoot = process.platform === 'win32'
-      && error?.code === 'EISDIR'
+      && errorCode(error) === 'EISDIR'
       ? ordinaryWindowsRoot(root)
       : null;
     if (ordinaryRoot && ordinaryRoot !== current) {
@@ -405,7 +506,7 @@ function resolvePlan({ root, segments }, side, depth) {
     try {
       candidateStat = fs.lstatSync(candidate, { bigint: true });
     } catch (error) {
-      if (error?.code === 'ENOENT') {
+      if (errorCode(error) === 'ENOENT') {
         if (!currentStat.isDirectory()) {
           return {
             ok: false,
@@ -432,7 +533,7 @@ function resolvePlan({ root, segments }, side, depth) {
           unresolved,
         };
       }
-      if (error?.code === 'ENOTDIR') {
+      if (errorCode(error) === 'ENOTDIR') {
         return {
           ok: false,
           failure: systemFailure('ancestor-not-directory', error, { side, segmentIndex: index }),
@@ -445,7 +546,7 @@ function resolvePlan({ root, segments }, side, depth) {
     }
 
     if (candidateStat.isSymbolicLink()) {
-      let linkPlan;
+      let linkPlan: PathPlan;
       try {
         const authoredTarget = fs.readlinkSync(candidate);
         const pathApi = hostPath();
@@ -497,7 +598,7 @@ function resolvePlan({ root, segments }, side, depth) {
   };
 }
 
-function resolveLocation(input, side) {
+function resolveLocation(input: unknown, side: string): Resolution {
   const parsed = absolutePath(input, side);
   if (!parsed.ok) return parsed;
   const plan = splitAbsolute(parsed.path, side);
@@ -505,11 +606,12 @@ function resolveLocation(input, side) {
   return resolvePlan(plan, side, 0);
 }
 
-function semanticNameEnvelope(name) {
+function semanticNameEnvelope(name: string): Set<string> | null {
   const names = new Set([name]);
   const pending = [name];
   while (pending.length > 0 && names.size <= 64) {
     const current = pending.shift();
+    if (current === undefined) break;
     const candidates = [
       current.normalize('NFC'),
       current.normalize('NFD'),
@@ -525,7 +627,7 @@ function semanticNameEnvelope(name) {
   return names.size <= 64 ? names : null;
 }
 
-function semanticEnvelopesOverlap(leftName, rightName) {
+function semanticEnvelopesOverlap(leftName: string, rightName: string): boolean {
   const left = semanticNameEnvelope(leftName);
   const right = semanticNameEnvelope(rightName);
   if (!left || !right) return true;
@@ -535,12 +637,12 @@ function semanticEnvelopesOverlap(leftName, rightName) {
   return false;
 }
 
-function windowsDeviceName(name) {
+function windowsDeviceName(name: string): boolean {
   const stem = name.split('.')[0].replace(/[ .]+$/u, '').toUpperCase();
   return /^(?:CON|PRN|AUX|NUL|CONIN\$|CONOUT\$|COM[1-9¹²³]|LPT[1-9¹²³])$/u.test(stem);
 }
 
-function futureWindowsNameRisk(leftName, rightName) {
+function futureWindowsNameRisk(leftName: string, rightName: string): UnknownResult | null {
   if (process.platform !== 'win32') return null;
   const windowsShortName = /~[1-9][0-9]*(?:\.|$)/iu;
   if (windowsShortName.test(leftName) || windowsShortName.test(rightName)) {
@@ -559,7 +661,7 @@ function futureWindowsNameRisk(leftName, rightName) {
  * Resolve one existing or future path through the host filesystem without
  * exposing a string key for identity comparisons.
  */
-export function resolvePhysicalLocation(targetPath) {
+export function resolvePhysicalLocation(targetPath: unknown): UnknownResult | ResolvedPhysicalLocation {
   const resolution = resolveLocation(targetPath, 'target');
   if (!resolution.ok) return resolution.failure;
   if (resolution.existing) {
@@ -589,7 +691,12 @@ export function resolvePhysicalLocation(targetPath) {
   };
 }
 
-function probeNameAlias(directoryPath, leftName, rightName) {
+function settledComparison(comparison: SemanticResult | undefined): SemanticResult {
+  if (!comparison) throw new Error('filesystem probe finished without a comparison');
+  return comparison;
+}
+
+function probeNameAlias(directoryPath: string, leftName: string, rightName: string): SemanticResult {
   if (leftName === rightName) {
     return result('match', 'future-name-exact', { method: 'lexical-exact' });
   }
@@ -605,7 +712,7 @@ function probeNameAlias(directoryPath, leftName, rightName) {
   const prefix = `.schematics-path-semantics-${process.pid}-${Buffer.from(crypto.getRandomValues(new Uint8Array(10))).toString('hex')}-`;
   const probeName = `${prefix}${leftName}`;
   const lookupName = `${prefix}${rightName}`;
-  const componentLength = (name) => process.platform === 'win32'
+  const componentLength = (name: string) => process.platform === 'win32'
     ? name.length
     : Buffer.byteLength(name, 'utf8');
   if (componentLength(probeName) > 255 || componentLength(lookupName) > 255) {
@@ -615,11 +722,11 @@ function probeNameAlias(directoryPath, leftName, rightName) {
     });
   }
 
-  let probePath;
-  let probeStat;
-  let descriptor;
-  let comparison;
-  let cleanupError;
+  let probePath: string | undefined;
+  let probeStat: fs.BigIntStats | undefined;
+  let descriptor: number | undefined;
+  let comparison: SemanticResult | undefined;
+  let cleanupError: unknown;
   try {
     // Probe entries must live directly in the directory being queried. On
     // Windows case sensitivity is per-directory and a child may not inherit it.
@@ -630,13 +737,13 @@ function probeNameAlias(directoryPath, leftName, rightName) {
     descriptor = fs.openSync(probePath, 'wx', 0o600);
     probeStat = fs.fstatSync(descriptor, { bigint: true });
 
-    let authoredStat;
-    let lookupStat;
+    let authoredStat: fs.BigIntStats | undefined;
+    let lookupStat: fs.BigIntStats | undefined;
     try {
       authoredStat = statBigInt(probePath);
       lookupStat = statBigInt(lookupPath);
     } catch (error) {
-      if (error?.code === 'ENOENT') {
+      if (errorCode(error) === 'ENOENT') {
         comparison = result('different', 'future-name-different', { method: 'filesystem-probe' });
       } else {
         comparison = systemFailure('future-name-probe-failed', error, { method: 'filesystem-probe' });
@@ -662,7 +769,7 @@ function probeNameAlias(directoryPath, leftName, rightName) {
   } finally {
     // Pin the inode until cleanup finishes. Once the final handle is closed,
     // an unlinked probe's inode can be reused by a replacement at the same name.
-    if (probeStat) cleanupError = removeOwnedProbe(probePath, probeStat);
+    if (probeStat && probePath !== undefined) cleanupError = removeOwnedProbe(probePath, probeStat);
     if (descriptor !== undefined) {
       try {
         fs.closeSync(descriptor);
@@ -678,16 +785,21 @@ function probeNameAlias(directoryPath, leftName, rightName) {
       ...(comparison ? { comparison: comparison.reason } : {}),
     });
   }
-  return comparison;
+  return settledComparison(comparison);
 }
 
-function sidecarCaseKey(component) {
+function sidecarCaseKey(component: string): string {
   // The candidate is accepted only after the containing filesystem confirms
   // that the original grapheme and this spelling name the same entry.
   return component.toLocaleUpperCase('en-US').toLocaleLowerCase('en-US');
 }
 
-function transformSidecarComponent(directoryPath, component, transform, phase) {
+function transformSidecarComponent(
+  directoryPath: string,
+  component: string,
+  transform: (segment: string) => string,
+  phase: string,
+): ComponentResult {
   if (typeof Intl.Segmenter !== 'function') {
     return {
       ok: false,
@@ -697,8 +809,8 @@ function transformSidecarComponent(directoryPath, component, transform, phase) {
     };
   }
   const segmenter = new Intl.Segmenter('en-US', { granularity: 'grapheme' });
-  const comparisons = new Map();
-  const output = [];
+  const comparisons = new Map<string, SemanticResult>();
+  const output: string[] = [];
   for (const { segment } of segmenter.segment(component)) {
     const candidate = transform(segment);
     if (candidate === segment) {
@@ -733,7 +845,10 @@ function transformSidecarComponent(directoryPath, component, transform, phase) {
  * directory. The returned string is a collision-domain key, not a canonical
  * path and must never be used to decide whether two filesystem entries match.
  */
-export function sidecarNamespaceComponentKey(directoryPath, component) {
+export function sidecarNamespaceComponentKey(
+  directoryPath: unknown,
+  component: unknown,
+): UnknownResult | SidecarNamespaceKey {
   if (typeof component !== 'string' || component.length === 0
     || component === '.' || component === '..'
     || hostPath().basename(component) !== component) {
@@ -788,7 +903,7 @@ export function sidecarNamespaceComponentKey(directoryPath, component) {
   };
 }
 
-function compareUnmaterializedNames(leftName, rightName) {
+function compareUnmaterializedNames(leftName: string, rightName: string): SemanticResult {
   if (leftName === rightName) {
     return result('match', 'future-name-exact', { method: 'lexical-exact' });
   }
@@ -802,7 +917,7 @@ function compareUnmaterializedNames(leftName, rightName) {
   });
 }
 
-function compareFutureLocations(left, right) {
+function compareFutureLocations(left: FutureResolution, right: FutureResolution): SemanticResult {
   const ancestor = compareKnownEntries(left.ancestor, right.ancestor, 'future-ancestor');
   if (ancestor.status !== 'match') return ancestor;
 
@@ -845,7 +960,7 @@ function compareFutureLocations(left, right) {
  * Compare two existing filesystem entries by physical identity.
  * Missing or unidentifiable entries return `unknown`, never `different`.
  */
-export function sameEntry(leftPath, rightPath) {
+export function sameEntry(leftPath: unknown, rightPath: unknown): SemanticResult {
   const left = resolveLocation(leftPath, 'left');
   if (!left.ok) return left.failure;
   const right = resolveLocation(rightPath, 'right');
@@ -868,7 +983,7 @@ export function sameEntry(leftPath, rightPath) {
  * Compare two existing or future write targets using the containing filesystem's
  * actual name semantics. Existing hard links and resolved symbolic links match.
  */
-export function sameLocation(leftPath, rightPath) {
+export function sameLocation(leftPath: unknown, rightPath: unknown): SemanticResult {
   const left = resolveLocation(leftPath, 'left');
   if (!left.ok) return left.failure;
   const right = resolveLocation(rightPath, 'right');
@@ -877,7 +992,7 @@ export function sameLocation(leftPath, rightPath) {
   if (left.existing && right.existing) {
     return compareKnownEntries(left.entry, right.entry, 'same-location');
   }
-  if (left.existing !== right.existing) {
+  if (left.existing || right.existing) {
     return result('different', 'location-existence-different', {
       operation: 'same-location',
       existing: left.existing ? 'left' : 'right',
@@ -887,7 +1002,7 @@ export function sameLocation(leftPath, rightPath) {
 }
 
 /** Compare the physical locations of the two paths' parent directories. */
-export function sameParent(leftPath, rightPath) {
+export function sameParent(leftPath: unknown, rightPath: unknown): SemanticResult {
   const left = absolutePath(leftPath, 'left');
   if (!left.ok) return left.failure;
   const right = absolutePath(rightPath, 'right');
@@ -896,7 +1011,7 @@ export function sameParent(leftPath, rightPath) {
   return sameLocation(hostPath().dirname(left.path), hostPath().dirname(right.path));
 }
 
-function parentEntry(entry) {
+function parentEntry(entry: KnownEntry): ParentResult | null {
   const parentPath = hostPath().dirname(entry.realPath);
   // path-contract-allow: lexical-capability -- Both values are canonical paths captured by this primitive.
   if (parentPath === entry.realPath) return null;
@@ -923,7 +1038,7 @@ function parentEntry(entry) {
  * Determine physical containment in an existing directory. The comparison is
  * inclusive and follows links; the target may exist or name a future location.
  */
-export function containedBy(directoryPath, targetPath) {
+export function containedBy(directoryPath: unknown, targetPath: unknown): SemanticResult {
   const directory = resolveLocation(directoryPath, 'directory');
   if (!directory.ok) return directory.failure;
   if (directory.existing && !directory.entry.stat.isDirectory()) {
@@ -970,7 +1085,7 @@ export function containedBy(directoryPath, targetPath) {
     });
   }
 
-  let current;
+  let current: KnownEntry | undefined;
   if (!target.existing) {
     current = target.ancestor;
   } else if (target.entry.stat.isDirectory()) {

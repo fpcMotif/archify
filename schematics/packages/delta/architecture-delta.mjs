@@ -1,4 +1,4 @@
-import { softwareNoticesHtml } from '../output/software-notices.mjs';
+import { softwareNoticesHtml } from '../output/software-notices.ts';
 import { visualPreset } from '../svg/cli.mjs';
 import { parseRepositoryRemote } from '../repository/repository-location.mjs';
 

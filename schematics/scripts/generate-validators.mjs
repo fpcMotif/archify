@@ -48,7 +48,7 @@ function typeValidatorSource(type) {
   const match = validatorCode.match(exportPattern);
   if (!match) throw new Error(`AJV standalone output no longer exports the ${type} validator as expected`);
   validatorCode = validatorCode.replace(exportPattern, `const schemaValidate = ${match[1]};`);
-  return `${banner}import { validatePortablePath } from '../../output/portable-path.mjs';
+  return `${banner}import { validatePortablePath } from '../../output/portable-path.ts';
 ${validatorCode}
 export function validate(data, context = undefined) {
   if (!schemaValidate(data, context)) {

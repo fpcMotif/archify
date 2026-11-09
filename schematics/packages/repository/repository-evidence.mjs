@@ -2,7 +2,7 @@ import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { throwDiagnosticError, withDiagnosticRecordingSuppressed } from '../diagnostics/diagnostics.ts';
-import { sameEntry } from '../output/path-semantics.mjs';
+import { sameEntry } from '../output/path-semantics.ts';
 import { parseRepositoryRemote, redactRepositoryRemote, repositorySourceHref, repositoryTreeHref } from './repository-location.mjs';
 
 const FULL_SHA_RE = /^[a-f0-9]{40}$/i;

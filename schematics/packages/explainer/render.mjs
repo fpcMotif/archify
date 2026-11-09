@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { softwareNoticesHtml } from '../output/software-notices.mjs';
+import { softwareNoticesHtml } from '../output/software-notices.ts';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { renderInline } from './inline.mjs';

@@ -23,7 +23,7 @@ import {
   sidecarPaths,
   summarizeBrowserEvidence,
 } from '../schematics/bin/visual-check.mjs';
-import { sameLocation } from '../schematics/packages/output/path-semantics.mjs';
+import { sameLocation } from '../schematics/packages/output/path-semantics.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');

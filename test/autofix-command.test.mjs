@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { createOwnedTempDirectory } from '../schematics/packages/output/owned-temp-directory.mjs';
+import { createOwnedTempDirectory } from '../schematics/packages/output/owned-temp-directory.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const schematicsBin = path.resolve(__dirname, '../schematics/bin/schematics.mjs');

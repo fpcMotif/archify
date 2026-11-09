@@ -1,8 +1,8 @@
-import { softwareNoticesHtml } from '../packages/output/software-notices.mjs';
+import { softwareNoticesHtml } from '../packages/output/software-notices.ts';
 import { spawn } from 'node:child_process';
 import { isExplainerHtml } from '../packages/explainer/check.mjs';
 import { EXPLAINER_VIEWPORTS, inspectExplainerBrowser, explainerObservation, explainerObservationDiagnostics } from '../packages/explainer/browser-check.mjs';
-import { createOwnedTempDirectory } from '../packages/output/owned-temp-directory.mjs';
+import { createOwnedTempDirectory } from '../packages/output/owned-temp-directory.ts';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -22,17 +22,17 @@ import {
   removeEmptyDirectoryWithRetry,
   verifyAtomicOutput,
   verifyRegularFileBinding,
-} from '../packages/output/atomic-output.mjs';
+} from '../packages/output/atomic-output.ts';
 import {
   sameEntry,
   sameLocation,
   sameParent,
   sidecarNamespaceComponentKey,
-} from '../packages/output/path-semantics.mjs';
+} from '../packages/output/path-semantics.ts';
 import {
   boundedSidecarStem,
   sidecarStemFromComponent,
-} from '../packages/output/sidecar-path.mjs';
+} from '../packages/output/sidecar-path.ts';
 
 export const VISUAL_CHECK_VIEWPORTS = Object.freeze([
   DESKTOP_READABILITY_VIEWPORT,

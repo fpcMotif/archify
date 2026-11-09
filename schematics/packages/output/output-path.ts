@@ -5,10 +5,47 @@ import {
   isWindowsIpcShare,
   resolvePhysicalLocation,
   sameLocation,
-} from './path-semantics.mjs';
-import { PortablePathError, validatePortablePath } from './portable-path.mjs';
+} from './path-semantics.ts';
+import { PortablePathError, validatePortablePath } from './portable-path.ts';
+import { type Diagnostic } from '../diagnostics/diagnostics.ts';
 
-export function canonicalFuturePath(targetPath) {
+export interface OutputDiagnosticInput {
+  code: string;
+  message: string;
+  subject?: Record<string, unknown>;
+  evidence?: Record<string, unknown>;
+  supportedFixes?: string[];
+}
+
+export type NativeOutputPathKind = 'file' | 'directory';
+
+export interface NativeOutputPathOptions {
+  platform?: NodeJS.Platform;
+  kind?: NativeOutputPathKind;
+}
+
+export type OutputSource = 'cli' | 'meta' | 'default';
+
+export interface ResolveOutputPathOptions {
+  requestedOutput?: string;
+  authoredOutput?: unknown;
+  defaultOutput?: string;
+  inputPaths?: readonly string[];
+  inputDescription?: string;
+  otherOutputPaths?: readonly string[];
+  cwd?: string;
+  requiredExtension?: string;
+  platform?: NodeJS.Platform;
+}
+
+export interface ResolvedOutputPath {
+  outputPath: string;
+  source: OutputSource;
+}
+
+type DiagnosticDetails = Record<string, unknown>;
+
+export function canonicalFuturePath(targetPath: string): string {
   const resolution = resolvePhysicalLocation(targetPath);
   if (resolution.status === 'resolved') {
     if (resolution.location.kind === 'existing') return resolution.location.path;
@@ -36,7 +73,7 @@ export function canonicalFuturePath(targetPath) {
   });
 }
 
-export function pathsAlias(leftPath, rightPath) {
+export function pathsAlias(leftPath: string, rightPath: string): boolean {
   const relation = sameLocation(leftPath, rightPath);
   if (relation.status === 'match') return true;
   if (relation.status === 'different') return false;
@@ -60,7 +97,7 @@ export function pathsAlias(leftPath, rightPath) {
   });
 }
 
-function pathIsInside(directoryPath, targetPath) {
+function pathIsInside(directoryPath: string, targetPath: string): boolean {
   const relation = containedBy(directoryPath, targetPath);
   if (relation.status === 'match') return true;
   if (relation.status === 'different') return false;
@@ -73,7 +110,7 @@ function pathIsInside(directoryPath, targetPath) {
   });
 }
 
-function authoredOutputDiagnostic(error, rawOutput) {
+function authoredOutputDiagnostic(error: PortablePathError, rawOutput: unknown): OutputDiagnosticInput {
   const absolute = error?.reason === 'absolute';
   const code = absolute ? 'output/meta-absolute' : 'output/meta-path-syntax';
   const message = absolute
@@ -95,7 +132,11 @@ function authoredOutputDiagnostic(error, rawOutput) {
   };
 }
 
-function nativeOutputDiagnostic(rawOutput, reason, details = {}) {
+function nativeOutputDiagnostic(
+  rawOutput: unknown,
+  reason: string | undefined,
+  details: DiagnosticDetails = {},
+): OutputDiagnosticInput {
   return {
     code: 'output/native-path-syntax',
     message: 'The output path is not a valid native filesystem path on this host.',
@@ -105,12 +146,16 @@ function nativeOutputDiagnostic(rawOutput, reason, details = {}) {
   };
 }
 
-function throwNativeOutputDiagnostic(rawOutput, reason, details = {}) {
+function throwNativeOutputDiagnostic(
+  rawOutput: unknown,
+  reason: string | undefined,
+  details: DiagnosticDetails = {},
+): never {
   const diagnostic = nativeOutputDiagnostic(rawOutput, reason, details);
   throw new OutputPathError(diagnostic.message, diagnostic);
 }
 
-function windowsExtendedTailComponents(rawOutput, tail) {
+function windowsExtendedTailComponents(rawOutput: string, tail: string): string[] {
   const authoredComponents = tail.split('\\');
   // Preserve one trailing separator for directory arguments, but never repair
   // an empty component inside the raw extended namespace.
@@ -120,18 +165,18 @@ function windowsExtendedTailComponents(rawOutput, tail) {
   return authoredComponents.filter(Boolean);
 }
 
-function rejectWindowsIpcShare(rawOutput, share) {
+function rejectWindowsIpcShare(rawOutput: string, share: string): void {
   if (isWindowsIpcShare(share)) {
     throwNativeOutputDiagnostic(rawOutput, 'windows-ipc-namespace', { share });
   }
 }
 
 function validateWindowsNativeComponent(
-  rawOutput,
-  component,
-  componentIndex,
-  { allowReservedName = false } = {},
-) {
+  rawOutput: string,
+  component: string,
+  componentIndex: number,
+  { allowReservedName = false }: { allowReservedName?: boolean } = {},
+): void {
   try {
     // Prefix the component so a colon is classified as an ADS separator,
     // rather than allowing the generic URI detector to claim it first.
@@ -153,7 +198,7 @@ function validateWindowsNativeComponent(
     }
     // Native Windows filesystems bound components in UTF-16 code units. The
     // stricter UTF-8 bound belongs to portable authored/archive names only.
-    if (error.reason === 'component-too-long' && error.utf16CodeUnits <= 255) return;
+    if (error.reason === 'component-too-long' && Number(error.utf16CodeUnits) <= 255) return;
     throwNativeOutputDiagnostic(rawOutput, error.reason, {
       component,
       componentIndex,
@@ -165,7 +210,7 @@ function validateWindowsNativeComponent(
   }
 }
 
-function validateWindowsUncRootComponents(rawOutput, server, share) {
+function validateWindowsUncRootComponents(rawOutput: string, server: string, share: string): void {
   rejectWindowsIpcShare(rawOutput, share);
   if (!isValidWindowsSmbShareName(share)) {
     throwNativeOutputDiagnostic(rawOutput, 'windows-unc-share-name', {
@@ -179,7 +224,7 @@ function validateWindowsUncRootComponents(rawOutput, server, share) {
   validateWindowsNativeComponent(rawOutput, server, 0, { allowReservedName: true });
 }
 
-function windowsExtendedPathComponents(rawOutput) {
+function windowsExtendedPathComponents(rawOutput: string): string[] {
   // The extended-length namespace deliberately bypasses Win32 normalization.
   // Inspect its original spelling so a dot segment cannot retarget a UNC share.
   if (rawOutput.includes('/')) {
@@ -208,7 +253,7 @@ function windowsExtendedPathComponents(rawOutput) {
   throwNativeOutputDiagnostic(rawOutput, 'windows-extended-root');
 }
 
-function validateWindowsRawUncRoot(rawOutput) {
+function validateWindowsRawUncRoot(rawOutput: string): void {
   if (!/^[\\/]{2}/u.test(rawOutput) || /^[\\/]{2}[.?][\\/]/u.test(rawOutput)) return;
   // Validate the raw server/share boundary before win32.normalize can collapse
   // an empty share or mix the two UNC separator spellings.
@@ -219,7 +264,7 @@ function validateWindowsRawUncRoot(rawOutput) {
   validateWindowsUncRootComponents(rawOutput, unc[2], unc[3]);
 }
 
-function windowsPathComponents(rawOutput, normalized) {
+function windowsPathComponents(rawOutput: string, normalized: string): string[] {
   const authoredUncPrefix = /^[\\/]{2}/u.test(rawOutput);
   if (/^\\\\\.\\/u.test(normalized)) {
     throwNativeOutputDiagnostic(rawOutput, 'windows-device-namespace');
@@ -254,9 +299,9 @@ function windowsPathComponents(rawOutput, normalized) {
  * operation has already started mutating the destination.
  */
 export function validateNativeOutputPath(
-  rawOutput,
-  { platform = process.platform, kind = 'file' } = {},
-) {
+  rawOutput: unknown,
+  { platform = process.platform, kind = 'file' }: NativeOutputPathOptions = {},
+): string {
   if (kind !== 'file' && kind !== 'directory') {
     throw new TypeError(`Unsupported native output path kind: ${JSON.stringify(kind)}`);
   }
@@ -274,8 +319,8 @@ export function validateNativeOutputPath(
     throwNativeOutputDiagnostic(rawOutput, 'trailing-separator', { kind });
   }
 
-  let normalized;
-  let components;
+  let normalized: string;
+  let components: string[];
   if (platform === 'win32') {
     if (/^[A-Za-z]:(?:$|[^\\/])/u.test(rawOutput)) {
       throwNativeOutputDiagnostic(rawOutput, 'drive-relative');
@@ -312,23 +357,24 @@ export function validateNativeOutputPath(
 
 /** Validate a CLI directory argument before native resolution can normalize away its raw syntax. */
 export function resolveNativeOutputDirectory(
-  rawDirectory,
-  { platform = process.platform, cwd = process.cwd() } = {},
-) {
-  validateNativeOutputPath(rawDirectory, { platform, kind: 'directory' });
+  rawDirectory: unknown,
+  { platform = process.platform, cwd = process.cwd() }: { platform?: NodeJS.Platform; cwd?: string } = {},
+): string {
+  const directory = validateNativeOutputPath(rawDirectory, { platform, kind: 'directory' });
   const pathApi = platform === 'win32' ? path.win32 : path.posix;
-  return pathApi.resolve(cwd, rawDirectory);
+  return pathApi.resolve(cwd, directory);
 }
 
-export function validateAuthoredOutputPath(rawOutput, { cwd = process.cwd() } = {}) {
+export function validateAuthoredOutputPath(rawOutput: unknown, { cwd = process.cwd() }: { cwd?: string } = {}): string {
+  let output: string;
   try {
-    validatePortablePath(rawOutput, { profile: 'output' });
+    output = validatePortablePath(rawOutput, { profile: 'output' });
   } catch (error) {
     if (!(error instanceof PortablePathError)) throw error;
     const diagnostic = authoredOutputDiagnostic(error, rawOutput);
     throw new OutputPathError(diagnostic.message, diagnostic);
   }
-  if (path.posix.extname(rawOutput).toLowerCase() !== '.html') {
+  if (path.posix.extname(output).toLowerCase() !== '.html') {
     throw new OutputPathError('meta.output must target an .html file.', {
       code: 'output/meta-extension',
       message: 'meta.output must target an .html file.',
@@ -336,7 +382,7 @@ export function validateAuthoredOutputPath(rawOutput, { cwd = process.cwd() } = 
       supportedFixes: ['change meta.output to a portable path ending in .html'],
     });
   }
-  const outputPath = path.resolve(cwd, rawOutput);
+  const outputPath = path.resolve(cwd, output);
   if (path.extname(canonicalFuturePath(outputPath)).toLowerCase() !== '.html') {
     throw new OutputPathError('meta.output must resolve to an .html file.', {
       code: 'output/meta-resolved-extension',
@@ -353,11 +399,13 @@ export function validateAuthoredOutputPath(rawOutput, { cwd = process.cwd() } = 
       supportedFixes: ['set meta.output to a relative .html path inside the current working directory'],
     });
   }
-  return rawOutput;
+  return output;
 }
 
 export class OutputPathError extends Error {
-  constructor(message, diagnostic) {
+  declare schematicsDiagnostics: Diagnostic[];
+
+  constructor(message: string, diagnostic: OutputDiagnosticInput) {
     super(message);
     this.name = 'OutputPathError';
     this.schematicsDiagnostics = [{
@@ -380,15 +428,16 @@ export function resolveOutputPath({
   cwd = process.cwd(),
   requiredExtension = '.html',
   platform = process.platform,
-}) {
-  if (authoredOutput !== undefined) validateAuthoredOutputPath(authoredOutput, { cwd });
-  const source = requestedOutput !== undefined
+}: ResolveOutputPathOptions): ResolvedOutputPath {
+  const metaOutput = authoredOutput !== undefined
+    ? validateAuthoredOutputPath(authoredOutput, { cwd })
+    : undefined;
+  const source: OutputSource = requestedOutput !== undefined
     ? 'cli'
-    : (authoredOutput !== undefined ? 'meta' : 'default');
-  const rawOutput = source === 'cli'
-    ? requestedOutput
-    : (source === 'meta' ? authoredOutput : defaultOutput);
-  if (source !== 'meta') validateNativeOutputPath(rawOutput, { platform, kind: 'file' });
+    : (metaOutput !== undefined ? 'meta' : 'default');
+  const rawOutput = source === 'meta' && metaOutput !== undefined
+    ? metaOutput
+    : validateNativeOutputPath(source === 'cli' ? requestedOutput : defaultOutput, { platform, kind: 'file' });
   const outputPath = path.resolve(cwd, rawOutput);
   for (const inputPath of inputPaths) {
     if (!pathsAlias(outputPath, inputPath)) continue;

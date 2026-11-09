@@ -8,7 +8,7 @@ import { validateSchema } from '../validation/validator.mjs';
 import { textUnits, SEMANTIC_SIGIL_FOOTPRINT } from '../svg/utils.ts';
 import { minimumNodeTextWidth } from '../svg/text-fit.ts';
 import { throwDiagnosticError } from '../diagnostics/diagnostics.ts';
-import { createOwnedTempDirectory } from '../output/owned-temp-directory.mjs';
+import { createOwnedTempDirectory } from '../output/owned-temp-directory.ts';
 import { checkDiagramArtifact } from '../artifact-check/check-diagram.mjs';
 
 const runFile = promisify(execFile);

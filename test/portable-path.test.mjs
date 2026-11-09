@@ -4,7 +4,7 @@ import {
   PortablePathError,
   validatePortablePath,
   validatePortablePathSet,
-} from '../schematics/packages/output/portable-path.mjs';
+} from '../schematics/packages/output/portable-path.ts';
 
 function assertPathError(run, { code, reason, profile, segment, index, conflictIndex } = {}) {
   assert.throws(run, (error) => {

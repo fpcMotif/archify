@@ -28,7 +28,7 @@ async function loadSidecarPathRuntime() {
     isBoundedSidecarStem,
     sidecarStemFromComponent,
     sidecarStemNeedsBounding,
-  } = await import('../packages/output/sidecar-path.mjs'));
+  } = await import('../packages/output/sidecar-path.ts'));
 }
 
 function deliverySidecarNamespace(artifactPath) {
@@ -3643,7 +3643,7 @@ async function commandCompare(args) {
     canonicalFuturePath,
     resolveOutputPath,
     validateAuthoredOutputPath,
-  } = await import('../packages/output/output-path.mjs');
+  } = await import('../packages/output/output-path.ts');
   const {
     captureAtomicOutput,
     verifyAtomicOutput,
@@ -3652,7 +3652,7 @@ async function commandCompare(args) {
     quarantineRemoveRegularFileBinding,
     verifyRegularFileBinding,
     releaseRegularFileBinding,
-  } = await import('../packages/output/atomic-output.mjs');
+  } = await import('../packages/output/atomic-output.ts');
   const fileBindingRuntime = {
     backupPublicRegularFileBinding,
     captureRegularFileBinding,
@@ -3663,7 +3663,7 @@ async function commandCompare(args) {
   const {
     sameParent,
     sidecarNamespaceComponentKey,
-  } = await import('../packages/output/path-semantics.mjs');
+  } = await import('../packages/output/path-semantics.ts');
   sidecarNamespaceComponentKeyRuntime = sidecarNamespaceComponentKey;
   const qualityArgs = extractQualityArgs(args);
   const repoArgs = extractRepoRootArgs(qualityArgs.rest);
@@ -4389,7 +4389,7 @@ async function commandDeliver(args) {
     pathsAlias,
     resolveOutputPath,
     validateAuthoredOutputPath,
-  } = await import('../packages/output/output-path.mjs');
+  } = await import('../packages/output/output-path.ts');
   const {
     captureAtomicOutput,
     verifyAtomicOutput,
@@ -4398,9 +4398,9 @@ async function commandDeliver(args) {
     quarantineRemoveRegularFileBinding,
     verifyRegularFileBinding,
     releaseRegularFileBinding,
-  } = await import('../packages/output/atomic-output.mjs');
+  } = await import('../packages/output/atomic-output.ts');
   ({ sidecarNamespaceComponentKey: sidecarNamespaceComponentKeyRuntime }
-    = await import('../packages/output/path-semantics.mjs'));
+    = await import('../packages/output/path-semantics.ts'));
   const fileBindingRuntime = {
     backupPublicRegularFileBinding,
     captureRegularFileBinding,
@@ -5236,9 +5236,9 @@ async function commandPatch(rawArgs) {
     const originalCheck=checked.receipt;
     const { preparePanelPatch } = await import('../packages/explainer/patch.mjs');
     const prepared = await preparePanelPatch({artifactPath:path.resolve(artifact),panelId,replacementPath:path.resolve(replacement),repoRoot:repoArgs.repoRoot,quality:qualityArgs.quality,writingMode:writingArgs.writingMode,expectedArtifact:originalCheck.artifact});
-    const { resolveOutputPath } = await import('../packages/output/output-path.mjs');
+    const { resolveOutputPath } = await import('../packages/output/output-path.ts');
     resolveOutputPath({requestedOutput:output,inputPaths:[path.resolve(replacement),prepared.sourcePath]});
-    const { createOwnedTempDirectory } = await import('../packages/output/owned-temp-directory.mjs');
+    const { createOwnedTempDirectory } = await import('../packages/output/owned-temp-directory.ts');
     const { writePreparedBundle } = await import('../packages/explainer/prepare.mjs');
     temporary=createOwnedTempDirectory('schematics-explainer-patch-');
     const input=path.join(temporary.path,'patched-draft.json');
@@ -5276,7 +5276,7 @@ async function commandPreview(args) {
 
   try {
     const source = JSON.parse(fs.readFileSync(path.resolve(input), 'utf8'));
-    const { validateAuthoredOutputPath } = await import('../packages/output/output-path.mjs');
+    const { validateAuthoredOutputPath } = await import('../packages/output/output-path.ts');
     validateAuthoredOutputPath(source?.meta?.output);
   } catch (error) {
     // Preserve live repair for unreadable or malformed JSON. A parsed document,
@@ -5311,13 +5311,13 @@ async function loadPathIdentityRuntime() {
     const {
       sameEntry,
       sidecarNamespaceComponentKey,
-    } = await import('../packages/output/path-semantics.mjs');
+    } = await import('../packages/output/path-semantics.ts');
     sidecarNamespaceComponentKeyRuntime = sidecarNamespaceComponentKey;
     const {
       captureRegularFileBinding,
       verifyRegularFileBinding,
       releaseRegularFileBinding,
-    } = await import('../packages/output/atomic-output.mjs');
+    } = await import('../packages/output/atomic-output.ts');
     return {
       sameEntry,
       captureRegularFileBinding,
@@ -5631,7 +5631,7 @@ async function commandBrowserEvidence(rawArgs, { command, capture }) {
   const artifactPath = path.resolve(positional[0]);
   let outDir;
   if (rawOutDir !== undefined) {
-    const { resolveNativeOutputDirectory } = await import('../packages/output/output-path.mjs');
+    const { resolveNativeOutputDirectory } = await import('../packages/output/output-path.ts');
     try {
       outDir = resolveNativeOutputDirectory(rawOutDir);
     } catch (error) {
@@ -5801,7 +5801,7 @@ async function finalizeAttempt(rawArgs) {
     let preparedBundlePath;
     if (type === 'explainer') {
       preparedExplainer = await prepareExplainerInput(fs.readFileSync(path.resolve(input)), path.resolve(input), { repoRoot: repoArgs.repoRoot, quality: qualityArgs.quality || 'showcase', writingMode: writingArgs.writingMode });
-      const { createOwnedTempDirectory } = await import('../packages/output/owned-temp-directory.mjs');
+      const { createOwnedTempDirectory } = await import('../packages/output/owned-temp-directory.ts');
       const { writePreparedBundle } = await import('../packages/explainer/prepare.mjs');
       explainerTemporary = createOwnedTempDirectory('schematics-explainer-finalize-');
       preparedBundlePath = writePreparedBundle(explainerTemporary.path, preparedExplainer);
@@ -6051,35 +6051,35 @@ async function commandDoctor(args) {
     missing: fs.existsSync(finalizeRuntime) ? 0 : 1,
   });
 
-  const outputPathRuntime = path.join(skillRoot, 'packages/output/output-path.mjs');
+  const outputPathRuntime = path.join(skillRoot, 'packages/output/output-path.ts');
   checks.push({
     label: 'Output path safety runtime',
     ok: fs.existsSync(outputPathRuntime),
     missing: fs.existsSync(outputPathRuntime) ? 0 : 1,
   });
 
-  const atomicOutputRuntime = path.join(skillRoot, 'packages/output/atomic-output.mjs');
+  const atomicOutputRuntime = path.join(skillRoot, 'packages/output/atomic-output.ts');
   checks.push({
     label: 'Atomic output safety runtime',
     ok: fs.existsSync(atomicOutputRuntime),
     missing: fs.existsSync(atomicOutputRuntime) ? 0 : 1,
   });
 
-  const pathSemanticsRuntime = path.join(skillRoot, 'packages/output/path-semantics.mjs');
+  const pathSemanticsRuntime = path.join(skillRoot, 'packages/output/path-semantics.ts');
   checks.push({
     label: 'Physical path semantics runtime',
     ok: fs.existsSync(pathSemanticsRuntime),
     missing: fs.existsSync(pathSemanticsRuntime) ? 0 : 1,
   });
 
-  const sidecarPathRuntime = path.join(skillRoot, 'packages/output/sidecar-path.mjs');
+  const sidecarPathRuntime = path.join(skillRoot, 'packages/output/sidecar-path.ts');
   checks.push({
     label: 'Sidecar path naming runtime',
     ok: fs.existsSync(sidecarPathRuntime),
     missing: fs.existsSync(sidecarPathRuntime) ? 0 : 1,
   });
 
-  const portablePathRuntime = path.join(skillRoot, 'packages/output/portable-path.mjs');
+  const portablePathRuntime = path.join(skillRoot, 'packages/output/portable-path.ts');
   checks.push({
     label: 'Portable path contract runtime',
     ok: fs.existsSync(portablePathRuntime),
@@ -6479,7 +6479,7 @@ async function commandMigrate(args) {
     });
     return;
   }
-  const { pathsAlias, validateAuthoredOutputPath } = await import('../packages/output/output-path.mjs');
+  const { pathsAlias, validateAuthoredOutputPath } = await import('../packages/output/output-path.ts');
   const {
     backupPublicRegularFileBinding,
     captureAtomicOutput,
@@ -6488,7 +6488,7 @@ async function commandMigrate(args) {
     releaseRegularFileBinding,
     verifyAtomicOutput,
     verifyRegularFileBinding,
-  } = await import('../packages/output/atomic-output.mjs');
+  } = await import('../packages/output/atomic-output.ts');
   // `--output` repairs only the durable output field in the migration
   // candidate. It never writes the source and deliberately leaves every
   // other schema and compiler failure visible to the normal migration path.
@@ -6980,7 +6980,7 @@ async function commandValidate(args, invocation = {}) {
     if (type === 'explainer') explainerBundle = await prepareExplainerInput(specification, inputPath, { repoRoot, quality, writingMode: writingArgs.writingMode });
     const document = explainerBundle?.document || JSON.parse(specification.toString('utf8'));
     const [{ validateAuthoredOutputPath }, { validateSchema }] = await Promise.all([
-      import('../packages/output/output-path.mjs'),
+      import('../packages/output/output-path.ts'),
       import('../packages/validation/validator.mjs'),
     ]);
     if (document?.meta?.output !== undefined) validateAuthoredOutputPath(document.meta.output);
@@ -7036,7 +7036,7 @@ async function commandValidate(args, invocation = {}) {
     return;
   }
 
-  const { createOwnedTempDirectory } = await import('../packages/output/owned-temp-directory.mjs');
+  const { createOwnedTempDirectory } = await import('../packages/output/owned-temp-directory.ts');
   const temporary = createOwnedTempDirectory('schematics-validate-');
   const tmp = temporary.path;
   const out = path.join(tmp, `${type}.html`);

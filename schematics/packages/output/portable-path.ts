@@ -7,8 +7,54 @@ const CONTROL_CHARACTER = /\p{Cc}/u;
 const WINDOWS_INVALID_CHARACTER = /[<>"|?*]/u;
 const MAX_SEMANTIC_VARIANTS = 32;
 
+export type PortablePathProfile = 'output' | 'repo' | 'archive';
+
+export interface PortablePathOptions {
+  profile?: unknown;
+}
+
+type CollisionSemantics = 'exact' | 'normalization' | 'case' | 'case-and-normalization';
+
+export interface PortablePathErrorDetails {
+  code?: string;
+  reason?: string;
+  value?: unknown;
+  profile?: unknown;
+  segment?: string;
+  segmentIndex?: number;
+  character?: string;
+  index?: number;
+  conflictIndex?: number;
+  conflictValue?: unknown;
+  collisionKind?: string;
+  semantics?: CollisionSemantics | null;
+  pathPart?: string;
+  conflictPathPart?: string;
+  utf8Bytes?: number;
+  utf16CodeUnits?: number;
+  limit?: number;
+}
+
 export class PortablePathError extends Error {
-  constructor(message, {
+  declare code: string | undefined;
+  declare reason: string | undefined;
+  declare value: unknown;
+  declare profile: unknown;
+  declare segment?: string;
+  declare segmentIndex?: number;
+  declare character?: string;
+  declare index?: number;
+  declare conflictIndex?: number;
+  declare conflictValue?: unknown;
+  declare collisionKind?: string;
+  declare semantics?: CollisionSemantics | null;
+  declare pathPart?: string;
+  declare conflictPathPart?: string;
+  declare utf8Bytes?: number;
+  declare utf16CodeUnits?: number;
+  declare limit?: number;
+
+  constructor(message: string, {
     code,
     reason,
     value,
@@ -26,7 +72,7 @@ export class PortablePathError extends Error {
     utf8Bytes,
     utf16CodeUnits,
     limit,
-  } = {}) {
+  }: PortablePathErrorDetails = {}) {
     super(message);
     this.name = 'PortablePathError';
     this.code = code;
@@ -49,7 +95,13 @@ export class PortablePathError extends Error {
   }
 }
 
-function pathError(value, profile, reason, message, details = {}) {
+function pathError(
+  value: unknown,
+  profile: unknown,
+  reason: string,
+  message: string,
+  details: PortablePathErrorDetails = {},
+): PortablePathError {
   return new PortablePathError(message, {
     code: `portable-path/${reason}`,
     reason,
@@ -59,8 +111,12 @@ function pathError(value, profile, reason, message, details = {}) {
   });
 }
 
-function assertProfile(profile) {
-  if (PORTABLE_PATH_PROFILES.has(profile)) return;
+function isProfile(profile: unknown): profile is PortablePathProfile {
+  return typeof profile === 'string' && PORTABLE_PATH_PROFILES.has(profile);
+}
+
+function assertProfile(profile: unknown): asserts profile is PortablePathProfile {
+  if (isProfile(profile)) return;
   throw pathError(
     undefined,
     profile,
@@ -69,7 +125,7 @@ function assertProfile(profile) {
   );
 }
 
-export function validatePortablePath(value, options = {}) {
+export function validatePortablePath(value: unknown, options: PortablePathOptions = {}): string {
   const profile = options?.profile;
   assertProfile(profile);
 
@@ -212,7 +268,21 @@ export function validatePortablePath(value, options = {}) {
   return value;
 }
 
-function collisionError(values, profile, index, conflictIndex, reason, details = {}) {
+interface SemanticEntry {
+  index: number;
+  value: string;
+}
+
+type SemanticIndex = Map<string, SemanticEntry>;
+
+function collisionError(
+  values: unknown[],
+  profile: PortablePathProfile,
+  index: number,
+  conflictIndex: number,
+  reason: string,
+  details: PortablePathErrorDetails = {},
+): PortablePathError {
   return new PortablePathError(
     `Portable paths at indexes ${conflictIndex} and ${index} collide under portable filesystem semantics.`,
     {
@@ -228,20 +298,20 @@ function collisionError(values, profile, index, conflictIndex, reason, details =
   );
 }
 
-function createSemanticIndex() {
+function createSemanticIndex(): SemanticIndex {
   return new Map();
 }
 
-function semanticEnvelope(value, profile, index) {
+function semanticEnvelope(value: string, profile: PortablePathProfile, index: number): string[] {
   const variants = [value];
   const seen = new Set(variants);
   const transforms = [
-    (candidate) => candidate.normalize('NFC'),
-    (candidate) => candidate.normalize('NFD'),
+    (candidate: string) => candidate.normalize('NFC'),
+    (candidate: string) => candidate.normalize('NFD'),
     // path-contract-allow: portable-logical-path -- Archive names require conservative case-collision closure.
-    (candidate) => candidate.toLocaleLowerCase('en-US'),
+    (candidate: string) => candidate.toLocaleLowerCase('en-US'),
     // path-contract-allow: portable-logical-path -- Archive names require conservative case-collision closure.
-    (candidate) => candidate.toLocaleUpperCase('en-US'),
+    (candidate: string) => candidate.toLocaleUpperCase('en-US'),
   ];
 
   for (let cursor = 0; cursor < variants.length; cursor += 1) {
@@ -265,7 +335,7 @@ function semanticEnvelope(value, profile, index) {
   return variants;
 }
 
-function classifySemanticCollision(value, conflictValue) {
+function classifySemanticCollision(value: string, conflictValue: string): CollisionSemantics {
   if (value === conflictValue) return 'exact';
   if (value.normalize('NFC') === conflictValue.normalize('NFC')) return 'normalization';
 
@@ -276,7 +346,16 @@ function classifySemanticCollision(value, conflictValue) {
   return directLowerMatch || directUpperMatch ? 'case' : 'case-and-normalization';
 }
 
-function findSemanticCollision(semanticIndex, value, profile, sourceIndex) {
+type SemanticCollision =
+  | { entry: SemanticEntry; variants: string[]; semantics: CollisionSemantics }
+  | { entry: null; variants: string[]; semantics: null };
+
+function findSemanticCollision(
+  semanticIndex: SemanticIndex,
+  value: string,
+  profile: PortablePathProfile,
+  sourceIndex: number,
+): SemanticCollision {
   const variants = semanticEnvelope(value, profile, sourceIndex);
   for (const variant of variants) {
     const entry = semanticIndex.get(variant);
@@ -291,25 +370,27 @@ function findSemanticCollision(semanticIndex, value, profile, sourceIndex) {
   return { entry: null, variants, semantics: null };
 }
 
-function rememberSemanticEntry(semanticIndex, entry, variants) {
+function rememberSemanticEntry(semanticIndex: SemanticIndex, entry: SemanticEntry, variants: string[]): void {
   for (const variant of variants) {
     if (!semanticIndex.has(variant)) semanticIndex.set(variant, entry);
   }
 }
 
-export function validatePortablePathSet(values, options = {}) {
+export function validatePortablePathSet(values: unknown, options: PortablePathOptions = {}): unknown[] {
   const profile = options?.profile;
   assertProfile(profile);
   if (!Array.isArray(values)) {
     throw pathError(values, profile, 'set-type', 'Portable path set must be an array.');
   }
+  const items: unknown[] = values;
 
   const leafEntries = createSemanticIndex();
   const directoryEntries = createSemanticIndex();
 
-  for (const [index, value] of values.entries()) {
+  for (const [index, item] of items.entries()) {
+    let value: string;
     try {
-      validatePortablePath(value, { profile });
+      value = validatePortablePath(item, { profile });
     } catch (error) {
       if (error instanceof PortablePathError && error.index === undefined) error.index = index;
       throw error;
