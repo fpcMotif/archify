@@ -1,38 +1,101 @@
 import { createHash } from 'node:crypto';
-import { parseExplainer } from './parse.mjs';
-import { computeExplainerRevision } from './revision.mjs';
-import { unpackPageBundle } from './page-bundle.mjs';
+import { parseExplainer } from './parse.ts';
+import { computeExplainerRevision } from './revision.ts';
+import { unpackPageBundle } from './page-bundle.ts';
 import { checkDiagramArtifact } from '../artifact-check/check-diagram.mjs';
+import type { Dependency, Diagnostic } from './model.ts';
 
-export const isExplainerHtml = html => /<html\b[^>]*\bdata-schematics-artifact\s*=\s*["']explainer["']/i.test(html) || (html.includes('schematics-explainer-prepared') && scanHtml(html).scripts.some(s=>s.attrs.id==='schematics-explainer-prepared'));
-const hash = value => createHash('sha256').update(value).digest('hex');
-const decode = value => value.replace(/&(?:amp|lt|gt|quot|apos|#39|#x[0-9a-f]+|#\d+);/gi, token => {
-  const names = {'&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&apos;':"'",'&#39;':"'"};
-  if (names[token.toLowerCase()]) return names[token.toLowerCase()];
+export interface HtmlElement {
+  tag: string;
+  attrs: Record<string, string>;
+  line: number;
+  index: number;
+}
+
+export interface HtmlScript extends HtmlElement {
+  text: string;
+}
+
+export interface ScannedHtml {
+  elements: HtmlElement[];
+  scripts: HtmlScript[];
+}
+
+export interface CheckExplainerOptions {
+  file?: string;
+  checkNative?: boolean;
+}
+
+export interface ExplainerCheck {
+  name: string;
+  ok: boolean;
+  details: string[];
+}
+
+interface CheckedChild { html?: string; sha256?: string; bytes?: number }
+interface CheckedSource { text?: string; sha256?: string; bytes?: number; revision?: string }
+interface CheckedDocument {
+  diagram_type?: unknown;
+  schema_version?: unknown;
+  meta?: { id?: string; output?: string; quality_profile?: string };
+  panels?: { id?: string; blocks?: { id?: string; type?: string }[] }[];
+  sources?: { id?: string }[];
+}
+interface CheckedBundle {
+  kind?: unknown;
+  schemaVersion?: unknown;
+  digest?: unknown;
+  document?: CheckedDocument;
+  sourceText?: string;
+  sourcePath?: string;
+  source?: { sha256?: string; bytes?: number };
+  preparedSources?: { sources?: Record<string, CheckedSource> };
+  preparedDiagrams?: { diagrams?: Record<string, CheckedChild> };
+  dependencies?: Dependency[];
+  quality?: string;
+}
+interface CheckedManifest {
+  sourceSha256?: string;
+  revision?: string;
+  documentSha256?: string;
+  artifactId?: string;
+  dependencies?: unknown;
+  assets?: Record<string, { sha256?: string; bytes?: number; mime?: string }>;
+  children?: Record<string, { sha256?: string; bytes?: number }>;
+}
+
+const ENTITY_NAMES: Readonly<Record<string, string | undefined>> = {'&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&apos;':"'",'&#39;':"'"};
+
+export const isExplainerHtml = (html: string): boolean => /<html\b[^>]*\bdata-schematics-artifact\s*=\s*["']explainer["']/i.test(html) || (html.includes('schematics-explainer-prepared') && scanHtml(html).scripts.some(s=>s.attrs.id==='schematics-explainer-prepared'));
+const hash = (value: string | Buffer): string => createHash('sha256').update(value).digest('hex');
+const decode = (value: string): string => value.replace(/&(?:amp|lt|gt|quot|apos|#39|#x[0-9a-f]+|#\d+);/gi, token => {
+  const names = ENTITY_NAMES;
+  const named = names[token.toLowerCase()];
+  if (named) return named;
   const n = token[2].toLowerCase() === 'x' ? parseInt(token.slice(3,-1),16) : Number(token.slice(2,-1));
   return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : '\uFFFD';
 });
 
 // Bounded HTML token scanner: quoted attributes, comments, and raw-text elements
 // are consumed together, so a JSON string containing markup is never a DOM ID.
-export function scanHtml(html) {
-  const elements = [];
-  const scripts = [];
+export function scanHtml(html: string): ScannedHtml {
+  const elements: HtmlElement[] = [];
+  const scripts: HtmlScript[] = [];
   const token = /<!--[\s\S]*?(?:-->|$)|<![^>]*>|<(\/?)([a-z][\w:-]*)(?=[\s/>])(?:[^>"']|"[^"]*"|'[^']*')*>/gi;
-  let match, line = 1, lineOffset = 0;
+  let match: RegExpExecArray | null, line = 1, lineOffset = 0;
   while ((match = token.exec(html))) {
     if (!match[2] || match[1]) continue;
     const tag = match[2].toLowerCase();
-    const attrs = {};
+    const attrs: Record<string, string> = {};
     const attr = /([^\s=<>"'`/]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
     const raw = match[0].slice(match[0].indexOf(match[2]) + match[2].length, -1);
-    let a;
+    let a: RegExpExecArray | null;
     while ((a = attr.exec(raw))) attrs[a[1].toLowerCase()] = decode(a[2] ?? a[3] ?? a[4] ?? '');
     // Advance once through the input, including skipped raw text, instead of
     // recounting every preceding line for each element of a large native SVG.
     for (let newline = html.indexOf('\n', lineOffset); newline >= 0 && newline < match.index; newline = html.indexOf('\n', newline + 1)) line++;
     lineOffset = match.index;
-    const element = {tag,attrs,line,index:match.index};
+    const element: HtmlElement = {tag,attrs,line,index:match.index};
     elements.push(element);
     if (['script','style','textarea','title'].includes(tag)) {
       const end = new RegExp(`</${tag}\\s*>`,'gi');
@@ -46,20 +109,20 @@ export function scanHtml(html) {
   return {elements,scripts};
 }
 
-export function checkExplainerHtml(html, { file = '<html>', checkNative = true } = {}) {
+export function checkExplainerHtml(html: string, { file = '<html>', checkNative = true }: CheckExplainerOptions = {}) {
   const bytes = Buffer.from(html);
   const {elements,scripts} = scanHtml(html);
-  const diagnostics = [];
-  const checks = [];
-  const issue = (code,reason,example,element,component='document') => diagnostics.push({
+  const diagnostics: Diagnostic[] = [];
+  const checks: ExplainerCheck[] = [];
+  const issue = (code: string,reason: string,example: string,element?: HtmlElement,component='document'): number => diagnostics.push({
     code:`explainer/${code}`,severity:'error',message:reason,
     subject:{input:file,line:element?.line || 1,component,...(element?.attrs?.id ? {id:element.attrs.id} : {})},
     evidence:{reason,example},supportedFixes:[example],
   });
-  const add = (name, before, details=[]) => checks.push({name,ok:diagnostics.length===before,details});
+  const add = (name: string, before: number, details: string[]=[]): number => checks.push({name,ok:diagnostics.length===before,details});
   let before = diagnostics.length;
   if (elements.find(e=>e.tag==='html')?.attrs['data-schematics-artifact']!=='explainer') issue('artifact-family','The document is missing its explainer family marker.','<html data-schematics-artifact="explainer">');
-  const ids = new Map();
+  const ids = new Map<string | undefined, HtmlElement>();
   for (const e of elements) {
     if (e.attrs.id) {
       if (ids.has(e.attrs.id)) issue('duplicate-id',`Duplicate DOM ID: ${e.attrs.id}.`,'Give each panel, block, source and SVG preview a unique stable ID.',e);
@@ -80,18 +143,18 @@ export function checkExplainerHtml(html, { file = '<html>', checkNative = true }
     if (e.attrs.href?.startsWith('#') && e.attrs.href.length>1 && !ids.has(decodeURIComponentSafe(e.attrs.href.slice(1)))) issue('unresolved-reference',`Unresolved anchor: ${e.attrs.href}.`,'Link to an existing panel, block or source ID.',e,'reference');
   }
   add('explainer_structure',before,[`${ids.size} unique DOM IDs`]);
-  function payload(id) {
+  function payload<T>(id: string): T | null {
     const found=scripts.filter(s=>s.attrs.id===id);
     if (found.length!==1 || found[0].attrs.type!=='application/json') { issue('payload',`Expected one application/json payload: ${id}.`,`<script type="application/json" id="${id}">…</script>`,found[0]); return null; }
     if (/[<>&\u2028\u2029]/.test(found[0].text)) issue('payload-escaping',`Unsafe raw characters in ${id}.`,'Escape <, >, &, U+2028 and U+2029 as JSON Unicode escapes.',found[0]);
     try { return JSON.parse(found[0].text); } catch { issue('payload-json',`Invalid JSON payload: ${id}.`,'Re-render the validated source instead of editing embedded payloads.',found[0]); return null; }
   }
   before=diagnostics.length;
-  let bundle=payload('schematics-explainer-prepared');
+  let bundle=payload<CheckedBundle>('schematics-explainer-prepared');
   try { bundle=unpackPageBundle(bundle); } catch { issue('native-hash','A compressed native diagram payload cannot be inflated.','Re-render the native diagram and freeze its original HTML bytes.'); bundle=null; }
   const document=bundle?.document;
   const source=bundle ? {text:bundle.sourceText} : null;
-  const manifest=payload('explainer-manifest');
+  const manifest=payload<CheckedManifest>('explainer-manifest');
   const children=bundle?.preparedDiagrams?.diagrams;
   if (bundle && (bundle.kind!=='schematics-explainer-prepared' || bundle.schemaVersion!==1 || hash(JSON.stringify({...bundle,digest:undefined}))!==bundle.digest)) issue('bundle-hash','The canonical prepared bundle does not match its digest.','Re-prepare and render the original draft with immutable resources.');
   if (bundle && typeof bundle.sourceText==='string') {
@@ -99,7 +162,7 @@ export function checkExplainerHtml(html, { file = '<html>', checkNative = true }
     if (!parsed.document || parsed.diagnostics.some(d=>d.severity!=='warning') || JSON.stringify(parsed.document)!==JSON.stringify(document)) issue('source-document-binding','The canonical document differs from its embedded authored draft.','Re-parse the embedded draft and render its normalized document.');
     if (bundle.source?.sha256!==hash(bundle.sourceText) || bundle.source?.bytes!==Buffer.byteLength(bundle.sourceText)) issue('bundle-source-hash','The prepared source bytes do not match their identity.','Freeze the exact original UTF-8 draft bytes.');
   }
-  if (document && manifest && source) {
+  if (bundle && document && manifest && source) {
     if (document.diagram_type!=='explainer' || document.schema_version!==1 || !Array.isArray(document.panels) || !Array.isArray(document.sources)) issue('canonical-document','The canonical explainer envelope is invalid.','Use schema_version:1, diagram_type:"explainer", panels:[] and sources:[].');
     if (typeof source.text!=='string' || hash(source.text || '')!==manifest.sourceSha256) issue('source-hash','The embedded source does not match its immutable source hash.','Re-render the original draft and retain its exact SHA-256 source hash.');
     try {
@@ -117,7 +180,7 @@ export function checkExplainerHtml(html, { file = '<html>', checkNative = true }
   const dependencies=bundle?.dependencies;
   if (manifest?.dependencies && JSON.stringify(manifest.dependencies)!==JSON.stringify((dependencies || []).map(({contentBase64,...entry})=>entry))) issue('manifest-dependencies','The compact manifest disagrees with the canonical dependency identities.','Generate dependency metadata from the canonical prepared bundle.');
   if (!Array.isArray(dependencies)) issue('dependency-manifest','The frozen dependency manifest is missing.','Store dependencies:[] even when no external resources are used.');
-  const depIds=new Set();
+  const depIds=new Set<string>();
   for (const dep of dependencies || []) {
     const key=`${dep.kind}:${dep.id}`;
     if (depIds.has(key)) issue('dependency-duplicate',`Duplicate dependency: ${key}.`,'Freeze each resource once.');
@@ -137,9 +200,9 @@ export function checkExplainerHtml(html, { file = '<html>', checkNative = true }
   }
   add('explainer_dependencies',before,[`${dependencies?.length || 0} frozen dependencies`]);
   before=diagnostics.length;
-  const childReceipts=[];
+  const childReceipts: { id: string; receipt: ReturnType<typeof checkDiagramArtifact> }[]=[];
   const expected=(document?.panels || []).flatMap(p=>p.blocks || []).filter(b=>b.type==='diagram').map(b=>b.id);
-  if (!children || typeof children!=='object' || Array.isArray(children) || expected.length!==Object.keys(children).length || expected.some(id=>!children[id])) issue('native-count','Native diagram payloads do not match canonical diagram blocks.','Embed one native payload per diagram block; zero diagrams is valid.');
+  if (!children || typeof children!=='object' || Array.isArray(children) || expected.length!==Object.keys(children).length || expected.some(id=>!children[String(id)])) issue('native-count','Native diagram payloads do not match canonical diagram blocks.','Embed one native payload per diagram block; zero diagrams is valid.');
   for (const [id,child] of Object.entries(children || {})) {
     const binding=manifest?.children?.[id];
     if (typeof child.html!=='string' || hash(child.html || '')!==child.sha256 || Buffer.byteLength(child.html || '')!==child.bytes || binding?.sha256!==child.sha256 || binding?.bytes!==child.bytes) { issue('native-hash',`Native diagram payload is corrupt: ${id}.`,'Re-render the native diagram and freeze its original HTML bytes.',ids.get(id),'diagram'); continue; }
@@ -155,4 +218,4 @@ export function checkExplainerHtml(html, { file = '<html>', checkNative = true }
   const errors=diagnostics.length;
   return {ok:errors===0,file,family:'explainer',artifact:{sha256:hash(bytes),bytes:bytes.length},checks,composition:{schemaVersion:1,profile,status:errors ? 'fail':'pass',summary:{errors,warnings:0},issues:diagnostics,nativeDiagrams:childReceipts},diagnostics};
 }
-function decodeURIComponentSafe(value) { try {return decodeURIComponent(value);} catch {return value;} }
+function decodeURIComponentSafe(value: string): string { try {return decodeURIComponent(value);} catch {return value;} }

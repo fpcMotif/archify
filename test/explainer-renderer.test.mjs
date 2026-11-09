@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { parse } from 'parse5';
-import { renderExplainer } from '../schematics/packages/explainer/render.mjs';
-import { computeExplainerRevision } from '../schematics/packages/explainer/revision.mjs';
-import { unpackPageBundle } from '../schematics/packages/explainer/page-bundle.mjs';
+import { renderExplainer } from '../schematics/packages/explainer/render.ts';
+import { computeExplainerRevision } from '../schematics/packages/explainer/revision.ts';
+import { unpackPageBundle } from '../schematics/packages/explainer/page-bundle.ts';
 
 const sha = value => createHash('sha256').update(value).digest('hex');
 const all = (node, test) => [ ...(test(node) ? [node] : []), ...(node.childNodes || []).flatMap(child=>all(child,test)) ];

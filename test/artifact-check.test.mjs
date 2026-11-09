@@ -6,7 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { checkArtifact } from '../schematics/scripts/check-render-output.mjs';
-import { checkExplainerHtml } from '../schematics/packages/explainer/check.mjs';
+import { checkExplainerHtml } from '../schematics/packages/explainer/check.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const checker = path.join(repoRoot, 'schematics/scripts/check-render-output.mjs');

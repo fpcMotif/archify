@@ -5,8 +5,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {checkExplainerHtml,scanHtml} from '../schematics/packages/explainer/check.mjs';
-import {computeExplainerRevision} from '../schematics/packages/explainer/revision.mjs';
+import {checkExplainerHtml,scanHtml} from '../schematics/packages/explainer/check.ts';
+import {computeExplainerRevision} from '../schematics/packages/explainer/revision.ts';
 const hash=text=>createHash('sha256').update(text).digest('hex');
 const json=value=>JSON.stringify(value).replace(/[<>&]/g,c=>`\\u${c.charCodeAt(0).toString(16).padStart(4,'0')}`);
 function fixture({children={},dependencies=[],asset}={}) {

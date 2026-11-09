@@ -1,10 +1,57 @@
+import type { Diagnostic } from './model.ts';
+
+const HTML_ENTITIES: Readonly<Record<string, string>> = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+
 /** The explainer's deliberately small inline language; never an HTML escape hatch. */
-export const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export const escapeHtml = (value: unknown): string => String(value ?? '').replace(/[&<>"']/g, c => HTML_ENTITIES[c] ?? c);
 
 const identifier = /^[\p{L}\p{N}_-]+$/u;
 const targetIdentifier = /^[\p{L}\p{N}_.:-]+$/u;
 
-function referenceFor(href) {
+export type InlineReferenceTarget =
+  | { kind: 'web'; url: string }
+  | { kind: 'source'; id: string }
+  | { kind: 'block'; id: string }
+  | { kind: 'typical'; text: string }
+  | { kind: 'node'; diagram: string; node: string }
+  | { kind: 'route'; diagram: string; from: string; to: string };
+
+export type InlineReference = InlineReferenceTarget & { offset: number; end: number };
+
+export type InlineToken =
+  | { type: 'text'; value: string }
+  | { type: 'code'; value: string }
+  | { type: 'strong'; children: InlineToken[] }
+  | { type: 'em'; children: InlineToken[] }
+  | { type: 'link'; label: string; href: string; reference: InlineReference };
+
+export interface InlineOptions {
+  line?: number;
+  component?: string;
+  panelId?: string;
+  input?: string;
+}
+
+export interface InlineFootnote {
+  id: string;
+  index: number;
+  text: string;
+  label: string;
+}
+
+export interface InlineRenderContext extends InlineOptions {
+  citations?: Map<string, number>;
+  footnotes?: InlineFootnote[];
+  [key: string]: unknown;
+}
+
+export interface ParsedInline {
+  tokens: InlineToken[];
+  references: InlineReference[];
+  diagnostics: Diagnostic[];
+}
+
+function referenceFor(href: string): InlineReferenceTarget | null {
   if (/^https?:\/\//i.test(href)) {
     try {
       const url = new URL(href);
@@ -30,19 +77,19 @@ function referenceFor(href) {
 }
 
 /** Returns tokens and references, with offsets for validation and actionable diagnostics. */
-export function parseInline(value, options = {}) {
+export function parseInline(value: unknown, options: InlineOptions = {}): ParsedInline {
   const text = String(value ?? '');
-  const references = [], diagnostics = [];
-  function problem(code, index, reason, example) {
+  const references: InlineReference[] = [], diagnostics: Diagnostic[] = [];
+  function problem(code: string, index: number, reason: string, example: string): void {
     const before = text.slice(0,index), lastBreak = before.lastIndexOf('\n');
     diagnostics.push({code:`explainer/inline-${code}`,severity:'error',message:reason,
-      subject:{line:(Number.isInteger(options.line) ? options.line : 1) + (before.match(/\n/g)?.length || 0),column:index-lastBreak,
+      subject:{line:(Number.isInteger(options.line) ? Number(options.line) : 1) + (before.match(/\n/g)?.length || 0),column:index-lastBreak,
         component:options.component || 'inline',...(options.panelId ? {panelId:options.panelId} : {}),...(options.input ? {input:options.input} : {})},
       evidence:{reason,example},supportedFixes:[`Use the supported form: ${example}`]});
   }
-  function segment(start, end, depth = 0) {
-    const tokens = [];
-    const literal = value => {
+  function segment(start: number, end: number, depth = 0): InlineToken[] {
+    const tokens: InlineToken[] = [];
+    const literal = (value: string): void => {
       if (!value) return;
       const previous = tokens[tokens.length-1];
       if (previous?.type === 'text') previous.value += value;
@@ -70,7 +117,7 @@ export function parseInline(value, options = {}) {
       if (c === '*') {
         const marker=text.startsWith('**',i) ? '**' : '*';
         let close=text.indexOf(marker,i+marker.length);
-        const escaped = index => {
+        const escaped = (index: number): boolean => {
           let slashes=0;
           while (index > start && text[--index] === '\\') slashes++;
           return slashes % 2 === 1;
@@ -99,7 +146,7 @@ export function parseInline(value, options = {}) {
             problem('target',i,'Use a nonempty label and an HTTP(S), source, block, node, route or typical destination.','[Redis](node:read-path.redis)');
             literal(text.slice(i,close+1));
           } else {
-            const entry={...reference,offset:i,end:close+1};references.push(entry);
+            const entry: InlineReference={...reference,offset:i,end:close+1};references.push(entry);
             tokens.push({type:'link',label,href,reference:entry});
           }
           i=close+1;continue;
@@ -114,18 +161,23 @@ export function parseInline(value, options = {}) {
   return {tokens,references,diagnostics};
 }
 
-function inlineError(diagnostics) {
-  const error=new Error(diagnostics[0].message);
+export interface InlineError extends Error {
+  schematicsDiagnostics?: Diagnostic[];
+  diagnostics?: Diagnostic[];
+}
+
+function inlineError(diagnostics: Diagnostic[]): InlineError {
+  const error: InlineError=new Error(diagnostics[0].message);
   error.schematicsDiagnostics=diagnostics;
   error.diagnostics=diagnostics;
   return error;
 }
 
 /** Safely render the same parsed language used by semantic validation. */
-export function renderInline(value, context = {}) {
+export function renderInline(value: unknown, context: InlineRenderContext = {}): string {
   const parsed=parseInline(value,context);
   if (parsed.diagnostics.length) throw inlineError(parsed.diagnostics);
-  const render = tokens => tokens.map(token => {
+  const render = (tokens: InlineToken[]): string => tokens.map(token => {
     if (token.type === 'text') return escapeHtml(token.value);
     if (token.type === 'code') return `<code>${escapeHtml(token.value)}</code>`;
     if (token.type === 'strong' || token.type === 'em') return `<${token.type}>${render(token.children)}</${token.type}>`;

@@ -2392,7 +2392,7 @@ function extractExplainerWritingArgs(args) {
 }
 
 async function prepareExplainerInput(specification, inputPath, options = {}) {
-  const runtime = await import('../packages/explainer/prepare.mjs');
+  const runtime = await import('../packages/explainer/prepare.ts');
   const text = specification.toString('utf8');
   if (!Buffer.from(text).equals(specification)) {
     const message='Explainer draft must contain valid UTF-8 bytes.';
@@ -4822,7 +4822,7 @@ async function commandDeliver(args) {
     let preparedBundlePath;
     if (explainerBundle) {
       try {
-        const { writePreparedBundle } = await import('../packages/explainer/prepare.mjs');
+        const { writePreparedBundle } = await import('../packages/explainer/prepare.ts');
         preparedBundlePath = writePreparedBundle(stagingDirectory, explainerBundle);
         captureDeliveryStagingFile(preparedBundlePath, artifactIdentity(fs.readFileSync(preparedBundlePath)));
       } catch (error) {
@@ -5039,7 +5039,7 @@ async function commandDeliver(args) {
 
     try {
       if (explainerBundle) {
-        const { assertPreparedDependencies } = await import('../packages/explainer/prepare.mjs');
+        const { assertPreparedDependencies } = await import('../packages/explainer/prepare.ts');
         assertPreparedDependencies(explainerBundle);
       }
       const committed = commitDeliveryPair({
@@ -5240,22 +5240,22 @@ async function commandPatch(rawArgs) {
       throw Object.assign(new Error('The original explainer artifact failed validation.'), {schematicsDiagnostics:receipt?.diagnostics || [{code:'explainer/patch-artifact',severity:'error',message:'The original explainer artifact failed validation.',subject:{input:path.resolve(artifact),line:1,component:'document'},evidence:{reason:'invalid-original-artifact',example:'Use an unchanged formal explainer artifact.'},supportedFixes:['Rebuild the original artifact.']}]});
     }
     const originalCheck=checked.receipt;
-    const { preparePanelPatch } = await import('../packages/explainer/patch.mjs');
+    const { preparePanelPatch } = await import('../packages/explainer/patch.ts');
     const prepared = await preparePanelPatch({artifactPath:path.resolve(artifact),panelId,replacementPath:path.resolve(replacement),repoRoot:repoArgs.repoRoot,quality:qualityArgs.quality,writingMode:writingArgs.writingMode,expectedArtifact:originalCheck.artifact});
     const { resolveOutputPath } = await import('../packages/output/output-path.ts');
     resolveOutputPath({requestedOutput:output,inputPaths:[path.resolve(replacement),prepared.sourcePath]});
     const { createOwnedTempDirectory } = await import('../packages/output/owned-temp-directory.ts');
-    const { writePreparedBundle } = await import('../packages/explainer/prepare.mjs');
+    const { writePreparedBundle } = await import('../packages/explainer/prepare.ts');
     temporary=createOwnedTempDirectory('schematics-explainer-patch-');
     const input=path.join(temporary.path,'patched-draft.json');
     fs.writeFileSync(input,prepared.sourceText,{flag:'wx'});
-    const { rebindPreparedBundle } = await import('../packages/explainer/prepare.mjs');
+    const { rebindPreparedBundle } = await import('../packages/explainer/prepare.ts');
     prepared.bundle=rebindPreparedBundle({...prepared.bundle,inputPath:input},{sourceText:prepared.bundle.sourceText,document:prepared.bundle.document,sourceMap:prepared.bundle.sourceMap,format:prepared.bundle.format,diagnostics:prepared.bundle.diagnostics});
     const preparedFile=writePreparedBundle(temporary.path,prepared.bundle);
     const delivery=runNode([fileURLToPath(import.meta.url),'deliver','explainer',input,output,'--quality',qualityArgs.quality || prepared.bundle.quality || 'standard','--writing',prepared.bundle.writingMode || 'warn',...(repoArgs.repoRoot?['--repo-root',repoArgs.repoRoot]:[]),'--json'],{stdio:'pipe',env:{SCHEMATICS_EXPLAINER_PREPARED:preparedFile}});
     let receipt;
     try {receipt=JSON.parse(delivery.stdout);} catch {throw new Error('Patch delivery did not return a structured receipt.');}
-    const { computeExplainerRevision } = await import('../packages/explainer/revision.mjs');
+    const { computeExplainerRevision } = await import('../packages/explainer/revision.ts');
     const result={...receipt,command:'patch',panelId,original:{path:path.resolve(artifact),revision:prepared.previousRevision,sourceSha256:prepared.previousSourceSha256},replacement:{path:path.resolve(replacement)},revision:computeExplainerRevision(prepared.bundle),sourceSha256:prepared.bundle.source.sha256};
     if(json)console.log(JSON.stringify(result,null,2));
     else if(result.ok)console.log(`patched ${panelId} ${result.output}`);
@@ -5808,7 +5808,7 @@ async function finalizeAttempt(rawArgs) {
     if (type === 'explainer') {
       preparedExplainer = await prepareExplainerInput(fs.readFileSync(path.resolve(input)), path.resolve(input), { repoRoot: repoArgs.repoRoot, quality: qualityArgs.quality || 'showcase', writingMode: writingArgs.writingMode });
       const { createOwnedTempDirectory } = await import('../packages/output/owned-temp-directory.ts');
-      const { writePreparedBundle } = await import('../packages/explainer/prepare.mjs');
+      const { writePreparedBundle } = await import('../packages/explainer/prepare.ts');
       explainerTemporary = createOwnedTempDirectory('schematics-explainer-finalize-');
       preparedBundlePath = writePreparedBundle(explainerTemporary.path, preparedExplainer);
     }
@@ -5925,7 +5925,7 @@ async function commandChart(rawArgs) {
   const [inputPath, outputPath] = rawArgs;
   if (!inputPath) fail('Usage: schematics chart <input.mmd|text> [output.svg]');
   const text = fs.existsSync(inputPath) ? fs.readFileSync(inputPath, 'utf-8') : inputPath;
-  const { compileExplainerChart } = await import('../packages/explainer/charts.mjs');
+  const { compileExplainerChart } = await import('../packages/explainer/charts.ts');
   const result = compileExplainerChart(text);
   if (result.error) {
     fail(`Chart compilation failed: ${result.error}`);
@@ -6170,7 +6170,7 @@ async function commandDoctor(args) {
     });
   }
 
-  const explainerRuntime = ['parse.mjs', 'validate.mjs', 'inline.mjs', 'sources.mjs', 'writing.mjs', 'diagrams.mjs', 'prepare.mjs', 'patch.mjs', 'diff.mjs', 'revision.mjs', 'layout.mjs', 'render.mjs', 'check.mjs', 'browser-check.mjs', 'charts.mjs', 'page-bundle.mjs', 'vendor/pele/core.js', 'reader.css', 'reader.js'];
+  const explainerRuntime = ['model.ts', 'parse.ts', 'validate.ts', 'inline.ts', 'sources.ts', 'writing.ts', 'diagrams.ts', 'prepare.ts', 'patch.ts', 'diff.ts', 'revision.ts', 'layout.ts', 'render.ts', 'check.ts', 'browser-check.ts', 'charts.ts', 'page-bundle.ts', 'vendor/pele/core.js', 'reader.css', 'reader.js'];
   const missingExplainerRuntime = explainerRuntime.filter(file => !fs.existsSync(path.join(skillRoot, 'packages', 'explainer', file))).length;
   checks.push({label:'Explainer runtime and reader assets',ok:missingExplainerRuntime===0,missing:missingExplainerRuntime});
 
@@ -7054,7 +7054,7 @@ async function commandValidate(args, invocation = {}) {
     fs.writeFileSync(snapshot, specification, { flag: 'wx' });
     let preparedBundlePath;
     if (explainerBundle) {
-      const { writePreparedBundle } = await import('../packages/explainer/prepare.mjs');
+      const { writePreparedBundle } = await import('../packages/explainer/prepare.ts');
       preparedBundlePath = writePreparedBundle(tmp, explainerBundle);
     }
     const render = runNode([renderer, snapshot, out], {

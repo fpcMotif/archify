@@ -1,3 +1,5 @@
+import type { Diagnostic } from './model.ts';
+
 /** Independently authored prose hints; no external dictionary or automatic rewriting.
  * Callers select prose entries, excluding code and URL-only fields.
  * locale sets the sentence-limit fallback; bilingual phrase rules always apply.
@@ -21,9 +23,35 @@ const RULES = [
     reason: 'Adjacent wording may repeat the same meaning.', example: '提前预先 → 提前; each and every → each', fix: 'Keep one expression of the meaning unless both terms carry a necessary distinction.'},
 ];
 
+export interface WritingEntry {
+  text: string;
+  line?: number;
+  component: string;
+  panelId?: string;
+  pointer?: string;
+  raw?: string;
+}
+
+export interface WritingOptions {
+  mode?: string;
+  locale?: string;
+  sentenceLimits?: { zh?: number; en?: number };
+}
+
+interface WritingFinding {
+  offset: number;
+  rule: string;
+  reason: string;
+  example: string;
+  fix: string;
+  matched?: string;
+  units?: number;
+  limit?: number;
+}
+
 // Mask URL bodies without changing offsets or swallowing trailing sentence punctuation.
-function proseMask(text) {
-  return text.replace(/https?:\/\/[^\s<>。！？，；、：）]+/giu, value => {
+function proseMask(text: string): string {
+  return text.replace(/https?:\/\/[^\s<>。！？，；、：）]+/giu, (value: string) => {
     // A Markdown link's closing parenthesis is outside the URL. Preserve that
     // delimiter and any following prose, while retaining balanced URL paths.
     let depth = 0, end = value.length;
@@ -41,8 +69,8 @@ function proseMask(text) {
   });
 }
 
-function sentences(text) {
-  const result = [];
+function sentences(text: string): { text: string; offset: number }[] {
+  const result: { text: string; offset: number }[] = [];
   let start = 0;
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
@@ -64,21 +92,21 @@ function sentences(text) {
  * Length is Han characters plus English words/numeric tokens; punctuation is excluded.
  * A sentence containing Han uses zh limit (50), otherwise en limit (28).
  */
-export function lintExplainerWriting(entries, {mode = 'warn', locale = 'auto', sentenceLimits = {}} = {}) {
+export function lintExplainerWriting(entries: readonly WritingEntry[], {mode = 'warn', locale = 'auto', sentenceLimits = {}}: WritingOptions = {}): Diagnostic[] {
   if (!['warn', 'strict', 'off'].includes(mode)) throw new TypeError('Writing mode must be warn, strict or off');
   if (mode === 'off') return [];
-  const limits = {zh: 50, en: 28, ...sentenceLimits};
+  const limits: Record<'zh' | 'en', number> = {zh: 50, en: 28, ...sentenceLimits};
   for (const value of Object.values(limits)) {
     if (!Number.isSafeInteger(value) || value < 1) throw new TypeError('Sentence limits must be positive integers');
   }
-  const diagnostics = [];
+  const diagnostics: Diagnostic[] = [];
   for (const entry of entries) {
     if (typeof entry.text !== 'string') throw new TypeError('Writing entries require text strings');
     if (entry.component === 'source') continue;
     const original = entry.text;
     const text = proseMask(original);
-    const found = [];
-    const units = value => (value.match(/\p{Script=Han}/gu)?.length || 0) + (value.match(/[\p{Script=Latin}\d]+(?:[’'_-][\p{Script=Latin}\d]+)*(?:\.\d+)?/gu)?.length || 0);
+    const found: WritingFinding[] = [];
+    const units = (value: string): number =>(value.match(/\p{Script=Han}/gu)?.length || 0) + (value.match(/[\p{Script=Latin}\d]+(?:[’'_-][\p{Script=Latin}\d]+)*(?:\.\d+)?/gu)?.length || 0);
     if (entry.component === 'scope') {
       if (units(text) > 50) found.push({offset: 0, rule: 'scope-length', units: units(text), limit: 50,
         reason: 'The scope reads as a disclaimer rather than a short label.',
@@ -88,7 +116,7 @@ export function lintExplainerWriting(entries, {mode = 'warn', locale = 'auto', s
       for (const rule of RULES) {
         // New regex per entry prevents mutable lastIndex from leaking between calls.
         for (const match of text.matchAll(new RegExp(rule.pattern.source, rule.pattern.flags))) {
-          found.push({offset: match.index, rule: rule.id, reason: rule.reason, example: rule.example, fix: rule.fix, matched: match[0]});
+          found.push({offset: match.index ?? 0, rule: rule.id, reason: rule.reason, example: rule.example, fix: rule.fix, matched: match[0]});
         }
       }
     }
@@ -127,7 +155,7 @@ export function lintExplainerWriting(entries, {mode = 'warn', locale = 'auto', s
     for (const item of found) {
       diagnostics.push({
         code: `explainer/writing-${item.rule}`, severity: mode === 'strict' ? 'error' : 'warning', message: item.reason,
-        subject: {line: (Number.isInteger(entry.line) && entry.line > 0 ? entry.line : 1) + (original.slice(0, item.offset).match(/\n/gu)?.length || 0),
+        subject: {line: (typeof entry.line === 'number' && Number.isInteger(entry.line) && entry.line > 0 ? entry.line : 1) + (original.slice(0, item.offset).match(/\n/gu)?.length || 0),
           component: entry.component, ...(entry.panelId === undefined ? {} : {panelId: entry.panelId})},
         evidence: {rule: item.rule, reason: item.reason, example: item.example,
           ...(item.matched ? {matched: item.matched} : {}), ...(item.units ? {units: item.units, limit: item.limit} : {})},

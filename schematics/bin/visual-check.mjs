@@ -1,7 +1,7 @@
 import { softwareNoticesHtml } from '../packages/output/software-notices.ts';
 import { spawn } from 'node:child_process';
-import { isExplainerHtml } from '../packages/explainer/check.mjs';
-import { EXPLAINER_VIEWPORTS, inspectExplainerBrowser, explainerObservation, explainerObservationDiagnostics } from '../packages/explainer/browser-check.mjs';
+import { isExplainerHtml } from '../packages/explainer/check.ts';
+import { EXPLAINER_VIEWPORTS, inspectExplainerBrowser, explainerObservation, explainerObservationDiagnostics } from '../packages/explainer/browser-check.ts';
 import { createOwnedTempDirectory } from '../packages/output/owned-temp-directory.ts';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';

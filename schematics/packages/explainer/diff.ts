@@ -1,9 +1,66 @@
-import { containsExplainerSecret } from './sources.mjs';
+import { containsExplainerSecret } from './sources.ts';
+import type { Diagnostic } from './model.ts';
+
+export type DiffRowKind = 'header' | 'hunk' | 'no-newline' | 'added' | 'removed' | 'context';
+
+export interface DiffRow {
+  kind: DiffRowKind;
+  raw: string;
+  text: string;
+  ending: string;
+  sourceLine: number;
+  oldLine: number | null;
+  newLine: number | null;
+  filePath?: string;
+  oldStart?: number;
+  oldCount?: number;
+  newStart?: number;
+  newCount?: number;
+  forLine?: number;
+}
+
+export interface DiffCounts {
+  added: number;
+  removed: number;
+  context: number;
+  hunks: number;
+  files: number;
+}
+
+export interface ParsedDiff {
+  rows: DiffRow[];
+  counts: DiffCounts;
+  diagnostics: Diagnostic[];
+  format: 'fragment' | 'unified';
+}
+
+export interface DiffOptions {
+  line?: number;
+  component?: string;
+  input?: string;
+  panelId?: string;
+  path?: string;
+}
+
+interface SourceLine {
+  raw: string;
+  ending: string;
+}
+
+interface Hunk {
+  oldStart: number;
+  oldCount: number;
+  newStart: number;
+  newCount: number;
+  usedOld: number;
+  usedNew: number;
+  sourceLine: number;
+}
 
 const EXAMPLE = '@@ -1,2 +1,2 @@\n unchanged\n-old value\n+new value';
 
-function sourceLines(text) {
-  const result=[];
+function sourceLines(text: string): SourceLine[] {
+  const result: SourceLine[]=[];
   for (const match of text.matchAll(/([^\n]*)(\n|$)/gu)) {
     if (!match[0]) continue;
     const crlf=match[2] && match[1].endsWith('\r');
@@ -12,10 +69,10 @@ function sourceLines(text) {
   return result;
 }
 
-function fileName(value) {
+function fileName(value: string): string | null {
   let name=value.split('\t')[0];
   if (name.startsWith('"') && name.endsWith('"')) {
-    try { name=JSON.parse(name); } catch { name=name.slice(1,-1); }
+    try { name=String(JSON.parse(name)); } catch { name=name.slice(1,-1); }
   }
   if (name==='/dev/null') return null;
   return name.replace(/^[ab]\//u,'');
@@ -24,29 +81,29 @@ function fileName(value) {
 /** Parse unified diff without rewriting its literal bytes. Fragment line numbers stay null.
  * File paths identify credential syntax only; this parser performs no filesystem reads.
  */
-export function parseExplainerDiff(text, {line=1,component='diff',input,panelId,path} = {}) {
+export function parseExplainerDiff(text: unknown, {line=1,component='diff',input,panelId,path}: DiffOptions = {}): ParsedDiff {
   if (typeof text!=='string') throw new TypeError('Diff input must be a string');
-  const rows=[],diagnostics=[],counts={added:0,removed:0,context:0,hunks:0,files:0};
-  let hunk=null,oldPath=null,newPath=null,fileIndex=-1,oldHeader=false,newHeader=false,oldHeaderLine=line,lastBody=null,markerFor=null;
-  let format='fragment';
-  const groups=new Map();
-  function fail(code,sourceLine,reason,example=EXAMPLE) {
+  const rows: DiffRow[]=[],diagnostics: Diagnostic[]=[],counts: DiffCounts={added:0,removed:0,context:0,hunks:0,files:0};
+  let hunk: Hunk | null=null,oldPath: string | null=null,newPath: string | null=null,fileIndex=-1,oldHeader=false,newHeader=false,oldHeaderLine=line,lastBody: DiffRow | null=null,markerFor: DiffRow | null=null;
+  let format: ParsedDiff['format']='fragment';
+  const groups=new Map<number, DiffRow[]>();
+  function fail(code: string,sourceLine: number,reason: string,example=EXAMPLE): void {
     diagnostics.push({code:`explainer/diff-${code}`,severity:'error',message:reason,
       subject:{line:sourceLine,column:1,component,...(input?{input}:{}),...(panelId?{panelId}:{}),...(path?{path}:{})},
       evidence:{reason,example},supportedFixes:[`Use a valid unified diff, for example:\n${example}`]});
   }
-  function finishHunk() {
+  function finishHunk(): void {
     if (!hunk) return;
     if (hunk.usedOld!==hunk.oldCount || hunk.usedNew!==hunk.newCount) fail('hunk-count',hunk.sourceLine,
       `Hunk declares ${hunk.oldCount} old and ${hunk.newCount} new lines, but contains ${hunk.usedOld} old and ${hunk.usedNew} new lines.`);
     hunk=null;
   }
-  function startFile() {
+  function startFile(): void {
     if(oldHeader&&!newHeader)fail('header-order',oldHeaderLine,'An old-file header needs its matching new-file header.','--- a/file.txt\n+++ b/file.txt\n'+EXAMPLE);
     finishHunk();fileIndex++;counts.files++;oldPath=null;newPath=null;oldHeader=false;newHeader=false;lastBody=null;markerFor=null;format='unified';
   }
-  function row(kind,value,index,extra={}) {
-    const entry={kind,raw:value.raw,text:value.raw,ending:value.ending,sourceLine:line+index,oldLine:null,newLine:null,...extra};
+  function row(kind: DiffRowKind,value: SourceLine,index: number,extra: Partial<DiffRow>={}): DiffRow {
+    const entry: DiffRow={kind,raw:value.raw,text:value.raw,ending:value.ending,sourceLine:line+index,oldLine:null,newLine:null,...extra};
     const knownPath=kind==='removed' ? oldPath||newPath : newPath||oldPath;
     if (knownPath) entry.filePath=knownPath;
     if (kind==='header'||kind==='hunk') {lastBody=null;markerFor=null;}
@@ -89,7 +146,7 @@ export function parseExplainerDiff(text, {line=1,component='diff',input,panelId,
       const valid=/^index [a-fA-F0-9]{1,64}\.\.[a-fA-F0-9]{1,64}(?: [0-7]{6})?$/u.test(raw)
         ||/^(?:new file|deleted file|old|new) mode [0-7]{6}$/u.test(raw)
         ||/^(?:rename|copy) (?:from|to) .+$/u.test(raw)
-        ||(/^(?:similarity|dissimilarity) index (\d+)%$/u.test(raw)&&Number(raw.match(/(\d+)%$/u)[1])<=100);
+        ||(/^(?:similarity|dissimilarity) index (\d+)%$/u.test(raw)&&Number(raw.match(/(\d+)%$/u)?.[1])<=100);
       if(!valid)fail('header',sourceLine,'This git metadata header is malformed.','diff --git a/file.txt b/file.txt\nindex 1234567..abcdef0 100644\n--- a/file.txt\n+++ b/file.txt\n'+EXAMPLE);
       row('header',value,index);lastBody=null;markerFor=null;continue;
     }
@@ -97,7 +154,7 @@ export function parseExplainerDiff(text, {line=1,component='diff',input,panelId,
       if(!lastBody||markerFor===lastBody)fail('newline-marker',sourceLine,'A no-newline marker must immediately follow one content row and cannot repeat for that row.','@@ -1 +1 @@\n-old\n\\ No newline at end of file\n+new\n\\ No newline at end of file');
       row('no-newline',value,index,{...(lastBody?{forLine:lastBody.sourceLine}:{})});markerFor=lastBody;continue;
     }
-    const kind=raw.startsWith('+')?'added':raw.startsWith('-')?'removed':raw.startsWith(' ')?'context':null;
+    const kind: 'added' | 'removed' | 'context' | null=raw.startsWith('+')?'added':raw.startsWith('-')?'removed':raw.startsWith(' ')?'context':null;
     if(!kind) {fail('row',sourceLine,'Diff content rows must start with a space, + or -.');row('header',value,index);lastBody=null;markerFor=null;continue;}
     const entry=row(kind,value,index,{text:raw.slice(1)});counts[kind]++;
     if(hunk) {
@@ -105,7 +162,7 @@ export function parseExplainerDiff(text, {line=1,component='diff',input,panelId,
       if(kind!=='removed')entry.newLine=hunk.newStart+hunk.usedNew++;
     }
     lastBody=entry;markerFor=null;
-    if(!groups.has(fileIndex))groups.set(fileIndex,[]);groups.get(fileIndex).push(entry);
+    const group=groups.get(fileIndex) ?? [];if(!groups.has(fileIndex))groups.set(fileIndex,group);group.push(entry);
   }
   finishHunk();
   if(oldHeader&&!newHeader)fail('header-order',rows.at(-1)?.sourceLine||line,'An old-file header needs its matching new-file header.','--- a/file.txt\n+++ b/file.txt\n'+EXAMPLE);

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { SaxesParser } from 'saxes';
-import { compileExplainerDiagram, prepareExplainerDiagrams, validateExplainerDiagramTarget } from '../schematics/packages/explainer/diagrams.mjs';
+import { compileExplainerDiagram, prepareExplainerDiagrams, validateExplainerDiagramTarget } from '../schematics/packages/explainer/diagrams.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');

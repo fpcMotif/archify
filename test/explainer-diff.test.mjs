@@ -4,9 +4,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {parseExplainerDiff} from '../schematics/packages/explainer/diff.mjs';
-import {parseExplainer} from '../schematics/packages/explainer/parse.mjs';
-import {validateExplainer} from '../schematics/packages/explainer/validate.mjs';
+import {parseExplainerDiff} from '../schematics/packages/explainer/diff.ts';
+import {parseExplainer} from '../schematics/packages/explainer/parse.ts';
+import {validateExplainer} from '../schematics/packages/explainer/validate.ts';
 
 const reconstruction=result=>result.rows.map(row=>row.raw+row.ending).join('');
 

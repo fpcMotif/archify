@@ -825,7 +825,7 @@ export async function runFinalize({
       let result;
       if (preparedExplainer) {
         try {
-          const { assertPreparedDependencies } = await import('../packages/explainer/prepare.mjs');
+          const { assertPreparedDependencies } = await import('../packages/explainer/prepare.ts');
           assertPreparedDependencies(preparedExplainer);
         } catch (error) {
           result = { status: 1, stdout: JSON.stringify({ok:false,status:'fail',command:stage,stage:'prepare',diagnostics:error.schematicsDiagnostics || []}) };
@@ -881,7 +881,7 @@ export async function runFinalize({
       }
       if (preparedExplainer && result.status === 0) {
         try {
-          const { assertPreparedDependencies } = await import('../packages/explainer/prepare.mjs');
+          const { assertPreparedDependencies } = await import('../packages/explainer/prepare.ts');
           assertPreparedDependencies(preparedExplainer);
         } catch (error) {
           result = { status: 1, stdout: JSON.stringify({ok:false,status:'fail',command:stage,stage:'prepare',diagnostics:error.schematicsDiagnostics || []}) };

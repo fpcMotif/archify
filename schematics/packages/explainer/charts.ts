@@ -8,26 +8,42 @@ import venn from './vendor/pele/diagrams/venn.js';
 
 register(pie, xychart, quadrantChart, sankey, radar, venn);
 
-const NATIVE = { flowchart: 'workflow or architecture', sequence: 'sequence', class: 'class', er: 'erd', state: 'lifecycle', timeline: 'timeline', gantt: 'timeline or waterfall', mindmap: 'tree', treeview: 'tree' };
+const NATIVE: Readonly<Record<string, string | undefined>> = { flowchart: 'workflow or architecture', sequence: 'sequence', class: 'class', er: 'erd', state: 'lifecycle', timeline: 'timeline', gantt: 'timeline or waterfall', mindmap: 'tree', treeview: 'tree' };
+
+export type CompiledChart =
+  | { error?: undefined; svg: string; width: number; height: number; type: string }
+  | { error: string; example: string; line?: number };
+
+export type ChartDataResult = { error?: undefined; text: string } | { error: string; text?: undefined };
+
+export interface ChartDataOptions {
+  kind: string;
+  x: string;
+  y: string[];
+  unit?: string;
+}
+
+type DataRow = Record<string, unknown>;
 
 // A pie legend reads "Label · value (share%)" rather than Pele's "Label [value]". The labels are
 // rewritten before rendering so the legend is laid out for their real width.
-function pieLegend(text) {
+function pieLegend(text: string): string {
   if (!/^\s*pie\b/u.test(text)) return text;
   const slice = /^(\s*)"((?:[^"\\]|\\.)*)"\s*:\s*(-?\d+(?:\.\d+)?)\s*$/gmu;
   const total = [...text.matchAll(slice)].reduce((sum, match) => sum + Number(match[3]), 0);
   if (!(total > 0)) return text;
-  return text.replace(/^(\s*pie)\s+showData\b/u, '$1').replace(slice, (_, indent, label, value) => { const share = Math.round(Number(value) / total * 100); return `${indent}"${label} · ${value}${/\p{Script=Han}/u.test(label) ? `（${share}%）` : ` (${share}%)`}" : ${value}`; });
+  return text.replace(/^(\s*pie)\s+showData\b/u, '$1').replace(slice, (_: string, indent: string, label: string, value: string) => { const share = Math.round(Number(value) / total * 100); return `${indent}"${label} · ${value}${/\p{Script=Han}/u.test(label) ? `（${share}%）` : ` (${share}%)`}" : ${value}`; });
 }
 
 /** Render a Mermaid chart to static SVG, or return a located diagnostic reason. */
-export function compileExplainerChart(text) {
+export function compileExplainerChart(text: string): CompiledChart {
   const type = detectType(text);
-  if (type && NATIVE[type]) return { error: `Mermaid ${type} is drawn with the native ${NATIVE[type]} shorthand, which Schematics validates and lets readers explore.`, example: `@${NATIVE[type].split(' ')[0]} id=...` };
+  const native = typeof type === 'string' ? NATIVE[type] : undefined;
+  if (type && native) return { error: `Mermaid ${type} is drawn with the native ${native} shorthand, which Schematics validates and lets readers explore.`, example: `@${native.split(' ')[0]} id=...` };
   try {
     const result = render(pieLegend(text), { padding: 8, fontSize: 13, links: false, images: false, config: { xyChart: { width: 480, height: 260, showDataLabel: true }, quadrantChart: { chartWidth: 400, chartHeight: 400 } } });
     // A rotated CJK axis title lies on its side; vertical writing keeps the characters upright.
-    const svg = result.svg.replace(/<g transform="translate\(([\d.-]+),([\d.-]+)\) rotate\(-90\)"><text x="0" y="[\d.-]+" text-anchor="middle">([^<]*\p{Script=Han}[^<]*)<\/text><\/g>/gu, (_, x, y, label) => `<text x="${x}" y="${y}" text-anchor="middle" writing-mode="vertical-rl">${label}</text>`);
+    const svg = result.svg.replace(/<g transform="translate\(([\d.-]+),([\d.-]+)\) rotate\(-90\)"><text x="0" y="[\d.-]+" text-anchor="middle">([^<]*\p{Script=Han}[^<]*)<\/text><\/g>/gu, (_: string, x: string, y: string, label: string) => `<text x="${x}" y="${y}" text-anchor="middle" writing-mode="vertical-rl">${label}</text>`);
     return { svg, width: result.width, height: result.height, type: result.type };
   } catch (error) {
     if (!(error instanceof PeleError)) throw error;
@@ -36,16 +52,22 @@ export function compileExplainerChart(text) {
   }
 }
 
+function isDataRow(row: unknown): row is DataRow {
+  return Boolean(row) && typeof row === 'object' && !Array.isArray(row);
+}
+
 // A data file becomes chart text: CSV with a header row, or JSON as an array of objects. Labels come
 // from column x and one series from each column in y; a pie takes the first y column as its values.
-export function chartFromData(bytes, filePath, { kind, x, y, unit }) {
-  let rows;
+export function chartFromData(bytes: Uint8Array, filePath: string, { kind, x, y, unit }: ChartDataOptions): ChartDataResult {
+  let rows: DataRow[];
   const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/^\uFEFF/u, '');
   if (/\.json$/iu.test(filePath)) {
-    try { rows = JSON.parse(text); } catch { return { error: 'The data file is not valid JSON.' }; }
-    if (!Array.isArray(rows) || !rows.every(row => row && typeof row === 'object' && !Array.isArray(row))) return { error: 'JSON chart data must be an array of objects.' };
+    let parsed: unknown;
+    try { parsed = JSON.parse(text); } catch { return { error: 'The data file is not valid JSON.' }; }
+    if (!Array.isArray(parsed) || !parsed.every(isDataRow)) return { error: 'JSON chart data must be an array of objects.' };
+    rows = parsed;
   } else {
-    const cells = line => { const out = []; let cell = '', quoted = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (quoted) { if (c === '"' && line[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') quoted = false; else cell += c; } else if (c === '"') quoted = true; else if (c === ',') { out.push(cell.trim()); cell = ''; } else cell += c; } out.push(cell.trim()); return out; };
+    const cells = (line: string): string[] => { const out: string[] = []; let cell = '', quoted = false; for (let i = 0; i < line.length; i++) { const c = line[i]; if (quoted) { if (c === '"' && line[i + 1] === '"') { cell += '"'; i++; } else if (c === '"') quoted = false; else cell += c; } else if (c === '"') quoted = true; else if (c === ',') { out.push(cell.trim()); cell = ''; } else cell += c; } out.push(cell.trim()); return out; };
     const lines = text.split(/\r?\n/u).filter(line => line.trim());
     if (lines.length < 2) return { error: 'CSV chart data needs a header row and at least one data row.' };
     const header = cells(lines[0]);
@@ -55,10 +77,10 @@ export function chartFromData(bytes, filePath, { kind, x, y, unit }) {
   const missing = [x, ...y].find(column => !columns.has(column));
   if (missing) return { error: `The data file has no column "${missing}". Columns: ${[...columns].join(', ')}.` };
   if (rows.length > (kind === 'pie' ? 12 : 60)) return { error: `A ${kind} chart takes at most ${kind === 'pie' ? 12 : 60} rows; this file has ${rows.length}.` };
-  const quote = value => `"${String(value).replace(/["\\]/gu, '')}"`;
+  const quote = (value: unknown): string => `"${String(value).replace(/["\\]/gu, '')}"`;
   // A blank cell is missing data, not zero: Number('') is 0, so blanks are rejected before conversion.
-  const blank = value => value === undefined || value === null || String(value).trim() === '';
-  const numbers = column => rows.map(row => blank(row[column]) ? NaN : Number(String(row[column]).replace(/,/gu, '')));
+  const blank = (value: unknown): boolean => value === undefined || value === null || String(value).trim() === '';
+  const numbers = (column: string): number[] => rows.map(row => blank(row[column]) ? NaN : Number(String(row[column]).replace(/,/gu, '')));
   for (const column of y) {
     const bad = numbers(column).findIndex(value => !Number.isFinite(value));
     if (bad < 0) continue;

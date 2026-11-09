@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {parseExplainer} from '../schematics/packages/explainer/parse.mjs';
-import {validateExplainer} from '../schematics/packages/explainer/validate.mjs';
+import {parseExplainer} from '../schematics/packages/explainer/parse.ts';
+import {validateExplainer} from '../schematics/packages/explainer/validate.ts';
 
 const draft = content => `# Cache choice {#cache-choice}\n\nRead the cache first on the request path.\n\n@source docs title="Fixture facts"\n\n## What follows? {#reasoning}\n\n${content}\n`;
 const parse = value => { const result=parseExplainer(value,{inputPath:'answer.md'}); assert.ok(result.document,JSON.stringify(result.diagnostics));return result; };
