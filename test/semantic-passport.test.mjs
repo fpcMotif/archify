@@ -111,7 +111,7 @@ test('Relationship Lens renders one Semantic Passport and copyable stable focus 
   assert.match(html, /id="focus-context" data-passport="context" hidden/);
   assert.match(html, /id="focus-tag" data-passport="tag" hidden/);
   assert.doesNotMatch(html, /id="focus-id"/);
-  assert.match(html, /id="btn-focus-clear"[^>]+aria-label="Close semantic passport"[^>]+title="Close">&#215;<\/button>/);
+  assert.match(html, /id="btn-focus-clear"[^>]+aria-label="Close node details"[^>]+title="Close">&#215;<\/button>/);
   assert.match(html, /id="btn-focus-copy"[^>]+aria-label="Copy link to focused node"/);
   assert.match(html, /id="btn-focus-relations"[^>]+aria-expanded="false"[^>]+aria-controls="relationship-lens-list"/);
   assert.match(html, /function renderPassport\(id, node\)/);
@@ -190,9 +190,9 @@ test('Semantic Passport exposes one localized, bounded move affordance outside c
 
   assert.match(
     html,
-    /<button class="relationship-lens-drag-handle" id="btn-focus-move"[^>]+data-focus-drag-handle[^>]+aria-label="Move semantic passport\./,
+    /<button class="relationship-lens-drag-handle" id="btn-focus-move"[^>]+data-focus-drag-handle[^>]+aria-label="Move node details\./,
   );
-  assert.equal(translateMessage('en', 'viewer.passport.move'), 'Move semantic passport. Drag, use arrow keys, or press Home to reset.');
+  assert.equal(translateMessage('en', 'viewer.passport.move'), 'Move node details. Drag, use arrow keys, or press Home to reset.');
   assert.equal(translateMessage('zh-CN', 'viewer.passport.move'), '移动语义护照。可拖动、使用方向键移动，或按 Home 恢复自动位置。');
   assert.match(html, /\.relationship-lens-drag-handle\s*\{[\s\S]*cursor:\s*grab;[\s\S]*touch-action:\s*none;/);
   assert.match(html, /\.focus-chip button:focus-visible \{\s*outline:\s*2px solid var\(--frontend-stroke\);/);

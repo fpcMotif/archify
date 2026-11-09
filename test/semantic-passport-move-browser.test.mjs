@@ -555,7 +555,7 @@ test('move affordance exposes localized accessible names and a visible keyboard 
     }
 
     const english = await accessibilityState();
-    assert.equal(english.ariaLabel, 'Move semantic passport. Drag, use arrow keys, or press Home to reset.');
+    assert.equal(english.ariaLabel, 'Move node details. Drag, use arrow keys, or press Home to reset.');
     assert.equal(english.title, english.ariaLabel);
     assert.equal(english.active, true, JSON.stringify(english, null, 2));
     assert.equal(english.focusVisible, true, JSON.stringify(english, null, 2));

@@ -154,9 +154,9 @@ test('all typed renderers inherit one viewer-only Semantic Radar', () => {
     const html = render(mode, example);
     assert.match(html, /id="overview-map" hidden role="region" aria-labelledby="overview-map-title"/, mode);
     assert.match(html, /id="overview-map-surface" tabindex="0" role="group"/, mode);
-    assert.match(html, /id="overview-map-expand"[^>]+aria-label="Open full semantic radar"/, mode);
+    assert.match(html, /id="overview-map-expand"[^>]+aria-label="Open full minimap"/, mode);
     assert.match(html, /id="overview-map-feedback" role="status" aria-live="polite" hidden/, mode);
-    assert.match(html, /id="btn-overview-map"[^>]+aria-label="Open semantic radar"[^>]+aria-expanded="false"[^>]+aria-controls="overview-map"/, mode);
+    assert.match(html, /id="btn-overview-map"[^>]+aria-label="Open minimap"[^>]+aria-expanded="false"[^>]+aria-controls="overview-map"/, mode);
     assert.match(html, /Archify\.radar = \(function \(\)/, mode);
     assert.match(html, /document\.createElementNS\(namespace, 'svg'\)/, mode);
     assert.match(html, /mapSvg\.setAttribute\('aria-label', viewerText\('viewer\.radar\.nodes'\)\)/, mode);
@@ -208,7 +208,7 @@ test('Semantic Radar tracks desktop camera and mobile contained scroll', () => {
 
 test('Semantic Radar keeps redundant accessible navigation and clean exports', () => {
   const html = render('architecture', CASES.architecture);
-  assert.match(html, /Semantic radar \(M\)/);
+  assert.match(html, /Minimap \(M\)/);
   assert.match(html, /e\.key === 'm' \|\| e\.key === 'M'/);
   assert.match(html, /e\.key === 'Escape' && Archify\.radar\.isOpen\(\)/);
   assert.match(html, /event\.key === 'ArrowLeft'[\s\S]+event\.key === 'ArrowRight'[\s\S]+event\.key === 'ArrowUp'[\s\S]+event\.key === 'ArrowDown'/);

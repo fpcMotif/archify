@@ -117,7 +117,7 @@ test('Reach Share Card reuses the 1200x630 seam and publishes a truthful scoped 
   assert.match(html, /recordExportReceipt\('share-card', blob, false, \{ width: SHARE_CARD_WIDTH, height: SHARE_CARD_HEIGHT \}, 'reach', false, true\)/);
   assert.match(html, /'-' \+ snapshot\.direction \+ '-reach-share-card\.png'/);
   assert.match(html, /data-last-export-reach-state-clean/);
-  assert.match(html, /Trace authored reach before exporting a Reach Share Card/);
+  assert.match(html, /Trace upstream or downstream before exporting a Reach Share Card/);
   assert.match(html, /downloadReachShareCard: runReachShareCard/);
 });
 
