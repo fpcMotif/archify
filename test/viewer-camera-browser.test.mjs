@@ -100,7 +100,7 @@ test('Camera preserves transactions, rendered state and real caller handoffs', {
   }));
   fs.writeFileSync(path.join(scratch, 'long-sequence.json'), JSON.stringify(longSequence));
   files.longSequence = path.join(scratch, 'long-sequence.html');
-  execFileSync(process.execPath, [path.join(skillRoot, 'packages/sequence/render-sequence.mjs'),
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/sequence/render-sequence.ts'),
     path.join(scratch, 'long-sequence.json'), files.longSequence]);
   const mobileWide = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples', cases.architecture), 'utf8'));
   mobileWide.meta.viewBox = [1600, 700];

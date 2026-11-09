@@ -32,7 +32,7 @@ test('sequence phase headings retain readable contrast in Read and Full detail',
     segments: [{ from: 145, to: 205, label: TITLE }],
     messages: [{ from: 'client', to: 'api', y: 170, label: 'Begin request' }],
   }));
-  execFileSync(process.execPath, [path.join(skillRoot, 'packages/sequence/render-sequence.mjs'), input, file]);
+  execFileSync(process.execPath, [path.join(skillRoot, 'packages/sequence/render-sequence.ts'), input, file]);
   const browser = new ChromeVisualBrowser(chrome);
   t.after(() => browser.close());
   const session = await browser.sessionPromise;

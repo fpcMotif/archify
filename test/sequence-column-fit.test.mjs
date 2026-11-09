@@ -21,7 +21,7 @@ function renderOutcome(doc, publicCli = false) {
   try {
     execFileSync(process.execPath, publicCli
       ? [path.join(skillRoot, 'bin/schematics.mjs'), 'render', 'sequence', input, output]
-      : [path.join(skillRoot, 'packages/sequence/render-sequence.mjs'), input, output], { stdio: ['ignore', 'ignore', 'pipe'] });
+      : [path.join(skillRoot, 'packages/sequence/render-sequence.ts'), input, output], { stdio: ['ignore', 'ignore', 'pipe'] });
     return { code: 0, stderr: '', html: fs.readFileSync(output, 'utf8') };
   } catch (err) {
     return { code: err.status ?? 1, stderr: String(err.stderr || ''), html: '' };
