@@ -1,11 +1,31 @@
-import { throwDiagnosticError } from '../diagnostics/diagnostics.ts';
+import { throwDiagnosticError, type DiagnosticInput } from '../diagnostics/diagnostics.ts';
 import { adviseFix, fixFields } from '../diagnostics/fixes.ts';
 
 const DEPLOYMENT_PROFILE = 'deployment-ownership';
-const DEPLOYMENT_BOUNDARY_KINDS = new Set(['region', 'security-group']);
-const PRIVATE_STATE_TYPES = new Set(['database']);
+const DEPLOYMENT_BOUNDARY_KINDS: ReadonlySet<unknown> = new Set(['region', 'security-group']);
+const PRIVATE_STATE_TYPES: ReadonlySet<unknown> = new Set(['database']);
 
-function subject(collection, index, item = {}) {
+type ProfileItem = Readonly<Record<string, unknown>>;
+
+interface ProfileBoundary {
+  readonly [field: string]: unknown;
+  readonly wraps: readonly unknown[];
+}
+
+function readField(value: unknown, key: string): unknown {
+  return typeof value === 'object' && value !== null ? Reflect.get(value, key) : undefined;
+}
+
+function isProfileItem(value: unknown): value is ProfileItem {
+  return typeof value === 'object' && value !== null;
+}
+
+function profileItems(diagram: unknown, key: string): ProfileItem[] {
+  const value = readField(diagram, key);
+  return Array.isArray(value) ? value.map((item: unknown) => (isProfileItem(item) ? item : {})) : [];
+}
+
+function subject(collection: string, index: number, item: ProfileItem = {}): Record<string, unknown> {
   return {
     diagramType: 'architecture',
     profile: DEPLOYMENT_PROFILE,
@@ -15,18 +35,18 @@ function subject(collection, index, item = {}) {
   };
 }
 
-function membership(boundaries, componentId, kind) {
+function membership(boundaries: readonly ProfileBoundary[], componentId: unknown, kind: string): { boundary: ProfileBoundary; index: number }[] {
   return boundaries
     .map((boundary, index) => ({ boundary, index }))
     .filter(({ boundary }) => boundary.kind === kind && boundary.wraps.includes(componentId));
 }
 
-export function deploymentOwnershipDiagnostics(diagram) {
-  const components = Array.isArray(diagram.components) ? diagram.components : [];
-  const boundaries = (Array.isArray(diagram.boundaries) ? diagram.boundaries : [])
+export function deploymentOwnershipDiagnostics(diagram: unknown): DiagnosticInput[] {
+  const components = profileItems(diagram, 'components');
+  const boundaries: ProfileBoundary[] = profileItems(diagram, 'boundaries')
     .map((boundary) => ({ ...boundary, wraps: Array.isArray(boundary.wraps) ? boundary.wraps : [] }));
-  const connections = Array.isArray(diagram.connections) ? diagram.connections : [];
-  const diagnostics = [];
+  const connections = profileItems(diagram, 'connections');
+  const diagnostics: DiagnosticInput[] = [];
 
   for (const kind of DEPLOYMENT_BOUNDARY_KINDS) {
     const count = boundaries.filter((boundary) => boundary.kind === kind).length;
@@ -145,8 +165,8 @@ export function deploymentOwnershipDiagnostics(diagram) {
   return diagnostics;
 }
 
-export function validateEngineeringProfile(diagramType, diagram) {
-  const profile = diagram.meta?.engineering_profile;
+export function validateEngineeringProfile(diagramType: string, diagram: unknown): void {
+  const profile = readField(readField(diagram, 'meta'), 'engineering_profile');
   if (!profile) return;
   if (diagramType !== 'architecture' || profile !== DEPLOYMENT_PROFILE) return;
   const diagnostics = deploymentOwnershipDiagnostics(diagram);

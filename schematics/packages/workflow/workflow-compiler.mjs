@@ -12,7 +12,7 @@ import {
   svgAccessibleText,
   svgRootAttrs,
   validateCrossCollectionContracts,
-} from '../svg/cli.mjs';
+} from '../svg/cli.ts';
 import {
   throwDiagnosticError,
   throwDiagnosticProblems,
@@ -27,7 +27,7 @@ import {
   renderLegend as renderResolvedLegend,
 } from '../svg/legend.ts';
 import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth, nodeLabelLayout } from '../svg/text-fit.ts';
-import { brandLabelFitWidth, brandMarkFor, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../svg/brand-marks.mjs';
+import { brandLabelFitWidth, brandMarkFor, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../svg/brand-marks.ts';
 import { translateMessage as i18nText } from '../i18n/i18n.ts';
 import { DESKTOP_READER_DIAGRAM_WIDTH, MIN_PROJECTED_NODE_TEXT_PX, minimumReadableSourceTextPx, predictedFixedWidthOverflow } from '../diagnostics/desktop-readability.ts';
 import {

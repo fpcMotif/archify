@@ -10,7 +10,7 @@ import {
   svgAccessibleText,
   svgRootAttrs,
   writeDiagram,
-} from '../svg/cli.mjs';
+} from '../svg/cli.ts';
 import { throwDiagnosticProblems } from '../diagnostics/diagnostics.ts';
 import {
   legendFootprint,

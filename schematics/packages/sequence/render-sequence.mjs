@@ -1,13 +1,13 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { esc, renderDefinitions, renderSemanticSigil, textUnits, SEMANTIC_SIGIL_SIZE } from '../svg/utils.ts';
-import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, loadDiagramWithBrandMarks, writeDiagram, svgAccessibleText, svgRootAttrs } from '../svg/cli.mjs';
+import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, loadDiagramWithBrandMarks, writeDiagram, svgAccessibleText, svgRootAttrs } from '../svg/cli.ts';
 import { throwDiagnosticProblems } from '../diagnostics/diagnostics.ts';
 import { chooseFix, fixFields, setFix } from '../diagnostics/fixes.ts';
 import { legendFootprint, measureLegend, resolveLegend, renderLegend as renderResolvedLegend } from '../svg/legend.ts';
 import { componentFill, arrowClassMap, rectsOverlap, cleanFlowProblems, cleanCrossingProblems, cleanAmbiguousCorridorProblems, cleanBorderRunProblems, cleanRouteRhythmProblems, cleanLabelRouteClearanceProblems, cleanLabelCanvasContainmentProblems, routePointsValue, asArray, isFinitePoint, edgeLabelAccent } from '../geometry/geometry.ts';
 import { availableNodeTextWidth, fittedNodeFontSize, inlineTitleSigilLayout, minimumNodeTextWidth } from '../svg/text-fit.ts';
-import { brandLabelFitWidth, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../svg/brand-marks.mjs';
+import { brandLabelFitWidth, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../svg/brand-marks.ts';
 import { translateMessage as i18nText } from '../i18n/i18n.ts';
 import { DESKTOP_READER_DIAGRAM_WIDTH, MIN_PROJECTED_NODE_TEXT_PX, minimumReadableSourceTextPx } from '../diagnostics/desktop-readability.ts';
 

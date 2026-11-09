@@ -13,7 +13,7 @@ import {
   releaseRegularFileBinding,
   removeOwnedRegularFile,
 } from '../schematics/packages/output/atomic-output.ts';
-import { loadDiagram, writeDiagram } from '../schematics/packages/svg/cli.mjs';
+import { loadDiagram, writeDiagram } from '../schematics/packages/svg/cli.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..', 'schematics');

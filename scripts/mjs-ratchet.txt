@@ -43,10 +43,6 @@ schematics/packages/erd/render-erd.mjs
 schematics/packages/explainer/render-explainer.mjs
 schematics/packages/lifecycle/render-lifecycle.mjs
 schematics/packages/sequence/render-sequence.mjs
-schematics/packages/svg/brand-marks.mjs
-schematics/packages/svg/cli.mjs
-schematics/packages/svg/engineering-profiles.mjs
-schematics/packages/svg/generated-brand-marks.mjs
 schematics/packages/timeline/render-timeline.mjs
 schematics/packages/tree/render-tree.mjs
 schematics/packages/waterfall/render-waterfall.mjs

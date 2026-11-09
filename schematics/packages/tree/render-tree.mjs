@@ -10,7 +10,7 @@ import {
   svgAccessibleText,
   svgRootAttrs,
   writeDiagram,
-} from '../svg/cli.mjs';
+} from '../svg/cli.ts';
 import { throwDiagnosticProblems } from '../diagnostics/diagnostics.ts';
 import { nodeTextFit } from '../svg/text-fit.ts';
 import { translateMessage as i18nText } from '../i18n/i18n.ts';

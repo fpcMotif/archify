@@ -6249,7 +6249,7 @@ async function commandBrands(args) {
   const positional = args.filter((arg) => arg !== '--json');
   if (positional[0] === 'capture') {
     if (positional.length !== 2) fail('Usage: schematics brands capture <url> [--json]');
-    const { captureBrandReference } = await import('../packages/svg/brand-marks.mjs');
+    const { captureBrandReference } = await import('../packages/svg/brand-marks.ts');
     let capture;
     try {
       capture = await captureBrandReference(positional[1]);
@@ -6272,7 +6272,7 @@ async function commandBrands(args) {
     return;
   }
   const query = positional.join(' ').trim();
-  const { listBrandMarks } = await import('../packages/svg/brand-marks.mjs');
+  const { listBrandMarks } = await import('../packages/svg/brand-marks.ts');
   const marks = listBrandMarks(query);
   if (json) {
     console.log(JSON.stringify({

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startPreview } from '../schematics/bin/preview.mjs';
-import { loadDiagram, writeDiagram } from '../schematics/packages/svg/cli.mjs';
+import { loadDiagram, writeDiagram } from '../schematics/packages/svg/cli.ts';
 import { pathsAlias } from '../schematics/packages/output/output-path.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));

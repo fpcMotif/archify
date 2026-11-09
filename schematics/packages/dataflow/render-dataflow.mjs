@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadDiagramWithBrandMarks, writeDiagram } from '../svg/cli.mjs';
+import { loadDiagramWithBrandMarks, writeDiagram } from '../svg/cli.ts';
 import { recordDiagnostic } from '../diagnostics/diagnostics.ts';
 import { compileDataflow } from './dataflow-compiler.mjs';
 

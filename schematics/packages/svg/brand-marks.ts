@@ -1,18 +1,91 @@
 import net from 'node:net';
-import { BRAND_MARKS } from './generated-brand-marks.mjs';
+import type { IncomingMessage, request as httpRequest } from 'node:http';
+import { BRAND_MARKS, type BrandMark } from './generated-brand-marks.ts';
 import { throwDiagnosticError } from '../diagnostics/diagnostics.ts';
 import { esc, textUnits } from './utils.ts';
 
-const COLLECTIONS = Object.freeze({
+export type { BrandMark, BrandMarkProvenance } from './generated-brand-marks.ts';
+
+export interface PresetBrandMark extends BrandMark {
+  kind: 'preset';
+  status: 'preset';
+  sourceUrl?: string;
+}
+
+export interface RemoteBrandMark {
+  id: string;
+  title: string;
+  category: 'link';
+  kind: 'remote';
+  status: 'captured';
+  sourceUrl: string | null;
+  resolvedUrl: string;
+  dataUrl: string;
+  sha256: string;
+  contentType: string;
+}
+
+export interface FallbackBrandMark {
+  id: string;
+  title: string;
+  category: 'link';
+  kind: 'fallback';
+  status: 'unavailable';
+  sourceUrl: string | null;
+  reason: string | undefined;
+}
+
+export type ResolvedBrandMark = PresetBrandMark | RemoteBrandMark | FallbackBrandMark;
+
+export type BrandCapture =
+  | { brand: string; resolved: PresetBrandMark }
+  | { brand: { url: string; sha256: string }; resolved: RemoteBrandMark };
+
+export interface BrandMetadata {
+  brand?: string;
+  brandId?: string;
+  brandStatus?: string;
+  brandSource?: string | null;
+}
+
+export interface BrandMarkPlacement {
+  x?: number;
+  y?: number;
+  size?: number;
+}
+
+interface BrandNode {
+  [field: string]: unknown;
+  [RESOLVED_MARK]?: ResolvedBrandMark;
+}
+
+interface RequestTarget {
+  address: string;
+  family: number;
+}
+
+interface PinnedResponse {
+  status: number;
+  ok: boolean;
+  headers: { get(name: string): string | null };
+  body: IncomingMessage;
+}
+
+interface IconCandidate {
+  url: URL;
+  score: number;
+}
+
+const COLLECTIONS: Readonly<Record<string, string | undefined>> = Object.freeze({
   architecture: 'components',
   workflow: 'nodes',
   sequence: 'participants',
   dataflow: 'nodes',
   lifecycle: 'states',
 });
-const MARK_BY_LOOKUP = new Map();
-const MARK_BY_DOMAIN = new Map();
-const RESOLVED_BY_NODE = new WeakMap();
+const MARK_BY_LOOKUP = new Map<string, BrandMark>();
+const MARK_BY_DOMAIN = new Map<string, BrandMark>();
+const RESOLVED_BY_NODE = new WeakMap<object, ResolvedBrandMark>();
 const RESOLVED_MARK = Symbol('schematics.brandMark');
 const MAX_HTML_BYTES = 256 * 1024;
 const MAX_IMAGE_BYTES = 1024 * 1024;
@@ -20,7 +93,7 @@ const MAX_CAPTURE_CONCURRENCY = 3;
 const DEFAULT_CAPTURE_TIMEOUT_MS = 8000;
 const USER_AGENT = 'Schematics/2.15 brand-preview';
 
-function lookupForms(value) {
+function lookupForms(value: unknown): string[] {
   const raw = String(value ?? '').trim().toLocaleLowerCase('en-US');
   if (!raw) return [];
   const dashed = raw.replace(/[\s_]+/g, '-');
@@ -37,7 +110,16 @@ for (const mark of BRAND_MARKS) {
   for (const domain of mark.domains) MARK_BY_DOMAIN.set(domain, mark);
 }
 
-function asUrl(value) {
+function isBrandNode(value: unknown): value is BrandNode {
+  return typeof value === 'object' && value !== null;
+}
+
+function messageOf(error: unknown): string | undefined {
+  const message = typeof error === 'object' && error !== null ? Reflect.get(error, 'message') : undefined;
+  return typeof message === 'string' ? message : undefined;
+}
+
+function asUrl(value: unknown): URL | null {
   try {
     const url = new URL(String(value));
     return ['https:', 'http:'].includes(url.protocol) ? url : null;
@@ -47,7 +129,7 @@ function asUrl(value) {
 }
 
 // Public provenance is separate from the URL used to reproduce a pinned asset.
-export function normalizeBrandSourceUrl(value) {
+export function normalizeBrandSourceUrl(value: unknown): string | null {
   const url = asUrl(value);
   if (!url) return null;
   url.username = '';
@@ -57,7 +139,7 @@ export function normalizeBrandSourceUrl(value) {
   return url.href;
 }
 
-function domainMark(hostname) {
+function domainMark(hostname: string): BrandMark | null {
   const host = hostname.toLocaleLowerCase('en-US').replace(/\.$/, '');
   const candidates = [...MARK_BY_DOMAIN.entries()]
     .filter(([domain]) => host === domain || host.endsWith(`.${domain}`))
@@ -65,7 +147,7 @@ function domainMark(hostname) {
   return candidates[0]?.[1] || null;
 }
 
-export function findBrandMark(value) {
+export function findBrandMark(value: unknown): BrandMark | null {
   const url = asUrl(value);
   if (url) return domainMark(url.hostname);
   for (const form of lookupForms(value)) {
@@ -75,7 +157,7 @@ export function findBrandMark(value) {
   return null;
 }
 
-export function listBrandMarks(query = '') {
+export function listBrandMarks(query: unknown = ''): Omit<BrandMark, 'path'>[] {
   const needle = String(query).trim().toLocaleLowerCase('en-US');
   return BRAND_MARKS.filter((mark) => {
     if (!needle) return true;
@@ -84,7 +166,7 @@ export function listBrandMarks(query = '') {
   }).map(({ path, ...mark }) => mark);
 }
 
-function ipv4Private(address) {
+function ipv4Private(address: string): boolean {
   const parts = address.split('.').map(Number);
   if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
   const [a, b, c] = parts;
@@ -100,7 +182,7 @@ function ipv4Private(address) {
     || (a === 203 && b === 0 && c === 113);
 }
 
-function ipv6Private(address) {
+function ipv6Private(address: string): boolean {
   const normalized = address.toLocaleLowerCase('en-US').split('%')[0];
   if (normalized === '::' || normalized === '::1') return true;
   if (normalized.startsWith('fc') || normalized.startsWith('fd') || normalized.startsWith('ff') || /^fe[89ab]/.test(normalized)) return true;
@@ -123,12 +205,12 @@ function ipv6Private(address) {
   return false;
 }
 
-export function isPrivateBrandAddress(address) {
+export function isPrivateBrandAddress(address: string): boolean {
   const family = net.isIP(address);
   return family === 4 ? ipv4Private(address) : (family === 6 ? ipv6Private(address) : true);
 }
 
-function validateUrlShape(url, allowPrivate = process.env.SCHEMATICS_BRAND_ALLOW_PRIVATE === '1') {
+function validateUrlShape(url: URL, allowPrivate: boolean = process.env.SCHEMATICS_BRAND_ALLOW_PRIVATE === '1'): string {
   if (!['https:', 'http:'].includes(url.protocol)) throw new Error('only HTTP(S) brand links are supported');
   if (url.username || url.password) throw new Error('brand links cannot contain credentials');
   const expectedPort = url.protocol === 'https:' ? '443' : '80';
@@ -142,7 +224,7 @@ function validateUrlShape(url, allowPrivate = process.env.SCHEMATICS_BRAND_ALLOW
   return host;
 }
 
-function beforeDeadline(promise, deadline) {
+function beforeDeadline<T>(promise: Promise<T>, deadline: number): Promise<T> {
   const remaining = deadline - Date.now();
   if (remaining <= 0) return Promise.reject(new Error('brand capture timed out'));
   return new Promise((resolve, reject) => {
@@ -150,16 +232,16 @@ function beforeDeadline(promise, deadline) {
     timer.unref?.();
     promise.then(
       (value) => { clearTimeout(timer); resolve(value); },
-      (error) => { clearTimeout(timer); reject(error); },
+      (error: unknown) => { clearTimeout(timer); reject(error); },
     );
   });
 }
 
-async function resolveRequestTarget(url, deadline) {
+async function resolveRequestTarget(url: URL, deadline: number): Promise<RequestTarget> {
   const allowPrivate = process.env.SCHEMATICS_BRAND_ALLOW_PRIVATE === '1';
   const host = validateUrlShape(url, allowPrivate);
   const directFamily = net.isIP(host);
-  const addresses = directFamily
+  const addresses: RequestTarget[] = directFamily
     ? [{ address: host, family: directFamily }]
     : await beforeDeadline((await import('node:dns/promises')).lookup(host, { all: true, verbatim: true }), deadline);
   if (!addresses.length || (!allowPrivate && addresses.some(({ address }) => isPrivateBrandAddress(address)))) {
@@ -168,7 +250,7 @@ async function resolveRequestTarget(url, deadline) {
   return addresses[0];
 }
 
-function timeoutSignal(milliseconds) {
+function timeoutSignal(milliseconds: number): AbortSignal {
   if (typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(milliseconds);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), milliseconds);
@@ -176,14 +258,16 @@ function timeoutSignal(milliseconds) {
   return controller.signal;
 }
 
-function captureTimeoutMilliseconds() {
+function captureTimeoutMilliseconds(): number {
   const configured = Number(process.env.SCHEMATICS_BRAND_CAPTURE_TIMEOUT_MS);
   if (!Number.isFinite(configured)) return DEFAULT_CAPTURE_TIMEOUT_MS;
   return Math.max(100, Math.min(30000, Math.round(configured)));
 }
 
-async function requestPinned(url, accept, target, deadline) {
-  const { default: transport } = await import(url.protocol === 'https:' ? 'node:https' : 'node:http');
+async function requestPinned(url: URL, accept: string, target: RequestTarget, deadline: number): Promise<PinnedResponse> {
+  const { default: transport }: { default: { request: typeof httpRequest } } = url.protocol === 'https:'
+    ? await import('node:https')
+    : await import('node:http');
   return new Promise((resolve, reject) => {
     const request = transport.request(url, {
       method: 'GET',
@@ -214,7 +298,7 @@ async function requestPinned(url, accept, target, deadline) {
   });
 }
 
-async function checkedFetch(input, accept, deadline) {
+async function checkedFetch(input: URL, accept: string, deadline: number): Promise<{ response: PinnedResponse; finalUrl: URL }> {
   let current = new URL(input);
   for (let redirects = 0; redirects <= 3; redirects += 1) {
     if (Date.now() >= deadline) throw new Error('brand capture timed out');
@@ -243,39 +327,19 @@ async function checkedFetch(input, accept, deadline) {
   throw new Error('brand link redirected too many times');
 }
 
-async function readLimited(response, maximum) {
+async function readLimited(response: PinnedResponse, maximum: number): Promise<Buffer> {
   const declared = Number(response.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > maximum) {
     response.body?.destroy?.();
     throw new Error('brand asset is too large');
   }
-  if (response.body && typeof response.body[Symbol.asyncIterator] === 'function') {
-    const chunks = [];
-    let total = 0;
-    for await (const value of response.body) {
-      total += value.byteLength;
-      if (total > maximum) {
-        response.body.destroy?.();
-        throw new Error('brand asset is too large');
-      }
-      chunks.push(Buffer.from(value));
-    }
-    return Buffer.concat(chunks, total);
-  }
-  if (!response.body?.getReader) {
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.length > maximum) throw new Error('brand asset is too large');
-    return buffer;
-  }
-  const reader = response.body.getReader();
-  const chunks = [];
+  const chunks: Buffer[] = [];
   let total = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  for await (const received of response.body) {
+    const value: Uint8Array = received;
     total += value.byteLength;
     if (total > maximum) {
-      await reader.cancel();
+      response.body.destroy?.();
       throw new Error('brand asset is too large');
     }
     chunks.push(Buffer.from(value));
@@ -287,11 +351,11 @@ async function readLimited(response, maximum) {
 // bytes once so many tiny chunks cannot cause repeated concatenation/rescanning.
 // Collect link tags in the same pass: markup in comments, raw text, attributes
 // or templates must not become an icon candidate or an early head ending.
-async function readHtmlHeadLinks(response, maximum, mediaType) {
-  const chunks = response.body && typeof response.body[Symbol.asyncIterator] === 'function'
+async function readHtmlHeadLinks(response: PinnedResponse, maximum: number, mediaType: string): Promise<string[]> {
+  const chunks: AsyncIterable<Uint8Array> | Iterable<Uint8Array> = response.body && typeof response.body[Symbol.asyncIterator] === 'function'
     ? response.body : [await readLimited(response, maximum)];
   const buffer = Buffer.alloc(maximum);
-  const links = [];
+  const links: string[] = [];
   let total = 0;
   let tagStart = -1;
   let quote = 0;
@@ -367,7 +431,7 @@ async function readHtmlHeadLinks(response, maximum, mediaType) {
   return links;
 }
 
-function linkAttribute(tag, name) {
+function linkAttribute(tag: string, name: string): string {
   // Consume entire attributes so data-href and quoted examples cannot supply
   // a real href. As in HTML, the first occurrence wins, even when valueless.
   const attributes = tag.slice(5, -1).matchAll(/([^\t\n\f\r />=]+)(?:[\t\n\f\r ]*=[\t\n\f\r ]*(?:"([^"]*)"|'([^']*)'|([^\t\n\f\r >]+)))?/g);
@@ -385,23 +449,23 @@ const HTML_C1_REFERENCES = [
   0x90, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014,
   0x2dc, 0x2122, 0x161, 0x203a, 0x153, 0x9d, 0x17e, 0x178,
 ];
-const BASIC_HTML_REFERENCES = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>' };
+const BASIC_HTML_REFERENCES: Readonly<Record<string, string>> = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>' };
 
-function decodeIconHref(value) {
+function decodeIconHref(value: string): string {
   // Decode only after extracting the attribute, in one pass. Leave percent
   // escapes to URL parsing and do not reinterpret decoded quotes as markup.
   return value.replace(/&#(?:[xX]([0-9a-fA-F]+)|([0-9]+));?|&(amp|AMP|quot|QUOT|lt|LT|gt|GT)(?:;|(?![A-Za-z0-9=]))|&(apos);/g,
-    (_match, hex, decimal, named, apostrophe) => {
-      if (named || apostrophe) return BASIC_HTML_REFERENCES[(named || apostrophe).toLowerCase()];
-      let point = Number.parseInt(hex || decimal, hex ? 16 : 10);
-      if (point === 0 || point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff)) return '\uFFFD';
+    (_match: string, hex: string | undefined, decimal: string | undefined, named: string | undefined, apostrophe: string | undefined) => {
+      if (named || apostrophe) return BASIC_HTML_REFERENCES[String(named || apostrophe).toLowerCase()];
+      let point = Number.parseInt(String(hex || decimal), hex ? 16 : 10);
+      if (point === 0 || point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff)) return '�';
       if (point >= 0x80 && point <= 0x9f) point = HTML_C1_REFERENCES[point - 0x80];
       return String.fromCodePoint(point);
     });
 }
 
-function iconCandidates(links, pageUrl) {
-  const candidates = [];
+function iconCandidates(links: readonly string[], pageUrl: URL): IconCandidate[] {
+  const candidates: IconCandidate[] = [];
   for (const tag of links) {
     const rel = linkAttribute(tag, 'rel').toLocaleLowerCase('en-US').split(/\s+/);
     if (!rel.some((value) => value === 'icon' || value === 'apple-touch-icon' || value === 'mask-icon')) continue;
@@ -429,7 +493,7 @@ function iconCandidates(links, pageUrl) {
   return [...unique.values()].slice(0, 5).concat({ url: fallback, score: -1 });
 }
 
-function validIcoImageRanges(buffer) {
+function validIcoImageRanges(buffer: Buffer): boolean {
   if (buffer.length < 6 || buffer.readUInt16LE(0) !== 0 || buffer.readUInt16LE(2) !== 1) return false;
   const count = buffer.readUInt16LE(4);
   const directoryEnd = 6 + count * 16;
@@ -443,7 +507,7 @@ function validIcoImageRanges(buffer) {
   return true;
 }
 
-async function imageData(response) {
+async function imageData(response: PinnedResponse): Promise<{ dataUrl: string; sha256: string; contentType: string }> {
   const contentType = (response.headers.get('content-type') || '').split(';')[0].trim().toLocaleLowerCase('en-US');
   const allowed = new Set([
     'image/png',
@@ -483,10 +547,10 @@ async function imageData(response) {
   };
 }
 
-async function captureRemoteBrand(value, deadline = Date.now() + captureTimeoutMilliseconds()) {
+async function captureRemoteBrand(value: string, deadline: number = Date.now() + captureTimeoutMilliseconds()): Promise<RemoteBrandMark | FallbackBrandMark> {
   const sourceUrl = new URL(value);
   const publicSourceUrl = normalizeBrandSourceUrl(sourceUrl);
-  const fallback = (reason) => ({
+  const fallback = (reason: string | undefined): FallbackBrandMark => ({
     id: sourceUrl.hostname,
     title: sourceUrl.hostname,
     category: 'link',
@@ -518,7 +582,7 @@ async function captureRemoteBrand(value, deadline = Date.now() + captureTimeoutM
     // Distinguish HTML noscript and XHTML empty elements without executing scripts.
     const mediaType = pageType.split(';')[0].trim();
     const links = await readHtmlHeadLinks(page.response, MAX_HTML_BYTES, mediaType);
-    const iconErrors = [];
+    const iconErrors: unknown[] = [];
     for (const candidate of iconCandidates(links, page.finalUrl)) {
       try {
         const fetched = await checkedFetch(candidate.url, 'image/*', deadline);
@@ -538,15 +602,15 @@ async function captureRemoteBrand(value, deadline = Date.now() + captureTimeoutM
         // Try the next declared favicon before using the generic link mark.
       }
     }
-    const usefulError = iconErrors.find((error) => /unsupported brand (?:image type|content encoding)/i.test(error?.message))
+    const usefulError = iconErrors.find((error) => /unsupported brand (?:image type|content encoding)/i.test(String(messageOf(error))))
       || iconErrors.at(-1);
-    return fallback(usefulError?.message || 'no usable site icon was found');
+    return fallback(messageOf(usefulError) || 'no usable site icon was found');
   } catch (error) {
-    return fallback(error.message);
+    return fallback(messageOf(error));
   }
 }
 
-export async function captureBrandReference(value) {
+export async function captureBrandReference(value: unknown): Promise<BrandCapture> {
   const url = asUrl(value);
   if (!url) throw new Error('brand capture requires one HTTP(S) URL');
   validateUrlShape(url);
@@ -554,7 +618,8 @@ export async function captureBrandReference(value) {
   if (preset) return { brand: preset.id, resolved: { ...preset, kind: 'preset', status: 'preset' } };
   const resolved = await captureRemoteBrand(url.href);
   if (resolved.status !== 'captured' || !resolved.sha256) {
-    throw new Error(`brand capture failed: ${resolved.reason || 'no usable site icon was found'}`);
+    const reason = resolved.status === 'unavailable' ? resolved.reason : undefined;
+    throw new Error(`brand capture failed: ${reason || 'no usable site icon was found'}`);
   }
   return {
     brand: { url: url.href, sha256: resolved.sha256 },
@@ -562,13 +627,21 @@ export async function captureBrandReference(value) {
   };
 }
 
-function remoteBrand(value, cache, deadline) {
+function remoteBrand(
+  value: string,
+  cache: Map<string, Promise<RemoteBrandMark | FallbackBrandMark>>,
+  deadline: number,
+): Promise<RemoteBrandMark | FallbackBrandMark> {
   const key = new URL(value).href;
-  if (!cache.has(key)) cache.set(key, captureRemoteBrand(key, deadline));
-  return cache.get(key);
+  let capture = cache.get(key);
+  if (!capture) {
+    capture = captureRemoteBrand(key, deadline);
+    cache.set(key, capture);
+  }
+  return capture;
 }
 
-function suggestions(value) {
+function suggestions(value: unknown): string[] {
   const needle = lookupForms(value)[0] || '';
   return BRAND_MARKS.map((mark) => ({
     id: mark.id,
@@ -578,7 +651,7 @@ function suggestions(value) {
     .map((entry) => entry.id);
 }
 
-async function mapConcurrent(values, limit, visit) {
+async function mapConcurrent<T>(values: readonly T[], limit: number, visit: (value: T, index: number) => Promise<void>): Promise<void> {
   let cursor = 0;
   const workers = Array.from({ length: Math.min(limit, values.length) }, async () => {
     while (cursor < values.length) {
@@ -590,23 +663,25 @@ async function mapConcurrent(values, limit, visit) {
   await Promise.all(workers);
 }
 
-export async function prepareDiagramBrandMarks(diagramType, diagram) {
+export async function prepareDiagramBrandMarks(diagramType: string, diagram: unknown): Promise<void> {
   const collection = COLLECTIONS[diagramType];
-  const nodes = collection && Array.isArray(diagram[collection]) ? diagram[collection] : [];
-  const unknown = [];
-  const remoteByUrl = new Map();
+  const collected: unknown = collection && isBrandNode(diagram) ? diagram[collection] : undefined;
+  const nodes: unknown[] = Array.isArray(collected) ? collected : [];
+  const unknown: string[] = [];
+  const remoteByUrl = new Map<string, Promise<RemoteBrandMark | FallbackBrandMark>>();
   const deadline = Date.now() + captureTimeoutMilliseconds();
   await mapConcurrent(nodes, MAX_CAPTURE_CONCURRENCY, async (node, index) => {
-    if (!node.brand) return;
+    if (!isBrandNode(node) || !node.brand) return;
     if (typeof node.brand === 'object') {
-      const url = asUrl(node.brand.url);
+      const pinned = node.brand;
+      const url = asUrl(Reflect.get(pinned, 'url'));
       const resolved = url ? await remoteBrand(url.href, remoteByUrl, deadline) : null;
       if (!resolved || resolved.status !== 'captured') {
         unknown.push(`/${collection}/${index}/brand could not reproduce the pinned capture: ${resolved?.reason || 'invalid URL'}`);
         return;
       }
-      if (resolved.sha256 !== node.brand.sha256) {
-        unknown.push(`/${collection}/${index}/brand digest changed: expected ${node.brand.sha256}, received ${resolved.sha256}`);
+      if (resolved.sha256 !== Reflect.get(pinned, 'sha256')) {
+        unknown.push(`/${collection}/${index}/brand digest changed: expected ${Reflect.get(pinned, 'sha256')}, received ${resolved.sha256}`);
         return;
       }
       node[RESOLVED_MARK] = resolved;
@@ -615,7 +690,7 @@ export async function prepareDiagramBrandMarks(diagramType, diagram) {
     }
     const preset = findBrandMark(node.brand);
     if (preset) {
-      const resolved = { ...preset, kind: 'preset', status: 'preset', sourceUrl: preset.provenance.source };
+      const resolved: PresetBrandMark = { ...preset, kind: 'preset', status: 'preset', sourceUrl: preset.provenance.source };
       node[RESOLVED_MARK] = resolved;
       RESOLVED_BY_NODE.set(node, resolved);
       return;
@@ -643,11 +718,11 @@ export async function prepareDiagramBrandMarks(diagramType, diagram) {
   }
 }
 
-export function brandMarkFor(node) {
-  return node?.[RESOLVED_MARK] || RESOLVED_BY_NODE.get(node) || null;
+export function brandMarkFor(node: unknown): ResolvedBrandMark | null {
+  return isBrandNode(node) ? node[RESOLVED_MARK] || RESOLVED_BY_NODE.get(node) || null : null;
 }
 
-export function brandMetadataFor(node) {
+export function brandMetadataFor(node: unknown): BrandMetadata {
   const mark = brandMarkFor(node);
   return mark ? {
     brand: mark.title,
@@ -657,12 +732,12 @@ export function brandMetadataFor(node) {
   } : {};
 }
 
-export function brandLabelFitWidth(node, width) {
+export function brandLabelFitWidth(node: unknown, width: number): number {
   return brandMarkFor(node) ? Math.max(1, width - 48) : width;
 }
 
-export function brandTopRailProblem(node, width, minimumFontSize, subject = 'Node') {
-  if (!brandMarkFor(node)) return null;
+export function brandTopRailProblem(node: unknown, width: number, minimumFontSize: number, subject: string = 'Node'): string | null {
+  if (!brandMarkFor(node) || !isBrandNode(node)) return null;
   const available = width - 48;
   const required = textUnits(node.label) * minimumFontSize * 0.6;
   if (available >= required) return null;
@@ -670,17 +745,17 @@ export function brandTopRailProblem(node, width, minimumFontSize, subject = 'Nod
     + `"${node.label}" needs ~${Math.ceil(required)}px at the ${minimumFontSize}px legible minimum — widen the node or shorten the label.`;
 }
 
-function markAttrs(mark) {
+function markAttrs(mark: ResolvedBrandMark): string {
   return [
     `data-brand-mark="${esc(mark.id)}"`,
     `data-brand-title="${esc(mark.title)}"`,
     `data-brand-status="${esc(mark.status)}"`,
     mark.sourceUrl ? `data-brand-source="${esc(mark.sourceUrl)}"` : '',
-    mark.sha256 ? `data-brand-sha256="${esc(mark.sha256)}"` : '',
+    mark.kind === 'remote' && mark.sha256 ? `data-brand-sha256="${esc(mark.sha256)}"` : '',
   ].filter(Boolean).join(' ');
 }
 
-export function renderBrandMark(node, { x, y, size = 16 } = {}) {
+export function renderBrandMark(node: unknown, { x, y, size = 16 }: BrandMarkPlacement = {}): string {
   const mark = brandMarkFor(node);
   if (!mark) return '';
   const inset = 3;

@@ -1,10 +1,10 @@
 import { esc, renderDefinitions, renderSemanticSigil, textUnits } from '../svg/utils.ts';
-import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, svgAccessibleText, svgRootAttrs } from '../svg/cli.mjs';
+import { animateAttr, focusEdgeAttrs, focusNodeAttrs, focusNodeTitle, svgAccessibleText, svgRootAttrs } from '../svg/cli.ts';
 import { throwDiagnosticProblems, withIsolatedDiagnosticRecording, rendererFailure } from '../diagnostics/diagnostics.ts';
 import { chooseFix, fixFields, setFix } from '../diagnostics/fixes.ts';
 import { resolveLegend, renderLegend as renderResolvedLegend, legendFootprint } from '../svg/legend.ts';
 import { availableNodeTextWidth, fittedNodeFontSize, minimumNodeTextWidth, nodeLabelLayout } from '../svg/text-fit.ts';
-import { brandLabelFitWidth, brandMarkFor, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../svg/brand-marks.mjs';
+import { brandLabelFitWidth, brandMarkFor, brandMetadataFor, brandTopRailProblem, renderBrandMark } from '../svg/brand-marks.ts';
 import { translateMessage as i18nText } from '../i18n/i18n.ts';
 import { DECLARED_WIDE_READER_RATIO, minimumReadableSourceTextPx, predictedFixedWidthOverflow } from '../diagnostics/desktop-readability.ts';
 import { placeAutomaticLabels } from '../svg/automatic-labels.ts';

@@ -7,8 +7,8 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { BRAND_MARKS } from '../schematics/packages/svg/generated-brand-marks.mjs';
-import { isPrivateBrandAddress, prepareDiagramBrandMarks } from '../schematics/packages/svg/brand-marks.mjs';
+import { BRAND_MARKS } from '../schematics/packages/svg/generated-brand-marks.ts';
+import { isPrivateBrandAddress, prepareDiagramBrandMarks } from '../schematics/packages/svg/brand-marks.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(here, '..', 'schematics');

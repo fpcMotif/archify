@@ -162,7 +162,7 @@ test('locale warnings cannot classify an unrelated native renderer error', t => 
   const document = JSON.parse(fs.readFileSync(path.join(skillRoot, 'examples/web-app.architecture.json'), 'utf8'));
   document.meta.locale = 'en-US';
   fs.writeFileSync(input, JSON.stringify(document));
-  const helper = new URL('../schematics/packages/svg/cli.mjs', import.meta.url).href;
+  const helper = new URL('../schematics/packages/svg/cli.ts', import.meta.url).href;
   const script = `import { loadDiagram } from ${JSON.stringify(helper)};
     loadDiagram({ rendererDir: ${JSON.stringify(path.join(skillRoot, 'packages/architecture'))}, diagramType: 'architecture', argv: ['node', 'renderer', ${JSON.stringify(input)}, ${JSON.stringify(output)}] });
     throw new TypeError('unrelated implementation defect');`;
@@ -230,7 +230,7 @@ test('public post-render checker failures retain the locale warning once', t => 
 
 test('unexpected renderer exceptions keep native debugging information and are not relabelled as input errors', t => {
   const cwd = workspace(t);
-  const helper = new URL('../schematics/packages/svg/cli.mjs', import.meta.url).href;
+  const helper = new URL('../schematics/packages/svg/cli.ts', import.meta.url).href;
   const script = `${installBoundary} import ${JSON.stringify(helper)}; throw Object.assign(new SyntaxError('implementation defect'), { code: 'EACCES' });`;
   const human = run(['--input-type=module', '-e', script], cwd);
   assert.equal(human.status, 1);
@@ -391,7 +391,7 @@ test('repeated problem messages keep their own subject and evidence', t => {
 
 test('invalid output arguments keep their implementation error instead of a filesystem repair', t => {
   const cwd = workspace(t);
-  const helper = new URL('../schematics/packages/svg/cli.mjs', import.meta.url).href;
+  const helper = new URL('../schematics/packages/svg/cli.ts', import.meta.url).href;
   const templatePath = path.join(skillRoot, 'assets/template.html');
   const script = `${installBoundary} import fs from 'node:fs'; import { writeDiagram } from ${JSON.stringify(helper)};
     writeDiagram({ outPath: undefined, template: fs.readFileSync(${JSON.stringify(templatePath)}, 'utf8'), diagramType: 'architecture', meta: { title: 'Test' }, svg: '', cards: [] });`;

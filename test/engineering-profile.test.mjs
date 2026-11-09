@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   deploymentOwnershipDiagnostics,
   validateEngineeringProfile,
-} from '../schematics/packages/svg/engineering-profiles.mjs';
+} from '../schematics/packages/svg/engineering-profiles.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');

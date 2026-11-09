@@ -1,5 +1,5 @@
 import { softwareNoticesHtml } from '../output/software-notices.ts';
-import { visualPreset } from '../svg/cli.mjs';
+import { visualPreset } from '../svg/cli.ts';
 import { parseRepositoryRemote } from '../repository/repository-location.ts';
 
 const COMPARATOR_VERSION = 1;
