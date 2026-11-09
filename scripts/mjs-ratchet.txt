@@ -44,7 +44,6 @@ schematics/packages/explainer/render-explainer.mjs
 schematics/packages/lifecycle/render-lifecycle.mjs
 schematics/packages/sequence/render-sequence.mjs
 schematics/packages/timeline/render-timeline.mjs
-schematics/packages/tree/render-tree.mjs
 schematics/packages/waterfall/render-waterfall.mjs
 schematics/packages/workflow/render-workflow.mjs
 schematics/packages/workflow/workflow-compiler.mjs

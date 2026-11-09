@@ -4254,7 +4254,8 @@ async function commandRender(args) {
   Object.assign(process.env, rendererEnv(qualityArgs.quality, repoArgs.repoRoot));
   process.argv = [process.execPath, renderer, input, ...(output ? [output] : [])];
   try {
-    await import(pathToFileURL(renderer).href);
+    const rendererModule = await import(pathToFileURL(renderer).href);
+    if (typeof rendererModule.main === 'function') await rendererModule.main(process.argv);
   } catch (error) {
     process.nextTick(() => { throw error; });
   }
