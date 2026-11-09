@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.mjs';
+import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.ts';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -2406,7 +2406,7 @@ test('compileWorkflow applies the shared cross-collection contracts the renderer
     const input = path.join(directory, 'input.json');
     fs.writeFileSync(input, JSON.stringify(document));
     const rendered = spawnSync(process.execPath, [
-      fileURLToPath(new URL('../schematics/packages/workflow/render-workflow.mjs', import.meta.url)),
+      fileURLToPath(new URL('../schematics/packages/workflow/render-workflow.ts', import.meta.url)),
       input, path.join(directory, 'output.html'),
     ], {
       encoding: 'utf8',

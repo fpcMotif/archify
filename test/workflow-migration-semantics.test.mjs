@@ -6,8 +6,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { intrinsicWorkflow, planningWorkflow } from '../schematics/packages/workflow/workflow-migration-geometry.mjs';
-import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.mjs';
+import { intrinsicWorkflow, planningWorkflow } from '../schematics/packages/workflow/workflow-migration-geometry.ts';
+import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.ts';
 
 const skillRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
 const cli = path.join(skillRoot, 'bin/schematics.mjs');

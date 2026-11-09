@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.mjs';
+import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const cli = path.resolve(__dirname, '..', 'schematics', 'bin', 'schematics.mjs');

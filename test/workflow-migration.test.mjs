@@ -15,8 +15,8 @@ import {
   intrinsicWorkflow,
   planningWorkflow,
   WorkflowRankMappingError,
-} from '../schematics/packages/workflow/workflow-migration-geometry.mjs';
-import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.mjs';
+} from '../schematics/packages/workflow/workflow-migration-geometry.ts';
+import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');

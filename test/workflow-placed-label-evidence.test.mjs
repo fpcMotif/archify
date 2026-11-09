@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.mjs';
+import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.ts';
 import { rectsOverlap, segmentRectClearance } from '../schematics/packages/geometry/geometry.ts';
 
 function fixture(kind, offset) {

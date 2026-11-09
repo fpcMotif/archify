@@ -2504,7 +2504,7 @@ import { syncBuiltinESMExports } from 'node:module';
 const spawnSync = childProcess.spawnSync;
 let rendererFailed = false;
 childProcess.spawnSync = (executable, args, options) => {
-  if (!rendererFailed && String(args?.[0]).includes('render-workflow.mjs')) {
+  if (!rendererFailed && String(args?.[0]).includes('render-workflow.ts')) {
     rendererFailed = true;
     return { status: 7, stdout: '', stderr: '' };
   }
@@ -2553,7 +2553,7 @@ import path from 'node:path';
 import { syncBuiltinESMExports } from 'node:module';
 const spawnSync = childProcess.spawnSync;
 childProcess.spawnSync = (executable, args, options) => {
-  if (String(args?.[0]).includes('render-workflow.mjs')) {
+  if (String(args?.[0]).includes('render-workflow.ts')) {
     throw new Error('injected unexpected renderer dispatch failure');
   }
   return spawnSync(executable, args, options);
@@ -2604,7 +2604,7 @@ import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 const spawnSync = childProcess.spawnSync;
 childProcess.spawnSync = (executable, args, options) => {
-  if (String(args?.[0]).includes('render-workflow.mjs')) {
+  if (String(args?.[0]).includes('render-workflow.ts')) {
     for (const [target, contents] of ${JSON.stringify([
       [lockPath, successor.lock],
       [pendingPath, successor.pending],

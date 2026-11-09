@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.mjs';
+import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.ts';
 
 const checker = fileURLToPath(new URL('../schematics/scripts/check-render-output.mjs', import.meta.url));
 
@@ -29,7 +29,7 @@ function sharedCrossingWorkflow() {
 test('shared crossings retain actionable diagnostics in public compilation and layout JSON', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-crossing-diagnostics-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const renderer = fileURLToPath(new URL('../schematics/packages/workflow/render-workflow.mjs', import.meta.url));
+  const renderer = fileURLToPath(new URL('../schematics/packages/workflow/render-workflow.ts', import.meta.url));
   for (const profile of ['standard', 'showcase']) {
     const workflow = sharedCrossingWorkflow();
     workflow.meta.quality_profile = profile;

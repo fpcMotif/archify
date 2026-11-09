@@ -7,7 +7,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
 
-const compilerUrl = new URL('../schematics/packages/workflow/workflow-compiler.mjs', import.meta.url).href;
+const compilerUrl = new URL('../schematics/packages/workflow/workflow-compiler.ts', import.meta.url).href;
 const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
 
 function workspace(t) {

@@ -599,7 +599,7 @@ import path from 'node:path';
 import { syncBuiltinESMExports } from 'node:module';
 const spawnSync = childProcess.spawnSync;
 childProcess.spawnSync = (executable, args, options) => {
-  if (String(args?.[0]).includes('render-workflow.mjs')) {
+  if (String(args?.[0]).includes('render-workflow.ts')) {
     return { status: 7, stdout: '', stderr: '' };
   }
   return spawnSync(executable, args, options);
@@ -650,7 +650,7 @@ import path from 'node:path';
 import { syncBuiltinESMExports } from 'node:module';
 const spawnSync = childProcess.spawnSync;
 childProcess.spawnSync = (executable, args, options) => {
-  if (String(args?.[0]).includes('render-workflow.mjs')) return { status: 7, stdout: '', stderr: '' };
+  if (String(args?.[0]).includes('render-workflow.ts')) return { status: 7, stdout: '', stderr: '' };
   return spawnSync(executable, args, options);
 };
 syncBuiltinESMExports();

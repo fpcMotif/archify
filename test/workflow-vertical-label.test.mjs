@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.mjs';
+import { compileWorkflow } from '../schematics/packages/workflow/workflow-compiler.ts';
 
 const skillRoot = fileURLToPath(new URL('../schematics/', import.meta.url));
 const cli = path.join(skillRoot, 'bin', 'schematics.mjs');

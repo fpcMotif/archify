@@ -45,10 +45,6 @@ schematics/packages/lifecycle/render-lifecycle.mjs
 schematics/packages/sequence/render-sequence.mjs
 schematics/packages/timeline/render-timeline.mjs
 schematics/packages/waterfall/render-waterfall.mjs
-schematics/packages/workflow/render-workflow.mjs
-schematics/packages/workflow/workflow-compiler.mjs
-schematics/packages/workflow/workflow-migration-geometry.mjs
-schematics/packages/workflow/workflow-placement-repair.mjs
 schematics/scripts/check-render-output.mjs
 schematics/scripts/generate-brand-marks.mjs
 schematics/scripts/generate-validators.mjs

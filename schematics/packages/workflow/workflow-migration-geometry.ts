@@ -1,18 +1,32 @@
+import type { WorkflowDocument, WorkflowEdge } from './workflow-document.ts';
+
 const TARGET_SCHEMA_VERSION = 2;
+
+export interface ChangedCoordinate {
+  path: string;
+  from: number;
+  to: number;
+}
+
+export interface MappedWorkflowCandidate {
+  document: WorkflowDocument;
+  changedCoordinates: ChangedCoordinate[];
+}
 
 // Planning removes absolute route assertions, but must keep the same rank
 // policy as the document whose coordinates will be mapped into that plan.
 // An authored canvas likewise keeps its established plan: draft-only optional
 // corridor growth must not consume space that a valid fixed canvas lacks.
 const absoluteGeometryPolicy = Symbol('workflow absolute geometry policy');
-export function preservesWorkflowAbsoluteGeometry(workflow) {
-  return workflow[absoluteGeometryPolicy] ?? (Array.isArray(workflow.meta?.viewBox) || (workflow.edges || []).some((edge) => (
+export function preservesWorkflowAbsoluteGeometry(workflow: WorkflowDocument): boolean {
+  const policy = workflow[absoluteGeometryPolicy];
+  return typeof policy === 'boolean' ? policy : (Array.isArray(workflow.meta?.viewBox) || (workflow.edges || []).some((edge) => (
     Array.isArray(edge.via) || Array.isArray(edge.labelAt)
     || edge.channelX !== undefined || edge.channelY !== undefined
   )));
 }
 
-function clone(value) {
+function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
@@ -21,7 +35,7 @@ function clone(value) {
  * override. The compiler can use this projection to discover the intrinsic v2
  * rank plan before deciding whether an explicit viewBox needs to grow.
  */
-export function intrinsicWorkflow(workflow) {
+export function intrinsicWorkflow(workflow: WorkflowDocument): WorkflowDocument {
   const intrinsic = clone(workflow);
   intrinsic.schema_version = TARGET_SCHEMA_VERSION;
   intrinsic[absoluteGeometryPolicy] = preservesWorkflowAbsoluteGeometry(workflow);
@@ -35,7 +49,7 @@ export function intrinsicWorkflow(workflow) {
  * which may only become valid after its legacy X coordinates are remapped.
  * Rank-affecting automatic and straight relationships remain in the projection.
  */
-export function planningWorkflow(workflow) {
+export function planningWorkflow(workflow: WorkflowDocument): WorkflowDocument {
   const planned = intrinsicWorkflow(workflow);
   planned.edges = planned.edges.flatMap((edge) => {
     const hasRoutedGeometry = Array.isArray(edge.via)
@@ -44,24 +58,25 @@ export function planningWorkflow(workflow) {
       || edge.channelY !== undefined;
     if (hasRoutedGeometry) return [];
 
-    const automatic = {};
-    for (const property of ['id', 'from', 'to', 'variant', 'role', 'width']) {
-      if (edge[property] !== undefined) automatic[property] = edge[property];
+    const automatic: Partial<WorkflowEdge> = {};
+    for (const property of ['id', 'from', 'to', 'variant', 'role', 'width'] as const) {
+      if (edge[property] !== undefined) Object.assign(automatic, { [property]: edge[property] });
     }
     if (edge.route === 'straight') automatic.route = 'straight';
     if (edge.labelAt === undefined && edge.label !== undefined) automatic.label = edge.label;
-    return [automatic];
+    return [{ ...automatic, from: edge.from, to: edge.to }];
   });
 
   // Full-topology contracts cannot be checked against a layout-only subgraph.
   // The source and final mapped candidate retain and validate these contracts.
   if (planned.edges.length !== workflow.edges.length) delete planned.semanticChecks;
 
-  if (Array.isArray(planned.mainPath)) {
+  const mainPath = planned.mainPath;
+  if (Array.isArray(mainPath)) {
     const projectedPairs = new Set(planned.edges.map((edge) => `${edge.from}\u0000${edge.to}`));
-    const projectionBreaksMainPath = planned.mainPath.some((from, index) => (
-      index < planned.mainPath.length - 1
-      && !projectedPairs.has(`${from}\u0000${planned.mainPath[index + 1]}`)
+    const projectionBreaksMainPath = mainPath.some((from, index) => (
+      index < mainPath.length - 1
+      && !projectedPairs.has(`${from}\u0000${mainPath[index + 1]}`)
     ));
     if (projectionBreaksMainPath) delete planned.mainPath;
   }
@@ -73,7 +88,7 @@ export class WorkflowRankMappingError extends TypeError {
   name = 'WorkflowRankMappingError';
 }
 
-function mappedNumber(value) {
+function mappedNumber(value: number): number {
   return Number(value.toFixed(6));
 }
 
@@ -83,7 +98,7 @@ function mappedNumber(value) {
  * using the nearest segment so explicitly authored outside corridors retain
  * their relative offset.
  */
-export function createHorizontalRankMapper(oldColumns, newColumns) {
+export function createHorizontalRankMapper(oldColumns: readonly number[], newColumns: readonly number[]): (x: number) => number {
   if (
     !Array.isArray(oldColumns)
     || !Array.isArray(newColumns)
@@ -125,12 +140,11 @@ export function createHorizontalRankMapper(oldColumns, newColumns) {
  * The caller owns the supplied workflow; this function reports an audit trail
  * for each changed coordinate in stable document order.
  */
-export function mapExplicitCoordinates(workflow, mapX) {
-  const changedCoordinates = [];
-  const record = (path, owner, property) => {
-    const from = owner[property];
+export function mapExplicitCoordinates(workflow: WorkflowDocument, mapX: (x: number) => number): ChangedCoordinate[] {
+  const changedCoordinates: ChangedCoordinate[] = [];
+  const record = (path: string, from: number, assign: (to: number) => void) => {
     const to = mapX(from);
-    owner[property] = to;
+    assign(to);
     if (to !== from) changedCoordinates.push({ path, from, to });
   };
 
@@ -138,15 +152,17 @@ export function mapExplicitCoordinates(workflow, mapX) {
     if (Array.isArray(edge.via)) {
       for (const [pointIndex, point] of edge.via.entries()) {
         if (Array.isArray(point) && Number.isFinite(point[0])) {
-          record(`/edges/${edgeIndex}/via/${pointIndex}/0`, point, 0);
+          record(`/edges/${edgeIndex}/via/${pointIndex}/0`, point[0], (to) => { point[0] = to; });
         }
       }
     }
-    if (Array.isArray(edge.labelAt) && Number.isFinite(edge.labelAt[0])) {
-      record(`/edges/${edgeIndex}/labelAt/0`, edge.labelAt, 0);
+    const labelAt = edge.labelAt;
+    if (Array.isArray(labelAt) && Number.isFinite(labelAt[0])) {
+      record(`/edges/${edgeIndex}/labelAt/0`, labelAt[0], (to) => { labelAt[0] = to; });
     }
-    if (Number.isFinite(edge.channelX)) {
-      record(`/edges/${edgeIndex}/channelX`, edge, 'channelX');
+    const channelX = edge.channelX;
+    if (typeof channelX === 'number' && Number.isFinite(channelX)) {
+      record(`/edges/${edgeIndex}/channelX`, channelX, (to) => { edge.channelX = to; });
     }
   }
   return changedCoordinates;
@@ -156,7 +172,7 @@ export function mapExplicitCoordinates(workflow, mapX) {
  * Construct an independently owned schema-v2 candidate with all authored
  * absolute X pins mapped to the readable rank plan.
  */
-export function createMappedWorkflowCandidate(workflow, oldColumns, newColumns) {
+export function createMappedWorkflowCandidate(workflow: WorkflowDocument, oldColumns: readonly number[], newColumns: readonly number[]): MappedWorkflowCandidate {
   const document = clone(workflow);
   document.schema_version = TARGET_SCHEMA_VERSION;
   const mapX = createHorizontalRankMapper(oldColumns, newColumns);

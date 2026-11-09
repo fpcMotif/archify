@@ -1,12 +1,12 @@
-import { compileWorkflow } from '../workflow/workflow-compiler.mjs';
+import { compileWorkflow } from '../workflow/workflow-compiler.ts';
 import {
   createMappedWorkflowCandidate,
   intrinsicWorkflow,
   planningWorkflow,
-} from '../workflow/workflow-migration-geometry.mjs';
+} from '../workflow/workflow-migration-geometry.ts';
 import { validateSchema } from '../validation/validator.ts';
 
-export { createHorizontalRankMapper } from '../workflow/workflow-migration-geometry.mjs';
+export { createHorizontalRankMapper } from '../workflow/workflow-migration-geometry.ts';
 
 const TARGET_SCHEMA_VERSION = 2;
 

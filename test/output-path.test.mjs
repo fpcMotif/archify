@@ -110,7 +110,7 @@ test('render reports an output symlink cycle as a structured output diagnostic',
 
   const result = spawnSync(
     process.execPath,
-    [path.join(skillRoot, 'packages/workflow/render-workflow.mjs'), input, output],
+    [path.join(skillRoot, 'packages/workflow/render-workflow.ts'), input, output],
     {
       cwd,
       encoding: 'utf8',
