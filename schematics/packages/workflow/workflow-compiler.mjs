@@ -18,7 +18,7 @@ import {
   throwDiagnosticProblems,
   withDiagnosticRecordingSuppressed,
 } from '../diagnostics/diagnostics.ts';
-import { validateSchema } from '../validation/validator.mjs';
+import { validateSchema } from '../validation/validator.ts';
 import {
   legendFootprint,
   measureLegend,

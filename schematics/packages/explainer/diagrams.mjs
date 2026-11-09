@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { validateSchema } from '../validation/validator.mjs';
+import { validateSchema } from '../validation/validator.ts';
 import { textUnits, SEMANTIC_SIGIL_FOOTPRINT } from '../svg/utils.ts';
 import { minimumNodeTextWidth } from '../svg/text-fit.ts';
 import { throwDiagnosticError } from '../diagnostics/diagnostics.ts';

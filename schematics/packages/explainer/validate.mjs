@@ -1,5 +1,5 @@
-import { explainer as validateGenerated } from '../validation/generated-validators.mjs';
-import { validateSchema } from '../validation/validator.mjs';
+import { explainer as validateGenerated } from '../validation/generated-validators.ts';
+import { validateSchema } from '../validation/validator.ts';
 import { parseInline } from './inline.mjs';
 import { lintExplainerWriting } from './writing.mjs';
 import { parseExplainerDiff } from './diff.mjs';

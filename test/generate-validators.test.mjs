@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020.js';
-import * as generatedValidators from '../schematics/packages/validation/generated-validators.mjs';
+import * as generatedValidators from '../schematics/packages/validation/generated-validators.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const skillRoot = path.resolve(__dirname, '..', 'schematics');
@@ -137,7 +137,7 @@ test('validator freshness check accepts CRLF checkouts', () => {
     );
 
     const generatedFiles = [
-      'generated-validators.mjs',
+      'generated-validators.ts',
       ...fs.readdirSync(path.join(skillRoot, 'packages', 'validation', 'generated-validators'))
         .map((name) => path.join('generated-validators', name)),
     ];

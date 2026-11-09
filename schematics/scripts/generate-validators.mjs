@@ -9,7 +9,7 @@ import standaloneCode from 'ajv/dist/standalone/index.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
 const schemasDir = path.join(root, 'schemas');
-const indexOutput = path.join(root, 'packages/validation/generated-validators.mjs');
+const indexOutput = path.join(root, 'packages/validation/generated-validators.ts');
 const typeDir = path.join(root, 'packages/validation/generated-validators');
 const diagramTypes = ['workflow', 'sequence', 'dataflow', 'lifecycle', 'architecture', 'erd', 'tree', 'class', 'timeline', 'waterfall', 'explainer'];
 const commonSchema = JSON.parse(fs.readFileSync(path.join(schemasDir, 'common.schema.json'), 'utf8'));
@@ -94,16 +94,35 @@ const indexExports = diagramTypes.map((type) => {
 }).join('\n');
 outputs.set(indexOutput, `${banner}import { createRequire } from 'node:module';
 
+export interface SchemaError {
+  instancePath: string;
+  schemaPath: string;
+  keyword: string;
+  params: Record<string, unknown>;
+  message?: string;
+  schema?: unknown;
+}
+
+export interface SchemaValidator {
+  (data: unknown, context?: unknown): boolean;
+  errors?: SchemaError[] | null;
+}
+
 const requireValidator = createRequire(import.meta.url);
 
-function lazyValidator(type) {
-  let loaded;
-  function validate(data, context = undefined) {
-    loaded ??= requireValidator(\`./generated-validators/\${type}.js\`).validate;
+function loadValidator(type: string): SchemaValidator {
+  const module: { validate: SchemaValidator } = requireValidator(\`./generated-validators/\${type}.js\`);
+  return module.validate;
+}
+
+function lazyValidator(type: string): SchemaValidator {
+  let loaded: SchemaValidator | undefined;
+  const validate: SchemaValidator = (data: unknown, context: unknown = undefined): boolean => {
+    loaded ??= loadValidator(type);
     const valid = loaded(data, context);
     validate.errors = loaded.errors;
     return valid;
-  }
+  };
   return validate;
 }
 

@@ -6117,7 +6117,7 @@ async function commandDoctor(args) {
     missing: compareMissing,
   });
 
-  const validators = path.join(skillRoot, 'packages/validation/generated-validators.mjs');
+  const validators = path.join(skillRoot, 'packages/validation/generated-validators.ts');
   const validatorsExist = fs.existsSync(validators);
   let validatorsValid = false;
   if (validatorsExist) {
@@ -6981,7 +6981,7 @@ async function commandValidate(args, invocation = {}) {
     const document = explainerBundle?.document || JSON.parse(specification.toString('utf8'));
     const [{ validateAuthoredOutputPath }, { validateSchema }] = await Promise.all([
       import('../packages/output/output-path.ts'),
-      import('../packages/validation/validator.mjs'),
+      import('../packages/validation/validator.ts'),
     ]);
     if (document?.meta?.output !== undefined) validateAuthoredOutputPath(document.meta.output);
     else if (type !== 'explainer') validateSchema(type, document);

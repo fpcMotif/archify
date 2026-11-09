@@ -2,7 +2,7 @@ import { softwareNoticesHtml } from '../output/software-notices.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import { applyTemplate, renderCards, esc } from './utils.ts';
-import { validateSchema } from '../validation/validator.mjs';
+import { validateSchema } from '../validation/validator.ts';
 import { verifyRepositoryEvidence } from '../repository/repository-evidence.mjs';
 import { installRendererDiagnosticBoundary, throwDiagnosticError, throwDiagnosticProblems, recordDiagnostic } from '../diagnostics/diagnostics.ts';
 import { validateEngineeringProfile } from './engineering-profiles.mjs';

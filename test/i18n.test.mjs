@@ -4,7 +4,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { validateSchema } from '../schematics/packages/validation/validator.mjs';
+import { validateSchema } from '../schematics/packages/validation/validator.ts';
 import {
   skillRoot, ES_TRANSLATIONS, KO_TRANSLATIONS, FR_PARTIAL_TRANSLATIONS,
   MANIFEST, EXAMPLES, example, authoredExample, localeDocument, createLocaleFixture,

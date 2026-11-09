@@ -4,7 +4,7 @@ import {
   intrinsicWorkflow,
   planningWorkflow,
 } from '../workflow/workflow-migration-geometry.mjs';
-import { validateSchema } from '../validation/validator.mjs';
+import { validateSchema } from '../validation/validator.ts';
 
 export { createHorizontalRankMapper } from '../workflow/workflow-migration-geometry.mjs';
 
