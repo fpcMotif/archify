@@ -226,7 +226,7 @@ export interface DiagramSemantic {
 export interface DiagramChecks {
   validate?: { ok: boolean };
   render?: { ok: boolean };
-  check?: Record<string, unknown> & { file?: unknown };
+  check?: { file?: unknown };
   [key: string]: unknown;
 }
 

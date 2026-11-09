@@ -9,7 +9,7 @@ import { textUnits, SEMANTIC_SIGIL_FOOTPRINT } from '../svg/utils.ts';
 import { minimumNodeTextWidth } from '../svg/text-fit.ts';
 import { throwDiagnosticError, type DiagnosticInput } from '../diagnostics/diagnostics.ts';
 import { createOwnedTempDirectory } from '../output/owned-temp-directory.ts';
-import { checkDiagramArtifact } from '../artifact-check/check-diagram.mjs';
+import { checkDiagramArtifact } from '../artifact-check/check-diagram.ts';
 import { rendererEntry } from '../svg/renderer-entry.ts';
 import { errorField, lookupLocation } from './model.ts';
 import type { DiagramChange, DiagramSemantic, Dependency, ExplainerBlock, FrozenBytes, NativeSpec, PreparedDiagram, SemanticEdge, SemanticNode, SourceMapInput } from './model.ts';

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { parseExplainer } from './parse.ts';
 import { computeExplainerRevision } from './revision.ts';
 import { unpackPageBundle } from './page-bundle.ts';
-import { checkDiagramArtifact } from '../artifact-check/check-diagram.mjs';
+import { checkDiagramArtifact } from '../artifact-check/check-diagram.ts';
 import type { Dependency, Diagnostic } from './model.ts';
 
 export interface HtmlElement {

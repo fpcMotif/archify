@@ -2,7 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { checkDiagramArtifact } from '../packages/artifact-check/check-diagram.mjs';
+import { checkDiagramArtifact } from '../packages/artifact-check/check-diagram.ts';
 import { isExplainerHtml, checkExplainerHtml } from '../packages/explainer/check.ts';
 
 export function checkArtifact(bytes, { file } = {}) {
