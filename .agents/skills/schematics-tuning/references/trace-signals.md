@@ -4,7 +4,7 @@ Read `<round>/<type>.trace.txt` with the subagent's report and actual diagram. T
 
 | Signal in the trace | Likely cause | Check |
 |---|---|---|
-| The final candidate changed or dropped nodes, edges or lanes | Lost meaning or a source-backed correction | Use `collect.mjs` "lost" signals, then compare source facts, conditions and ownership; distinguish correction from removing real content to pass |
+| The final candidate changed or dropped nodes, edges or lanes | Lost meaning or a source-backed correction | Use `collect.ts` "lost" signals, then compare source facts, conditions and ownership; distinguish correction from removing real content to pass |
 | A draft without route controls fails crossing, corridor, through-node or label checks | Possible layout defect or authored placement constraint | Inspect node placement, dimensions and canvas first; render a scratch copy at `standard` to inspect routes, keeping the original failure |
 | A crossing or corridor failure, then side pins, then `explicit-pin-conflict`, then a restructure | Placement, routing or a misleading repair hint | Test the proposed pins on the original input; check for a legal route before concluding none exists |
 | The same code survives a focused repair | Incomplete repair evidence, a new instance or an unsuitable rule | Inspect the identified element and actual harm, then reproduce the advertised fix |

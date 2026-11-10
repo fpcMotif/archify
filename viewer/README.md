@@ -26,7 +26,7 @@ Checkout comparison from its tracked snapshots. From the repository root, run:
 bun schematics/bin/schematics.ts compare architecture schematics/examples/checkout-platform.base.architecture.json schematics/examples/checkout-platform.head.architecture.json examples/checkout-platform-delta.html --receipt examples/checkout-platform-delta.receipt.json --quality showcase --json
 ```
 
-`test/architecture-delta.test.mjs` verifies those artifact and receipt
+`test/architecture-delta.test.ts` verifies those artifact and receipt
 bytes. Rebuild other affected examples and distribution outputs according to
 [Contributing](../CONTRIBUTING.md#packages-and-generated-artifacts).
 
@@ -124,10 +124,10 @@ are part of the interface, not normalized by the extraction.
 This table describes existing paths; it does not add universal recovery from
 arbitrary browser API exceptions.
 
-`export-browser.test.mjs` exercises native menu input, unavailable formats,
+`export-browser.test.ts` exercises native menu input, unavailable formats,
 auto-open/themes, real semantic cards, clipboard call order/fallback, raster
 failures/retry and synchronous serialization failure. It intercepts download and clipboard boundaries without changing
-production serialization. `export-cleanup-browser.test.mjs` supplies five-mode
+production serialization. `export-cleanup-browser.test.ts` supplies five-mode
 canonical SVG and real raster/theme coverage. Existing share-card smoke checks
 retain their broader artifact contracts. Set SCHEMATICS_CHROME for browser
 checks; SCHEMATICS_EXPORT_RUNTIME_EVIDENCE optionally saves runtime observations
@@ -343,7 +343,7 @@ The nineteen methods remain `begin`, `choose`, `clear`, `toggle`, `escape`,
   responsive rendering. Focus/Lens clear Route; Camera/Motion/Guide can pause it.
   These dependencies remain explicit runtime collaboration after the source split.
 
-`route-probe-browser.test.mjs` complements static Route/Journey/Share Card tests
+`route-probe-browser.test.ts` complements static Route/Journey/Share Card tests
 with actual input, playback, handoffs, snapshots, themes and SVG export. Graph,
 clock, hidden-page, geometry and clipboard fixtures isolate specific boundaries;
 they do not certify hardware input, OS clipboard permission or all-screen collision
@@ -426,7 +426,7 @@ Lens controls and shared translation helpers; Legend Bridge is optional.
   state and decoration; it remains in its own module. Export serialization and
   subsequent download/global-click effects are distinct observations.
 
-`semantic-lens-browser.test.mjs` covers five-mode initialization, trusted input,
+`semantic-lens-browser.test.ts` covers five-mode initialization, trusted input,
 real capability handoffs, cleanup, URL/copy, themes, motion and SVG export.
 Explicit DOM/media/geometry/clipboard fixtures isolate boundary inputs; they do
 not certify touch hardware, OS clipboard permission, screen readers or arbitrary
@@ -487,7 +487,7 @@ Focus/Route active queries are runtime lookups; Route initializes later.
   never claims or releases an owner. Export Cleanup strips cloned Intent state,
   while Intent clears the live diagram. Neither dependency moves into this file.
 
-`intent-trace-browser.test.mjs` covers
+`intent-trace-browser.test.ts` covers
 five-mode initialization, real pointer/native focus handoffs, bounded timer
 cleanup, isolated timer and SVG fixtures, blockers and actual callers, real CSS
 completion, Motion ownership, reduced motion, themes and SVG export. Fixtures
@@ -548,7 +548,7 @@ position. Its interface is `open`, `close`, `toggle`, `select`, `isOpen`,
   handling, Guide and Route callers remain outside Finder. The dialog stays
   non-modal; no focus trap or keyboard adapter is introduced.
 
-`finder-browser.test.mjs` exercises five-mode initialization, trusted keyboard/mouse input, real Route
+`finder-browser.test.ts` exercises five-mode initialization, trusted keyboard/mouse input, real Route
 source/target collaboration, retained context, panel cleanup, themes, constrained
 layout, reduced motion and SVG export. Its metadata fixture isolates search
 inputs; it does not claim repository verification or brand-rendering coverage.

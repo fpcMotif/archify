@@ -1,0 +1,116 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { createRouter } from '../schematics/packages/architecture/routing.ts';
+import { reservedLabelRect } from '../schematics/packages/architecture/labels.ts';
+import { labelPoint, properSegmentIntersection, routeHonorsEndpointSides, type MeasuredRect, type Point, type Relation } from '../schematics/packages/geometry/geometry.ts';
+import type { AutomaticLabel } from '../schematics/packages/svg/automatic-labels.ts';
+import type { TestContext } from 'node:test';
+import { textUnits } from '../schematics/packages/svg/utils.ts';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+function fixture() {
+  const boxes = new Map(([
+    ['files', 420, 40, 240, 74], ['state', 40, 250, 280, 74],
+    ['executor', 40, 480, 290, 74], ['log', 420, 480, 250, 74],
+  ] as const).map(([id, x, y, width, height]) => [id, { id, x, y, width, height, cx: x + width / 2, cy: y + height / 2 }]));
+  const connections: Relation[] = [
+    { id: 'state', from: 'executor', to: 'state', label: '取 Plan/Receipt · 更新状态' },
+    { id: 'files', from: 'executor', to: 'files', label: '检查 / 修改 / 撤销', fromSide: 'right', toSide: 'bottom' },
+    { id: 'write', from: 'executor', to: 'log', label: '先记日志 / 补偿' },
+    { id: 'restore', from: 'log', to: 'executor', label: '读取恢复材料', variant: 'dashed' },
+  ];
+  return { boxes, connections };
+}
+
+function plan(boxes: Map<string, MeasuredRect>, connections: Relation[], readabilityBottomMargin: number) {
+  const router = createRouter<AutomaticLabel>(boxes, connections, {
+    distinctAutomaticPorts: true, preferReadableRoutes: true, readabilityBottomMargin,
+    labelRectFor(conn, points, { routes, labels }) {
+      const [lx, ly] = labelPoint(conn, points);
+      const width = Math.max(30, textUnits(conn.label) * 4.8 + 10);
+      const label = { relation: conn, label: conn.label, lx, ly, x: lx - width / 2, y: ly - 10, width, height: 14 };
+      return reservedLabelRect({
+        label,
+        points, routes: routes.map((points, relationIndex) => ({ points, relationIndex })),
+        labels, components: [...boxes.values()],
+      });
+    },
+  });
+  return { routes: connections.map(conn => router.pathFor(conn).points), metrics: router.routingMetrics() };
+}
+
+function crossings(routes: Point[][]) {
+  let count = 0;
+  for (let i = 0; i < routes.length; i += 1) for (let j = i + 1; j < routes.length; j += 1) {
+    if (routes[i].slice(1).some((end, k) => routes[j].slice(1).some((other, l) =>
+      properSegmentIntersection(routes[i][k], end, routes[j][l], other)))) count += 1;
+  }
+  return count;
+}
+
+test('an intrinsic-height architecture can use one lower corridor to separate a log return', () => {
+  const { boxes, connections } = fixture();
+  const original = JSON.stringify({ boxes: [...boxes], connections });
+  const bounded = plan(boxes, connections, 0);
+  const expanded = plan(boxes, connections, 24);
+  assert.ok(crossings(bounded.routes) > 0, 'the complete four-node fixture exposes the return crossing');
+  assert.equal(crossings(expanded.routes), 0, 'the return and all neighbouring routes remain distinct');
+  assert.ok(routeHonorsEndpointSides(expanded.routes[1], 'right', 'bottom'), 'authored file-operation sides remain authoritative');
+  const originalPoints = [...bounded.routes.flat(), ...[...boxes.values()].flatMap(b => [[b.x, b.y], [b.x + b.width, b.y + b.height]])];
+  const xs = originalPoints.map(p => p[0]), ys = originalPoints.map(p => p[1]);
+  for (const [x, y] of expanded.routes.flat()) {
+    assert.ok(x >= Math.min(...xs) && x <= Math.max(...xs), 'do not widen the canvas');
+    assert.ok(y >= Math.min(...ys) && y <= Math.max(...ys) + 24, 'the added corridor is bounded');
+  }
+  assert.ok(expanded.metrics.gridSearchCount <= bounded.metrics.gridSearchCount, 'the final sweep must not add grid searches');
+  assert.equal(JSON.stringify({ boxes: [...boxes], connections }), original, 'preserve authored nodes, relations and pins');
+});
+
+test('extra lower room does not rewrite an explicitly routed return', () => {
+  const { boxes, connections } = fixture();
+  const originalRoute = plan(boxes, connections, 0).routes[3];
+  Object.assign(connections[3], { fromSide: 'left', toSide: 'top', via: originalRoute.slice(1, -1) });
+  assert.deepEqual(plan(boxes, connections, 24).routes[3], plan(boxes, connections, 0).routes[3]);
+});
+
+test('an already clear scene keeps its routes when lower room is available', () => {
+  const { boxes, connections } = fixture();
+  const clearConnections = connections.slice(0, 3);
+  const bounded = plan(boxes, clearConnections, 0);
+  assert.equal(crossings(bounded.routes), 0);
+  assert.deepEqual(plan(boxes, clearConnections, 24).routes, bounded.routes);
+});
+
+test('the architecture renderer reserves extra room only for an automatic canvas', (t: TestContext) => {
+  const { boxes, connections } = fixture();
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-return-room-'));
+  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
+  const meta: { title: string; output: string; quality_profile: string; viewBox?: number[] } = { title: 'Change execution', output: 'diagram.html', quality_profile: 'showcase' };
+  const diagram = {
+    schema_version: 1, diagram_type: 'architecture',
+    meta,
+    components: [...boxes.values()].map(b => ({ id: b.id, label: b.id, type: 'backend', pos: [b.x, b.y], size: [b.width, b.height] })),
+    connections,
+  };
+  const cli = fileURLToPath(new URL('../schematics/bin/schematics.ts', import.meta.url));
+  const reports = [];
+  for (const fixed of [false, true]) {
+    if (fixed) diagram.meta.viewBox = [720, 700];
+    const input = path.join(cwd, `${fixed}.json`);
+    const bytes = JSON.stringify(diagram);
+    fs.writeFileSync(input, bytes);
+    const result = spawnSync(process.execPath, [cli, 'validate', 'architecture', input, '--layout-json'], {
+      encoding: 'utf8', env: process.env,
+    });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal(fs.readFileSync(input, 'utf8'), bytes);
+    reports.push(JSON.parse(result.stdout));
+  }
+  assert.equal(crossings(reports[0].connections.map((e: { points: Point[] }) => e.points)), 0);
+  assert.ok(crossings(reports[1].connections.map((e: { points: Point[] }) => e.points)) > 0, 'a fixed canvas retains the bounded routing contract');
+  assert.deepEqual(reports[1].viewBox, [720, 700]);
+});

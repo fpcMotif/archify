@@ -8,7 +8,22 @@ const cli = path.join(import.meta.dir, '..', 'schematics', 'bin', 'schematics.ts
 const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-mermaid-import-'));
 afterAll(() => fs.rmSync(workDir, { recursive: true, force: true }));
 
-type Diagram = Record<string, any>;
+type Diagram = Record<string, unknown>;
+
+function isEntry(value: unknown): value is Diagram {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function entries(value: unknown): Diagram[] {
+  if (!Array.isArray(value)) throw new Error('expected an array of entries');
+  return value.filter(isEntry);
+}
+
+function find(value: unknown, predicate: (entry: Diagram) => boolean): Diagram {
+  const found = entries(value).find(predicate);
+  if (!found) throw new Error('expected a matching entry');
+  return found;
+}
 
 function run(...args: string[]) {
   const child = Bun.spawnSync([process.execPath, cli, ...args], {
@@ -110,12 +125,12 @@ describe('importMermaid', () => {
     const { type, diagram, notes } = importMermaid(FLOWCHART, { title: 'Release pipeline' });
     expect(type).toBe('workflow');
     expect(diagram.meta).toEqual({ title: 'Release pipeline', output: 'release-pipeline.html' });
-    const node = (id: string) => diagram.nodes.find((entry: Diagram) => entry.id === id);
+    const node = (id: string) => find(diagram.nodes, (entry) => entry.id === id);
     expect(node('canary').lane).toBe(node('full').lane);
     expect(node('dev').lane).not.toBe(node('canary').lane);
     expect([node('dev').col, node('ci').col, node('tests').col, node('stage').col]).toEqual([0, 1, 2, 3]);
     expect(node('metrics').type).toBe('database');
-    const edge = (from: string, to: string) => diagram.edges.find((entry: Diagram) => entry.from === from && entry.to === to);
+    const edge = (from: string, to: string) => find(diagram.edges, (entry) => entry.from === from && entry.to === to);
     expect(edge('canary', 'metrics').variant).toBe('dashed');
     expect(edge('canary', 'full').variant).toBe('emphasis');
     expect(edge('tests', 'stage').label).toBe('yes');
@@ -126,19 +141,20 @@ describe('importMermaid', () => {
   test('sequence keeps participants, returns, async calls, blocks and activations', () => {
     const { type, diagram, notes } = importMermaid(SEQUENCE);
     expect(type).toBe('sequence');
-    const kinds = Object.fromEntries(diagram.participants.map((entry: Diagram) => [entry.id, entry.type]));
+    const kinds = Object.fromEntries(entries(diagram.participants).map((entry) => [entry.id, entry.type]));
     expect(kinds).toEqual({ Shopper: 'external', API: 'backend', DB: 'database' });
-    const byLabel = (label: string) => diagram.messages.find((entry: Diagram) => entry.label === label);
+    const byLabel = (label: string) => find(diagram.messages, (entry) => entry.label === label);
     expect(byLabel('row').variant).toBe('return');
     expect(byLabel('async ping').variant).toBe('dashed');
     expect(byLabel('row').note).toBe('cache');
-    expect(diagram.messages.some((entry: Diagram) => entry.label === 'self call')).toBe(false);
+    expect(entries(diagram.messages).some((entry) => entry.label === 'self call')).toBe(false);
     expect(notes.some((note) => note.startsWith('Dropped 1 self-message'))).toBe(true);
-    const ys = diagram.messages.map((entry: Diagram) => entry.y);
-    expect(ys).toEqual([...ys].sort((a: number, b: number) => a - b));
+    const ys = entries(diagram.messages).map((entry) => entry.y);
+    expect(ys.every((y) => typeof y === 'number')).toBe(true);
+    expect(ys).toEqual([...ys].sort((a, b) => Number(a) - Number(b)));
     expect(ys[0]).toBeGreaterThanOrEqual(160);
     expect(diagram.segments).toHaveLength(1);
-    expect(diagram.activations.length).toBeGreaterThan(0);
+    expect(entries(diagram.activations).length).toBeGreaterThan(0);
     expectValid('sequence', diagram);
   });
 
@@ -146,7 +162,7 @@ describe('importMermaid', () => {
     const { type, diagram } = importMermaid(STATE);
     expect(type).toBe('lifecycle');
     expect(diagram.mainPath).toEqual(['Idle', 'Plan', 'Execute', 'Done']);
-    const kind = (id: string) => diagram.states.find((entry: Diagram) => entry.id === id)?.type;
+    const kind = (id: string) => entries(diagram.states).find((entry) => entry.id === id)?.type;
     expect(kind('Done')).toBe('success');
     expect(kind('Failed')).toBe('failure');
     expectValid('lifecycle', diagram);
@@ -155,13 +171,13 @@ describe('importMermaid', () => {
   test('ER diagram keeps keys, infers foreign key targets and maps both cardinality sides', () => {
     const { type, diagram, notes } = importMermaid(ER);
     expect(type).toBe('erd');
-    const order = diagram.entities.find((entry: Diagram) => entry.id === 'ORDER');
-    const column = (name: string) => order.attributes.find((entry: Diagram) => entry.name === name);
+    const order = find(diagram.entities, (entry) => entry.id === 'ORDER');
+    const column = (name: string) => find(order.attributes, (entry) => entry.name === name);
     expect(column('id').key).toBe('pk');
     expect(column('customer_id')).toMatchObject({ key: 'fk', references: 'CUSTOMER.id' });
     expect(column('warehouse_id').key).toBeUndefined();
     expect(notes.some((note) => note.includes('warehouse_id'))).toBe(true);
-    const places = diagram.relationships.find((entry: Diagram) => entry.label === 'places');
+    const places = find(diagram.relationships, (entry) => entry.label === 'places');
     expect([places.from, places.to]).toEqual(['CUSTOMER', 'ORDER']);
     expect(places.fromCardinality).not.toBe(places.toCardinality);
     expectValid('erd', diagram);
@@ -170,9 +186,9 @@ describe('importMermaid', () => {
   test('class diagram keeps kinds, members and relationship directions', () => {
     const { type, diagram } = importMermaid(CLASS);
     expect(type).toBe('class');
-    const kind = (id: string) => diagram.types.find((entry: Diagram) => entry.id === id)?.kind;
+    const kind = (id: string) => entries(diagram.types).find((entry) => entry.id === id)?.kind;
     expect([kind('Animal'), kind('Pet'), kind('Dog')]).toEqual(['abstract', 'interface', 'class']);
-    const relation = (kindName: string) => diagram.relationships.find((entry: Diagram) => entry.kind === kindName);
+    const relation = (kindName: string) => find(diagram.relationships, (entry) => entry.kind === kindName);
     expect([relation('inheritance').from, relation('inheritance').to]).toEqual(['Dog', 'Animal']);
     expect([relation('realization').from, relation('realization').to]).toEqual(['Dog', 'Pet']);
     expect([relation('composition').from, relation('composition').to]).toEqual(['Dog', 'Tail']);
@@ -191,7 +207,7 @@ describe('importMermaid', () => {
     expect(type).toBe('timeline');
     expect(diagram.meta).toMatchObject({ evidence: 'illustrative', timezone: 'UTC' });
     expect(diagram.layout).toEqual({ scale: 'date' });
-    expect(diagram.events.map((event: Diagram) => [event.at, event.title])).toEqual([
+    expect(entries(diagram.events).map((event) => [event.at, event.title])).toEqual([
       ['2025-01-01T00:00Z', 'Alpha'],
       ['2025-01-01T00:00Z', 'Private beta'],
       ['2025-07-01T00:00Z', '1.0 launch'],
@@ -199,7 +215,7 @@ describe('importMermaid', () => {
       ['2026-05-14T00:00Z', 'Cloud sync'],
       ['2026-10-01T00:00Z', 'Teams'],
     ]);
-    expect(new Set(diagram.events.map((event: Diagram) => event.id)).size).toBe(6);
+    expect(new Set(entries(diagram.events).map((event) => event.id)).size).toBe(6);
     expectValid('timeline', diagram);
     expect(importCode('timeline\n  Discovery : Interviews\n  2025 : Launch')).toBe('mermaid/timeline-undated');
   });
@@ -214,7 +230,7 @@ describe('importMermaid', () => {
       Themes
         ::icon(fa fa-moon)`);
     expect(type).toBe('tree');
-    const byLabel = (label: string) => diagram.nodes.find((node: Diagram) => node.label === label);
+    const byLabel = (label: string) => find(diagram.nodes, (node) => node.label === label);
     expect(byLabel('Schematics').parent).toBeUndefined();
     expect(byLabel('Sequence').parent).toBe(byLabel('Renderers').id);
     expect(byLabel('Themes').parent).toBe(byLabel('Viewer').id);
@@ -234,12 +250,12 @@ describe('importMermaid', () => {
   db:L <-- R:server
   server:B -- T:disk1`);
     expect(type).toBe('architecture');
-    const component = (id: string) => diagram.components.find((entry: Diagram) => entry.id === id);
+    const component = (id: string) => find(diagram.components, (entry) => entry.id === id);
     expect([component('gateway').type, component('server').type, component('db').type]).toEqual(['external', 'backend', 'database']);
     expect([component('gateway').col, component('server').col, component('db').col]).toEqual([0, 1, 2]);
-    expect(component('disk1').row).toBe(component('server').row + 1);
+    expect(component('disk1').row).toBe(Number(component('server').row) + 1);
     expect(diagram.boundaries).toEqual([{ kind: 'region', label: 'API tier', wraps: ['server', 'db', 'disk1'] }]);
-    const link = (from: string, to: string) => diagram.connections.find((entry: Diagram) => entry.from === from && entry.to === to);
+    const link = (from: string, to: string) => find(diagram.connections, (entry) => entry.from === from && entry.to === to);
     expect(link('gateway', 'server')).toMatchObject({ fromSide: 'right', toSide: 'left' });
     expect(link('server', 'db')).toMatchObject({ fromSide: 'right', toSide: 'left' });
     expectValid('architecture', diagram);

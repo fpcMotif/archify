@@ -3,10 +3,10 @@
 Use this input when generation ran outside Devin CLI. Export the relevant sessions with the host's supported tools, then normalize tool names and arguments to the format below. Keep the export in the external tuning home; it can contain source-project content. The collector does not discover or parse another agent's private database.
 
 ```sh
-node .agents/skills/schematics-tuning/scripts/collect.mjs <round> --trace-export <trace.json> --dump
+bun .agents/skills/schematics-tuning/scripts/collect.ts <round> --trace-export <trace.json> --dump
 ```
 
-The JSON object has `schemaVersion: 1` and a `sessions` array. Each session has an `id` and chronological `messages`. Its user task must name the absolute `<round>/<diagram-type>` directory created by `round.mjs`, so collection can associate the session with one diagram.
+The JSON object has `schemaVersion: 1` and a `sessions` array. Each session has an `id` and chronological `messages`. Its user task must name the absolute `<round>/<diagram-type>` directory created by `round.ts`, so collection can associate the session with one diagram.
 
 ```json
 {

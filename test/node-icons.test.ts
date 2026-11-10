@@ -1,0 +1,76 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { rendererEntry } from '../schematics/packages/svg/renderer-entry.ts';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'schematics');
+function matched(text: string, pattern: RegExp, group: number): string {
+  const match = text.match(pattern);
+  assert.ok(match);
+  return match[group];
+}
+const cases: Record<string, [string, string, number?]> = {
+  architecture: ['web-app.architecture.json', 'components'],
+  workflow: ['agent-tool-call.workflow.json', 'nodes'],
+  sequence: ['cache-miss-request.sequence.json', 'participants'],
+  dataflow: ['product-analytics.dataflow.json', 'nodes'],
+  // The first lifecycle state is a start state, which has no default sigil.
+  lifecycle: ['agent-run.lifecycle.json', 'states', 3],
+};
+for (const [mode, [example, collection, index = 0]] of Object.entries(cases)) {
+  test(`${mode}: icon overrides and hiding preserve all non-icon output`, () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'schematics-icons-'));
+    try {
+      const spec = JSON.parse(fs.readFileSync(path.join(root, 'examples', example), 'utf8'));
+      const input = path.join(dir, 'input.json');
+      const output = path.join(dir, 'output.html');
+      const render = () => {
+        fs.writeFileSync(input, JSON.stringify(spec));
+        const result = spawnSync(process.execPath, [rendererEntry(root, mode), input, output], { encoding: 'utf8' });
+        assert.equal(result.status, 0, result.stderr);
+        return fs.readFileSync(output, 'utf8');
+      };
+      const baseline = render();
+      const sigil = /<g aria-hidden="true" data-semantic-sigil="[^"]+"[^>]*>[\s\S]*?<\/g>/;
+      const old = baseline.match(sigil)?.[0];
+      assert.ok(old);
+      // geometry.test.mjs covers the full shared icon catalog. Every renderer
+      // still proves override/hiding, unchanged non-icon output, brand
+      // coexistence and schema rejection through its real entrypoint.
+      for (const icon of ['calendar', 'none']) {
+        spec[collection][index].icon = icon;
+        const html = render();
+        if (icon === 'none') {
+          // A hidden inline icon re-centres its title block; nothing else may move.
+          const titleX = (value: string) => value.replace(/<text (data-node-label=""|data-detail="context")[^>]*>/g, (tag) => tag.replace(/ (x|y|text-anchor)="[^"]+"/g, ''));
+          assert.equal(titleX(html), titleX(baseline.replace(old, '')));
+        } else {
+          const current = html.match(sigil)?.[0];
+          assert.ok(current);
+          assert.ok(current.includes(`data-semantic-sigil="${icon}"`));
+          assert.equal(matched(current, /class="([^"]+)"/, 1), matched(old, /class="([^"]+)"/, 1));
+          assert.equal(html.replace(current, ''), baseline.replace(old, ''));
+        }
+      }
+      delete spec[collection][index].icon;
+      spec[collection][index].brand = 'openai';
+      const branded = render();
+      const brandedSigil = matched(branded, sigil, 0);
+      for (const icon of ['calendar', 'none']) {
+        spec[collection][index].icon = icon;
+        const html = render();
+        assert.match(html, /data-brand-mark="openai"/);
+        assert.equal(icon === 'none' ? html : html.replace(matched(html, sigil, 0), ''), branded.replace(brandedSigil, ''));
+      }
+      spec[collection][index].icon = '<svg onload="alert(1)">';
+      fs.writeFileSync(input, JSON.stringify(spec));
+      const rejected = spawnSync(process.execPath, [path.join(root, 'bin/schematics.ts'), 'validate', mode, input, '--json'], { encoding: 'utf8' });
+      assert.notEqual(rejected.status, 0);
+      assert.match(rejected.stdout + rejected.stderr, /icon/);
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+}

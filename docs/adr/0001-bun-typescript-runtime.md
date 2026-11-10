@@ -6,7 +6,7 @@ status: accepted
 
 This fork moves its CLI, renderers, scripts and tests from Node `.mjs` to typed TypeScript. Bun is the only runtime: it runs the Skill, the CLI, the tests and CI. Node is not supported. The goal is a release that ships as a compiled executable, so users need no JavaScript runtime: `bun build --compile` builds the whole CLI, and scriptc compiles the typed layout core to native code. The owner wants one typed language across the repository, and a fast native release.
 
-The language migration is not done. `packages/geometry/geometry.ts` is the first converted module; the other `.mjs` files run unchanged under Bun until they are converted. The ratchet's remaining count is the progress measure.
+The language migration is done. The CLI, renderers, scripts and tests are all TypeScript, and `bun check` type-checks every one of them. The ratchet's allowlist is empty, so any new `.mjs` file fails hk and CI.
 
 ## Measurements behind the choice
 

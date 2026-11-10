@@ -65,17 +65,17 @@ bun install && bun install --cwd schematics
 | Command | What it checks |
 | --- | --- |
 | `bun run test` | The core smoke: all ten diagram types through the public CLI. |
-| `bun test test/<name>.test.mjs` | Only the selected files. Add `-t '<name pattern>'` to narrow further. |
+| `bun test test/<name>.test.ts` | Only the selected files. Add `-t '<name pattern>'` to narrow further. |
 | `bun run test:generated` | The Viewer template, brand marks, validators and golden example renders match their sources. |
 | `bun run test:all` | Every test file, with a 120-second per-test timeout. Chrome suites skip unless `SCHEMATICS_CHROME` is set. |
 | `bun run test:browser` | The Chrome suites. It fails when no Chrome, Chromium or Edge is found. |
 | `bun check` | TypeScript types. |
-| `bun scripts/check-mjs-ratchet.ts` | No new `.mjs` file. Run it with `--update` after you convert or delete one. |
+| `bun scripts/check-mjs-ratchet.ts` | No `.mjs` file. Every module is TypeScript. |
 
 A skipped browser test is skipped, not passed. To run one browser file:
 
 ```sh
-SCHEMATICS_CHROME="/path/to/chrome" bun run test:browser ./test/desktop-reader-browser.test.mjs
+SCHEMATICS_CHROME="/path/to/chrome" bun run test:browser ./test/desktop-reader-browser.test.ts
 ```
 
 Test through public behavior such as `render`, `validate`, `deliver`, `finalize` or the final SVG/HTML. A behavior fix includes a regression test that fails without the fix.

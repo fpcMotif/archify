@@ -21,7 +21,7 @@ Read this when running independent authors, comparing complete authoring time, o
 
 - Keep raw inputs, source snapshots and runtime identities immutable. For same-input comparisons, use identical JSON; identify any benchmark normalization and the checks it omits. For placement experiments, list allowed position/spacing changes and separately record source-backed semantic corrections.
 - Audit relationship endpoints, directions, conditions, ownership, labels, source facts and completeness. First/final counts alone cannot establish accuracy. Judge proposed moves on the entire graph, including exception and return paths.
-- Match CSS viewport, theme, style, motion, zoom, detail mode and scroll position. Wait for rendering to settle and inspect the actual images. The `shots.mjs` helper supplies a light-theme comparison; add relevant dark/detail states when the affected behavior requires them.
+- Match CSS viewport, theme, style, motion, zoom, detail mode and scroll position. Wait for rendering to settle and inspect the actual images. The `shots.ts` helper supplies a light-theme comparison; add relevant dark/detail states when the affected behavior requires them.
 - Use fixed-viewport top and scrolled captures for first-screen visibility, floating controls and occlusion claims. Full-page captures can change floating-control relationships; corroborate suspected overlap in the live viewport and, when needed, element bounds.
 - Read the diagram as a user: follow conditions to endpoints, distinguish crossings from junctions, read labels and assess overview and balance. Capture failures are missing evidence. Gate success, fewer bends and shorter routes each answer only part of this review.
 

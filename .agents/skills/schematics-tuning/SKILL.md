@@ -29,7 +29,7 @@ Users describe a system and an agent authors the diagram. Optimize that complete
 | Outcome | Accurate, visually acceptable final delivery | Source audit and actual screenshots; separate machine pass from visual acceptance |
 | Outcome | Complete elapsed time, failed repairs and repeated work | Timed trace from task start through reading, first draft, repairs, viewing and delivery |
 | Process | First-draft quality and time to first usable result | Preserve the first attempt, every failure and the last verified usable artifact |
-| Regression | Fixed-input pass/fail and changed output | `replay.mjs`, affected tests and visual comparisons; render pass excludes finalize/browser acceptance |
+| Regression | Fixed-input pass/fail and changed output | `replay.ts`, affected tests and visual comparisons; render pass excludes finalize/browser acceptance |
 | Diagnostic | Bends, crossings, route length, text size and CLI time | Explain an observed benefit or tradeoff; none is a substitute for whole-diagram quality |
 
 Report delivered outcomes and failed/unfinished tasks separately. A failed run ending sooner is not a speed gain. Keep synthetic regressions separate from the frozen first-draft denominator; additions to the corpus form a versioned cohort. Repaired drafts never replace their original benchmark entries.
@@ -40,7 +40,7 @@ Report delivered outcomes and failed/unfinished tasks separately. A failed run e
 - **Resume**: read the journal, available checkpoint and current goal state. Respect pauses and prior product decisions; continue an active round instead of duplicating it. Use the user's chosen diagram types; cover others when shared changes affect them.
 - **Versions**: refresh the target remote revision and record source, base and candidate identities. Use separate durable worktrees or frozen snapshots. Record remote movement without overwriting a comparison baseline or a running author's runtime.
 - **Evidence selection**: follow [Choose evidence by impact](../../../CONTRIBUTING.md#choose-evidence-by-impact). Reuse unchanged evidence with its original revision and scope.
-- **Tools**: Node 22.13 or later and Chrome or Chromium for `shots.mjs` (`SCHEMATICS_CHROME` overrides discovery). The collector accepts Devin CLI history or a [normalized trace export](references/trace-export.md) from another agent. It does not read other agents' private history databases.
+- **Tools**: Bun 1.4 or later and Chrome or Chromium for `shots.ts` (`SCHEMATICS_CHROME` overrides discovery). The collector accepts Devin CLI history or a [normalized trace export](references/trace-export.md) from another agent. It does not read other agents' private history databases.
 
 ## Loop
 
@@ -63,9 +63,9 @@ Run from the repository root; these tools supply evidence for the selected exper
 
 | Need | Command |
 |---|---|
-| Fixed-input comparison | `node .agents/skills/schematics-tuning/scripts/replay.mjs --base <base>/schematics` |
-| Prepare author tasks | `node .agents/skills/schematics-tuning/scripts/round.mjs <project-path> --types <selected-types> --schematics <frozen-runtime>/schematics` |
-| Collect traces and content-change signals | `node .agents/skills/schematics-tuning/scripts/collect.mjs <round> --dump` (add `--trace-export <file.json>` outside Devin) |
-| Initial light-theme image comparison | `node .agents/skills/schematics-tuning/scripts/shots.mjs <replay-dir> --height 900` |
+| Fixed-input comparison | `bun .agents/skills/schematics-tuning/scripts/replay.ts --base <base>/schematics` |
+| Prepare author tasks | `bun .agents/skills/schematics-tuning/scripts/round.ts <project-path> --types <selected-types> --schematics <frozen-runtime>/schematics` |
+| Collect traces and content-change signals | `bun .agents/skills/schematics-tuning/scripts/collect.ts <round> --dump` (add `--trace-export <file.json>` outside Devin) |
+| Initial light-theme image comparison | `bun .agents/skills/schematics-tuning/scripts/shots.ts <replay-dir> --height 900` |
 
 The collector does not establish semantic correctness or complete elapsed time; supplement it with source review and timing records. Preserve failure logs and unknown outcomes. Diagnostics should name the affected element and a verified repair, or explain why no repair was found. Keep authoring guidance concise and reachable in required reads; avoid accumulating advice that has no observed benefit.

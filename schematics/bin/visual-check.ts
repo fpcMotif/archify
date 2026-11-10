@@ -415,6 +415,7 @@ interface CdpResult {
   errorText?: string;
   data?: string;
   identifier?: unknown;
+  product?: string;
   exceptionDetails?: { exception?: { description?: string }; text?: string };
   result?: { value?: unknown };
 }
